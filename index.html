@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#120d0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Crownfall" />
+  <title>Crownfall Auto Battler</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="logo-wrap">
+        <div class="crest">♛</div>
+        <h1 class="game-logo"><span class="logo-main">Crownfall</span><span class="logo-sub">Auto Battler</span></h1>
+        <p class="tagline">Medieval Roguelike Auto-Battler</p>
+      </div>
+      <div class="save-info">
+        <div>Essence: <strong id="essenceTop">0</strong></div>
+        <div>Highest Clear: <strong id="highestClearTop">Stage 0</strong></div>
+      </div>
+    </header>
+
+    <section id="menuScreen" class="screen active">
+      <div class="panel center-card main-menu-panel">
+        <div class="menu-ornament">⚔ ◆ ⚔</div>
+        <h2 class="menu-title">The Crown Has Fallen</h2>
+        <p class="menu-text">Choose a difficulty, select a hero, survive the layered map, defeat bosses, and spend Essence on upgrades between runs.</p>
+        <div class="actions menu-actions">
+          <button onclick="showScreen('difficultyScreen')">Start Run</button>
+          <button onclick="showScreen('charactersScreen')">Characters</button>
+          <button onclick="showScreen('upgradeScreen')">Skill Tree</button>
+          <button onclick="showScreen('statsScreen')">Account Stats</button>
+          <button onclick="showScreen('achievementScreen')">Achievements</button>
+          <button onclick="showSettings('menuScreen')">Settings</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="charactersScreen" class="screen">
+      <div class="panel center-card flow-panel characters-panel">
+        <div class="screen-ornament">&#9819; &#9670; &#9819;</div>
+        <h2 class="screen-title">Characters</h2>
+        <div class="character-tabs">
+          <button id="heroCharacterTab" class="character-tab-active" onclick="setCharacterBrowserTab('heroes')">Heroes</button>
+          <button id="enemyCharacterTab" onclick="setCharacterBrowserTab('enemies')">Enemies</button>
+        </div>
+        <div class="character-browser">
+          <div id="characterList" class="character-list"></div>
+          <div id="characterDetails" class="character-details"></div>
+        </div>
+        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+      </div>
+    </section>
+
+    <section id="achievementScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">&#9819; &#10022; &#9819;</div>
+        <h2 class="screen-title">Achievements</h2>
+        <p class="screen-text">Milestones that add small bonuses to future runs.</p>
+        <div id="achievementGrid" class="achievement-grid"></div>
+        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+      </div>
+    </section>
+
+    <section id="statsScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">&#9670; &#9819; &#9670;</div>
+        <h2 class="screen-title">Account Stats</h2>
+        <p class="screen-text">Your permanent record across runs on this save.</p>
+        <div id="accountStatsGrid" class="account-stats-grid"></div>
+        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+      </div>
+    </section>
+
+    <section id="settingsScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">&#9670; &#9881; &#9670;</div>
+        <h2 class="screen-title">Settings</h2>
+        <div class="settings-list">
+          <label class="setting-row">
+            <span>
+              <strong>Music Volume</strong>
+              <small>Sets music volume for future music tracks.</small>
+            </span>
+            <input id="musicVolumeSetting" type="range" min="0" max="100" />
+          </label>
+          <label class="setting-row">
+            <span>
+              <strong>SFX Volume</strong>
+              <small>Sets combat and menu sound effect volume.</small>
+            </span>
+            <input id="sfxVolumeSetting" type="range" min="0" max="100" />
+          </label>
+          <label class="setting-row">
+            <span>
+              <strong>Battle Speed</strong>
+              <small>Sets the starting speed for auto battles.</small>
+            </span>
+            <select id="battleSpeedSetting">
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="3">3x</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>
+              <strong>Disable Screen Shake</strong>
+              <small>Prevents crit and boss attack shake effects.</small>
+            </span>
+            <input id="disableShakeSetting" type="checkbox" />
+          </label>
+          <label class="setting-row">
+            <span>
+              <strong>Reduce Motion</strong>
+              <small>Limits attack effects and floating combat text.</small>
+            </span>
+            <input id="reduceAnimationsSetting" type="checkbox" />
+          </label>
+          <label class="setting-row">
+            <span>
+              <strong>Damage Numbers</strong>
+              <small>Shows or hides floating damage and status numbers.</small>
+            </span>
+            <input id="damageNumbersSetting" type="checkbox" />
+          </label>
+          <label class="setting-row">
+            <span>
+              <strong>Tooltips</strong>
+              <small>Shows helpful explanations when hovering stats and items.</small>
+            </span>
+            <input id="tooltipsSetting" type="checkbox" />
+          </label>
+          <div class="setting-row">
+            <span>
+              <strong>Fullscreen Toggle</strong>
+              <small>Use fullscreen for a larger battlefield and map.</small>
+            </span>
+            <button onclick="toggleFullscreen()">Toggle</button>
+          </div>
+          <label class="setting-row setting-row-muted">
+            <span>
+              <strong>Sound</strong>
+              <small>Enables button, battle, relic, shop, and boss intro sound effects.</small>
+            </span>
+            <input id="soundSetting" type="checkbox" />
+          </label>
+        </div>
+        <p id="fullscreenHint" class="settings-hint"></p>
+        <div class="actions">
+          <button onclick="saveSettings()">Save Settings</button>
+          <button id="settingsMainMenuButton" onclick="exitRunToMainMenu()">Main Menu</button>
+          <button class="danger-btn" onclick="resetSave()">Reset Save</button>
+          <button onclick="closeSettings()">Back</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="difficultyScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">◆ ⚔ ◆</div>
+        <h2 class="screen-title">Select Difficulty</h2>
+        <p class="screen-text">Choose the danger level for this run. Harder paths empower enemies but return more Essence.</p>
+        <div id="difficultyCards" class="grid-3"></div>
+        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+      </div>
+    </section>
+
+    <section id="classScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">♛ ◆ ♛</div>
+        <h2 class="screen-title">Select Hero</h2>
+        <p class="screen-text">Choose the champion who will carry the run. Each class has distinct stats, combat rhythm, and strengths.</p>
+        <div id="classCards" class="grid-3"></div>
+        <div class="actions"><button onclick="showScreen('difficultyScreen')">Back</button></div>
+      </div>
+    </section>
+
+    <section id="battleScreen" class="screen">
+      <div class="run-header">
+        <div class="stat-box"><small>Route</small><strong id="runDifficulty">-</strong></div>
+        <div class="stat-box"><small>Class</small><strong id="runClass">-</strong></div>
+        <div class="stat-box"><small>Stage</small><strong id="runStage">Layer 1: 1 / 10</strong></div>
+        <div class="stat-box"><small>Gold</small><strong id="runGold">0</strong></div>
+        <div class="stat-box"><small>Essence</small><strong id="runEssence">0</strong></div>
+        <div class="stat-box battle-speed-box"><small>Speed</small><select id="battleSpeedSelect" onchange="changeBattleSpeed(this.value)" aria-label="Battle speed"><option value="1">1x</option><option value="2">2x</option><option value="3">3x</option></select></div>
+        <button class="stat-box run-settings-btn" onclick="showSettings('battleScreen')"><small>Menu</small><strong>Settings</strong></button>
+      </div>
+      <div class="game-layout">
+        <aside class="side-panel side-panel-left">
+          <div class="panel"><h3 class="section-title">Hero</h3><div id="heroStats" class="subtle"></div><div id="activeSkills" class="active-skill-list"></div><div id="heroUpgrades" class="ability-list"></div><div id="heroRelics" class="relic-list"></div><div id="heroTalents" class="talent-list"></div></div>
+          <div class="panel"><h3 class="section-title">Full Stats</h3><div id="heroFullStats" class="full-stat-list"></div></div>
+        </aside>
+        <div class="panel battle-center-panel"><div id="battlefield" class="battlefield"><div class="arena-line"></div></div><div id="specialSkills" class="special-skill-list"></div></div>
+        <aside class="side-panel side-panel-right">
+          <div class="panel enemy-stat-panel"><h3 class="section-title">Enemies</h3><div id="enemyStats" class="enemy-stat-list"></div></div>
+          <div class="panel"><h3 class="section-title">Battle Log</h3><div id="battleLog" class="log"></div></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="rewardScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">✦ ◆ ✦</div>
+        <h2 class="screen-title">Choose a Reward</h2>
+        <p id="rewardSubtitle" class="screen-text">Pick one upgrade for this run.</p>
+        <div id="rewardHeroStats" class="choice-stat-sheet"></div>
+        <div id="rewardCards" class="reward-grid"></div>
+        <div class="actions"><button id="rewardRerollButton" onclick="rerollRewards()">Reroll Rewards</button><button onclick="showSettings('rewardScreen')">Settings</button></div>
+      </div>
+    </section>
+
+    <section id="relicScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">◆ ✦ ◆</div>
+        <h2 class="screen-title">Claim a Relic</h2>
+        <p id="relicSubtitle" class="screen-text">Choose one artifact for this run.</p>
+        <div id="relicHeroStats" class="choice-stat-sheet"></div>
+        <div id="relicCards" class="relic-grid"></div>
+        <div class="actions"><button id="relicRerollButton" onclick="rerollRelics()">Reroll Relics</button><button onclick="showSettings('relicScreen')">Settings</button></div>
+      </div>
+    </section>
+
+    <section id="talentScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">&#9670; &#10022; &#9670;</div>
+        <h2 class="screen-title">Choose a Class Talent</h2>
+        <p id="talentSubtitle" class="screen-text">Strengthen your hero for this run.</p>
+        <div id="talentCards" class="talent-grid"></div>
+        <div class="actions"><button onclick="showSettings('talentScreen')">Settings</button></div>
+      </div>
+    </section>
+
+    <section id="mapScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">◇ ♜ ◇</div>
+        <h2 class="screen-title">Choose Your Path</h2>
+        <p id="mapSubtitle" class="screen-text">Select the next stage route.</p>
+        <div class="roguelike-map-layout">
+          <div class="roguelike-map-panel"><svg id="mapConnections" class="map-connections"></svg><div id="mapBoard" class="roguelike-map-board"></div></div>
+          <div class="panel map-legend"><h3 class="section-title">Legend</h3><div id="mapLegend" class="legend-list"></div></div>
+        </div>
+        <div class="actions"><button onclick="showSettings('mapScreen')">Settings</button></div>
+      </div>
+    </section>
+
+    <section id="shopScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <div class="screen-ornament">$ ◆ $</div>
+        <h2 class="screen-title">Merchant</h2>
+        <p id="shopSubtitle" class="screen-text">Spend run gold on temporary upgrades.</p>
+        <div class="shop-gold">Gold: <strong id="shopGold">0</strong></div>
+        <div id="shopHeroStats" class="choice-stat-sheet"></div>
+        <div id="shopCards" class="shop-grid"></div>
+        <div class="actions"><button id="shopRerollButton" onclick="rerollShop()">Reroll Shop</button><button onclick="leaveShop()">Continue</button><button onclick="showSettings('shopScreen')">Settings</button></div>
+      </div>
+    </section>
+
+    <section id="runEndScreen" class="screen">
+      <div class="panel center-card flow-panel">
+        <h2 id="runEndTitle" class="screen-title">Run Complete</h2>
+        <p id="runEndText" class="screen-text"></p>
+        <div class="actions">
+          <button onclick="showScreen('difficultyScreen')">Start New Run</button>
+          <button onclick="showScreen('upgradeScreen')">Spend Essence</button>
+          <button onclick="showScreen('menuScreen')">Main Menu</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="upgradeScreen" class="screen">
+      <div class="panel center-card flow-panel upgrade-panel">
+        <div class="screen-ornament">♛ ✦ ♛</div>
+        <h2 class="screen-title">Skill Tree</h2>
+        <p class="screen-text">Spend Essence to improve future runs. These upgrades are saved in your browser.</p>
+        <div class="tree-toolbar">
+          <div>Essence: <strong id="treeEssence">0</strong></div>
+          <button onclick="resetTreeView()">Reset View</button>
+        </div>
+        <div class="tree-layout">
+          <div id="treeViewport" class="tree-viewport">
+            <div id="treeCards" class="skill-tree-canvas"></div>
+          </div>
+          <aside id="treeDetails" class="tree-details"></aside>
+        </div>
+        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/combat.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/devtools.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
