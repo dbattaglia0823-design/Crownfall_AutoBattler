@@ -1,0 +1,49 @@
+{
+  "name": "crownfall-auto-battler",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Crownfall Auto Battler as a browser game, PWA, and Electron desktop app.",
+  "author": "Crownfall",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "npm run serve",
+    "serve": "node scripts/serve.js",
+    "dev": "node scripts/serve.js",
+    "start:electron": "node scripts/start-electron.js",
+    "package:dir": "electron-builder --dir",
+    "package:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.crownfall.autobattler",
+    "productName": "Crownfall",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "icon": "assets/icons/icon-512.png",
+    "files": [
+      "index.html",
+      "manifest.webmanifest",
+      "service-worker.js",
+      "css/**/*",
+      "js/**/*",
+      "assets/**/*",
+      "electron/**/*",
+      "README.md",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
