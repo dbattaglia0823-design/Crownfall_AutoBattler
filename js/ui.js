@@ -521,7 +521,7 @@ function grantRunAbility(hero, abilityId) {
   if (!ability) return;
   hero.runAbilities = hero.runAbilities || [];
   if (!hero.runAbilities.includes(abilityId)) hero.runAbilities.push(abilityId);
-  if (battle) battle.abilityCooldowns[abilityId] = ability.cooldown;
+  if (battle) battle.abilityCooldowns[abilityId] = getAbilityOpeningCooldown(ability);
   log(`${ability.name} ability unlocked for this run.`);
 }
 
@@ -777,14 +777,10 @@ function updateRunHud() {
 }
 function renderHeroFullStats(hero) {
   const bossDamage = getPermanentEffectTotal("bossDamage", hero.id) + getAchievementBonusTotal("bossDamage", hero.id) + getRelicEffectTotal("eliteBossDamage");
-  const bossReduction = getPermanentEffectTotal("bossDamageTaken", hero.id) + (hero.runBossDamageTaken || 0);
-  const eliteReduction = getPermanentEffectTotal("eliteBossDamageTaken", hero.id) + getTalentEffectValue("eliteBossDamageTaken");
-  const executeThreshold = Math.max(0.3, getPermanentEffectTotal("executeThreshold", hero.id) || 0, hero.runExecuteThreshold || 0);
+  const executeThreshold = getHeroExecuteThreshold(hero);
   const executeDamage = getPermanentEffectTotal("executeDamage", hero.id) + (hero.runExecuteDamage || 0);
   const rows = [
     ["Boss Damage", formatPercent(bossDamage)],
-    ["Boss DR", formatPercentCap(bossReduction, STAT_CAPS.bossReduction)],
-    ["Elite DR", formatPercent(eliteReduction)],
     ["Block", formatPercentCap(getHeroBlockChance(hero), STAT_CAPS.block)],
     ["Evasion", formatPercentCap(getHeroDodgeChance(hero), STAT_CAPS.dodge)],
     ["Execute", `${formatPercent(executeDamage)} <${formatPercent(executeThreshold)}`],
@@ -795,19 +791,22 @@ function renderHeroFullStats(hero) {
     ["Start Shield", `${Math.round((hero.runStartShield || 0) + getPermanentEffectTotal("battleStartShield", hero.id))}`],
     ["Shield Cap", `${getHeroShieldCap()}`]
   ];
-  if (hero.id === "rogue") rows.push(["Bleed", `${Math.round(getHeroBleedDamage(hero))}/s`]);
+  if (hero.id === "rogue") {
+    rows.push(["Bleed", `${Math.round(getHeroBleedDamage(hero))}/s`]);
+    if ((hero.runAbilities || []).includes("rogue_poison") || hero.runPoisonAbilityDamage) rows.push(["Poison", `${Math.round(getRoguePoisonAbilityDamage(hero))}/s`]);
+  }
   if (hero.id === "wizard") rows.push(["Splash Damage", formatPercent(getHeroSplashDamageMultiplier(hero))]);
   heroFullStats.innerHTML = rows.map(([l, v]) => `<div class="tooltip-item" data-tooltip="${escapeHtml(getTermTooltip(l))}"><span>${l}</span><strong>${v}</strong></div>`).join("");
 }
 function formatPercent(value) { return `${Math.round((value || 0) * 100)}%`; }
 function formatPercentCap(value, cap) { return `${formatPercent(Math.min(value || 0, cap))}/${formatPercent(cap)}`; }
-const STAT_CAPS = { crit: 1, block: 0.85, dodge: 0.45, bossReduction: 0.9, battleDamageBonus: 0.4 };
+const STAT_CAPS = { crit: 1, block: 0.85, dodge: 0.45, battleDamageBonus: 0.4 };
 function getHeroDodgeChance(hero) { return Math.min(STAT_CAPS.dodge, getPermanentEffectTotal("evasion", hero.id) + (hero.runEvasion || 0)); }
 function getHeroBattleAttackSpeedBonusCap(hero) { return getPermanentEffectTotal("killAttackSpeedMax", hero.id) || 0.35; }
-function getHeroSplashDamageMultiplier(hero) { return 0.45 + getPermanentEffectTotal("splashDamageMultiplier", hero.id) + (hero.runSplashDamageMultiplier || 0); }
+function getHeroSplashDamageMultiplier(hero) { return 0.5 + getPermanentEffectTotal("splashDamageMultiplier", hero.id) + (hero.runSplashDamageMultiplier || 0); }
 function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.innerHTML = enemies.length ? enemies.map(e => `<div class="enemy-stat-row"><strong>${escapeHtml(e.name)}</strong><div class="enemy-status">${e.hp > 0 ? "ALIVE" : "DEAD"}</div><div class="enemy-stat-chips"><span>HP ${Math.max(0, Math.ceil(e.hp))}/${Math.ceil(e.maxHp)}</span><span>DMG ${Number(e.damage).toFixed(1)}</span><span>AS ${getEnemyAttackSpeed(e).toFixed(2)}</span><span>ARM ${e.armor}</span></div></div>`).join("") : `<div class="enemy-stat-empty">No active enemies</div>`; }
 function statCell(label, value, tooltip) { return `<div class="tooltip-item" data-tooltip="${escapeHtml(tooltip)}"><small>${label}</small><strong>${value}</strong></div>`; }
-function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", "Boss Damage": "Extra damage dealt to bosses.", "Boss DR": "Damage reduction against bosses.", "Elite DR": "Damage reduction against elite and boss encounters.", Block: "Chance to reduce incoming hit damage.", Dodge: "Chance to avoid enemy attacks.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Shield Cap": "Maximum shield this hero can hold.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Damage per second applied by rogue attacks. One bleed can be active on each enemy.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect."; }
+function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", "Boss Damage": "Extra damage dealt to bosses.", Block: "Chance to reduce incoming hit damage.", Dodge: "Chance to avoid enemy attacks.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Shield Cap": "Maximum shield this hero can hold.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Damage per second applied by rogue attacks. One bleed can be active on each enemy.", Poison: "Damage per second from rogue poison effects.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect."; }
 function renderActiveSkills() { activeSkills.innerHTML = battle ? Object.entries(battle.activeSkills || {}).map(([name, time]) => `<div class="active-skill"><b>*</b><strong>${escapeHtml(name)}</strong><span>${time.toFixed(1)}s</span></div>`).join("") : ""; }
 function renderSpecialSkills() { const ids = run?.hero?.runAbilities || []; specialSkills.innerHTML = ids.length ? `<div class="special-skill-title">Special Skills</div><div class="special-skill-row">${ids.map(id => `<div class="special-skill"><b>${getAbilityIconMarkup(RUN_ABILITIES[id])}</b><strong>${RUN_ABILITIES[id].name}</strong><span>${Math.max(0, battle?.abilityCooldowns?.[id] || 0).toFixed(1)}s</span></div>`).join("")}</div>` : `<div class="special-skill-empty">No special skills unlocked</div>`; }
 function getAbilityIconMarkup(ability) { return `<span class="ability-icon ability-icon-${ability.id}" style="--ability-color:${ability.color}">${ability.icon}</span>`; }

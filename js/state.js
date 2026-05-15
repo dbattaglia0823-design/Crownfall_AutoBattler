@@ -454,9 +454,8 @@ function estimateBossThreat(difficultyId, hero) {
   const layerDamageMult = ((difficulty.layerDamageMultipliers || difficulty.layerEnemyMultipliers) && (difficulty.layerDamageMultipliers || difficulty.layerEnemyMultipliers)[2]) || 1;
   const hp = boss.hp * difficulty.enemyHealth * hpStageMult * layerHealthMult * 1.9;
   const rawDamage = Math.max(1, boss.damage * difficulty.enemyDamage * dmgStageMult * layerDamageMult * 1.4 - hero.armor);
-  const classReduction = getPermanentEffectTotal("bossDamageTaken", hero.id) + getPermanentEffectTotal("eliteBossDamageTaken", hero.id);
   return {
     hp,
-    damagePerSecond: rawDamage * Math.max(0.25, 1 - classReduction) * boss.attackSpeed
+    damagePerSecond: rawDamage * boss.attackSpeed
   };
 }

@@ -1,3 +1,14 @@
+const WIZARD_BASE_SPLASH_CHANCE = 0.25;
+const WIZARD_BASE_SPLASH_DAMAGE = 0.5;
+const WIZARD_BASE_BURN_CHANCE = 0.1;
+const WIZARD_BASE_BURN_DURATION = 3.5;
+const WIZARD_BASE_SLOW_VALUE = 0.2;
+const STATUS_SLOW_VALUE_CAP = 0.55;
+const ROGUE_BASE_EXECUTE_THRESHOLD = 0.32;
+const ROGUE_VENOM_BLADE_STAGE_SCALING = 0.28;
+const ROGUE_TRAP_SLOW_VALUE = 0.28;
+const ROGUE_TRAP_SLOWED_DAMAGE = 0.08;
+
 function startRun(classId) {
   battleLog.innerHTML = "";
   run.classId = classId;
@@ -401,7 +412,7 @@ function heroAttack(hero, enemy) {
   if (hasTalent("rogue_executioner") && enemy.hp / enemy.maxHp < getTalent("rogue_executioner").effect.threshold) {
     damage *= 1 + getTalent("rogue_executioner").effect.value;
   }
-  const executeThreshold = Math.max(0.3, getPermanentEffectTotal("executeThreshold", hero.id) || 0, hero.runExecuteThreshold || 0);
+  const executeThreshold = getHeroExecuteThreshold(hero);
   if (enemy.hp / enemy.maxHp < executeThreshold) {
     const executeDamage = getPermanentEffectTotal("executeDamage", hero.id) + (hero.runExecuteDamage || 0);
     damage *= 1 + executeDamage;
@@ -431,12 +442,11 @@ function heroAttack(hero, enemy) {
     if (bleedApplied && (getPermanentEffectTotal("bleedDamage", hero.id) || bleedAttackSpeed || hero.runBleedDamage || hero.runBleedDamageMultiplier)) triggerSkillVfx(enemy.x, enemy.y, "Bleed", "rogue");
   }
 
-  if (hero.id === "wizard" && Math.random() < 0.18) {
+  if (hero.id === "wizard" && Math.random() < WIZARD_BASE_SPLASH_CHANCE) {
     battle.enemies
       .filter(other => other !== enemy && other.hp > 0)
-      .slice(0, 2 + getPermanentEffectTotal("splashExtraTargets", hero.id) + (hero.runSplashExtraTargets || 0))
       .forEach(other => {
-        const splash = Math.max(1, hero.damage * (0.45 + getPermanentEffectTotal("splashDamageMultiplier", hero.id) + (hero.runSplashDamageMultiplier || 0)) - other.armor);
+        const splash = Math.max(1, hero.damage * getWizardSplashDamageMultiplier(hero) - other.armor);
         damageEnemy(other, splash, "#93c5fd");
         addFloat(other.x, other.y - 35, Math.round(splash), "#93c5fd");
       });
@@ -447,14 +457,18 @@ function heroAttack(hero, enemy) {
   }
 
   if (hasTalent("rogue_venom_blade") && Math.random() < getTalent("rogue_venom_blade").effect.chance) {
-    applyEnemyStatus(enemy, "poison", getTalent("rogue_venom_blade").effect);
+    const venom = getTalent("rogue_venom_blade").effect;
+    applyEnemyStatus(enemy, "poison", {
+      ...venom,
+      damage: getRogueAttackPoisonDamage(hero, venom)
+    });
   }
   if (hasTalent("wizard_frostbite_hex") && Math.random() < getTalent("wizard_frostbite_hex").effect.chance) {
     applyEnemyStatus(enemy, "slow", getTalent("wizard_frostbite_hex").effect);
   }
   const slowChance = getPermanentEffectTotal("slowChance", hero.id) + (hero.runSlowChance || 0);
   if (slowChance && Math.random() < slowChance) {
-    applyEnemyStatus(enemy, "slow", { duration: 3, value: getPermanentEffectTotal("slowValue", hero.id) || 0.2 });
+    applyEnemyStatus(enemy, "slow", { duration: 3.5, value: getWizardAttackSlowValue(hero) });
     triggerSkillVfx(enemy.x, enemy.y, "Frost Hex", "wizard");
   }
   const delayChance = getPermanentEffectTotal("delayChance", hero.id);
@@ -464,12 +478,12 @@ function heroAttack(hero, enemy) {
     log(`${enemy.name}'s next attack was delayed.`, "skill");
     triggerSkillVfx(enemy.x, enemy.y, "Time Thread", "wizard");
   }
-  if (hero.id === "wizard" && Math.random() < (hasTalent("wizard_wildfire_spark") ? 0.25 : 0) + (hero.runBurnChance || 0)) {
-    applyEnemyStatus(enemy, "burn", { damage: 5 + (hero.runBurnDamage || 0), duration: 3 });
+  if (hero.id === "wizard" && Math.random() < getWizardBurnChance(hero)) {
+    applyEnemyStatus(enemy, "burn", { damage: getWizardBurnDamage(hero), duration: WIZARD_BASE_BURN_DURATION });
   }
   if (getPermanentEffectTotal("firstSpellBurnAll", hero.id) && !battle.infernoCrownUsed) {
     battle.infernoCrownUsed = true;
-    battle.enemies.filter(other => other.hp > 0).forEach(other => applyEnemyStatus(other, "burn", { damage: 5 + (hero.runBurnDamage || 0), duration: 3 }));
+    battle.enemies.filter(other => other.hp > 0).forEach(other => applyEnemyStatus(other, "burn", { damage: getWizardBurnDamage(hero), duration: WIZARD_BASE_BURN_DURATION }));
     addFloat(hero.x, hero.y - 65, "Inferno Crown", "#fb923c");
     triggerSkillVfx(hero.x, hero.y, "Inferno Crown", "wizard");
   }
@@ -483,7 +497,7 @@ function heroAttack(hero, enemy) {
 
   if (enemy.statusEffects && enemy.statusEffects.burn) damage *= 1 + getPermanentEffectTotal("burningEnemyDamage", hero.id) + (hero.runBurningEnemyDamage || 0);
   if (enemy.statusEffects && enemy.statusEffects.curse) damage *= 1 + enemy.statusEffects.curse.value;
-  if (enemy.statusEffects && enemy.statusEffects.slow) damage *= 1 + getPermanentEffectTotal("slowedEnemyDamage", hero.id) + (hero.runSlowedEnemyDamage || 0);
+  if (enemy.statusEffects && enemy.statusEffects.slow) damage *= 1 + getPermanentEffectTotal("slowedEnemyDamage", hero.id) + (hero.runSlowedEnemyDamage || 0) + (hero.id === "rogue" ? ROGUE_TRAP_SLOWED_DAMAGE : 0);
   if (battle.activeAbilityEffects && battle.activeAbilityEffects.knight_holy_sword) {
     damage += Math.max(4, hero.damage * 0.32);
     triggerSkillVfx(enemy.x, enemy.y, "Holy", "knight");
@@ -553,11 +567,6 @@ function enemyAttack(enemy, hero) {
     onHeroDodged(enemy, hero);
     return;
   }
-  if ((battle.nodeType === "Elite" || enemy.boss) && hasTalent("knight_royal_guard")) {
-    damage *= 1 - getTalent("knight_royal_guard").effect.value;
-  }
-  if (battle.nodeType === "Elite" || enemy.boss) damage *= 1 - getPermanentEffectTotal("eliteBossDamageTaken", hero.id);
-  if (enemy.boss) damage *= Math.max(0.1, 1 - getPermanentEffectTotal("bossDamageTaken", hero.id) - (hero.runBossDamageTaken || 0));
   if (hasRelic("guardian_seal") && !battle.guardianSealUsed) {
     damage *= 1 - getRelicEffectTotal("firstHitReduction");
     battle.guardianSealUsed = true;
@@ -824,9 +833,13 @@ function triggerSkillVfx(x, y, label, theme) {
 
 function getInitialAbilityCooldowns() {
   return ((run && run.hero && run.hero.runAbilities) || []).reduce((cooldowns, id) => {
-    if (RUN_ABILITIES[id]) cooldowns[id] = RUN_ABILITIES[id].cooldown;
+    if (RUN_ABILITIES[id]) cooldowns[id] = getAbilityOpeningCooldown(RUN_ABILITIES[id]);
     return cooldowns;
   }, {});
+}
+
+function getAbilityOpeningCooldown(ability) {
+  return Math.min(1.25, ability.cooldown * 0.5);
 }
 
 function updateRunAbilities(hero, target, dt) {
@@ -883,7 +896,7 @@ function useRunAbility(ability, hero, target) {
     playSound("swordHit");
     startUnitSpriteAnimation(hero, "attack", 0.24);
     spawnSlashEffect(target, "rogue");
-    applyEnemyStatus(target, "poison", { damage: 8 + run.stage * 0.6 + (hero.runPoisonAbilityDamage || 0), duration: ability.duration });
+    applyEnemyStatus(target, "poison", { damage: getRoguePoisonAbilityDamage(hero), duration: ability.duration });
     spawnAbilityIndicator(target, "poison");
     return;
   }
@@ -891,7 +904,7 @@ function useRunAbility(ability, hero, target) {
   if (ability.id === "rogue_bleed") {
     startUnitSpriteAnimation(hero, "attack", 0.24);
     battle.enemies.filter(enemy => enemy.hp > 0).forEach(enemy => {
-      applyEnemyStatus(enemy, "slow", { duration: ability.duration + (hero.runTrapDuration || 0), value: 0.2 + (hero.runTrapSlow || 0) });
+      applyEnemyStatus(enemy, "slow", { duration: ability.duration + (hero.runTrapDuration || 0), value: ROGUE_TRAP_SLOW_VALUE + (hero.runTrapSlow || 0) });
       spawnAbilityIndicator(enemy, "bleed");
     });
     addFloat(hero.x, hero.y - 72, "TRAP", ability.color);
@@ -1001,7 +1014,7 @@ function applyEnemyStatus(enemy, type, effect) {
   const status = {
     duration,
     damage: (effect.damage || 0) * damageMultiplier,
-    value: effect.value || 0,
+    value: type === "slow" ? Math.min(STATUS_SLOW_VALUE_CAP, effect.value || 0) : effect.value || 0,
     tickTimer: type === "bleed" ? 1 : undefined
   };
   if (type === "bleed" && enemy.statusEffects.bleed) {
@@ -1010,10 +1023,25 @@ function applyEnemyStatus(enemy, type, effect) {
     enemy.statusEffects.bleed.tickTimer = enemy.statusEffects.bleed.tickTimer ?? 1;
     return false;
   }
-  enemy.statusEffects[type] = status;
-  addFloat(enemy.x, enemy.y - 58, getStatusFloatText(type, status), getStatusColor(type));
-  if (["poison", "burn", "bleed", "slow", "curse"].includes(type)) {
-    log(`${enemy.name} suffers ${getStatusFloatText(type, status).toLowerCase()}.`, "skill");
+  if (type === "poison" && enemy.statusEffects.poison) {
+    enemy.statusEffects.poison.damage = Math.max(enemy.statusEffects.poison.damage || 0, status.damage);
+    enemy.statusEffects.poison.duration = Math.max(enemy.statusEffects.poison.duration || 0, status.duration);
+    addFloat(enemy.x, enemy.y - 58, getStatusFloatText(type, enemy.statusEffects.poison), getStatusColor(type));
+  } else if (type === "burn" && enemy.statusEffects.burn) {
+    enemy.statusEffects.burn.damage = Math.max(enemy.statusEffects.burn.damage || 0, status.damage);
+    enemy.statusEffects.burn.duration = Math.max(enemy.statusEffects.burn.duration || 0, status.duration);
+    addFloat(enemy.x, enemy.y - 58, getStatusFloatText(type, enemy.statusEffects.burn), getStatusColor(type));
+  } else if (type === "slow" && enemy.statusEffects.slow) {
+    enemy.statusEffects.slow.value = Math.min(STATUS_SLOW_VALUE_CAP, Math.max(enemy.statusEffects.slow.value || 0, status.value));
+    enemy.statusEffects.slow.duration = Math.max(enemy.statusEffects.slow.duration || 0, status.duration);
+    addFloat(enemy.x, enemy.y - 58, getStatusFloatText(type, enemy.statusEffects.slow), getStatusColor(type));
+    return false;
+  } else {
+    enemy.statusEffects[type] = status;
+    addFloat(enemy.x, enemy.y - 58, getStatusFloatText(type, status), getStatusColor(type));
+    if (["poison", "burn", "bleed", "slow", "curse"].includes(type)) {
+      log(`${enemy.name} suffers ${getStatusFloatText(type, status).toLowerCase()}.`, "skill");
+    }
   }
 
   const wildfireChance = (hasTalent("wizard_wildfire_spark") ? getTalent("wizard_wildfire_spark").effect.chance : 0) + getPermanentEffectTotal("burnSpreadChance", run.classId);
@@ -1044,6 +1072,35 @@ function getStatusFloatText(type, status) {
   if (type === "curse") return `CURSE +${Math.round(status.value * 100)}%`;
   if (type === "slow") return `SLOW ${Math.round(status.value * 100)}%`;
   return type.toUpperCase();
+}
+
+function getWizardSplashDamageMultiplier(hero) {
+  return WIZARD_BASE_SPLASH_DAMAGE + getPermanentEffectTotal("splashDamageMultiplier", hero.id) + (hero.runSplashDamageMultiplier || 0);
+}
+
+function getWizardBurnChance(hero) {
+  const wildfireTalent = getTalent("wizard_wildfire_spark");
+  return Math.min(0.75, WIZARD_BASE_BURN_CHANCE + (hero.runBurnChance || 0) + (wildfireTalent?.effect.igniteChance || 0));
+}
+
+function getWizardBurnDamage(hero) {
+  return 4 + run.stage * 0.45 + (hero.runBurnDamage || 0);
+}
+
+function getWizardAttackSlowValue(hero) {
+  return Math.min(STATUS_SLOW_VALUE_CAP, WIZARD_BASE_SLOW_VALUE + getPermanentEffectTotal("slowValue", hero.id) + (hero.runSlowValue || 0));
+}
+
+function getHeroExecuteThreshold(hero) {
+  return Math.max(hero.id === "rogue" ? ROGUE_BASE_EXECUTE_THRESHOLD : 0.3, getPermanentEffectTotal("executeThreshold", hero.id) || 0, hero.runExecuteThreshold || 0);
+}
+
+function getRogueAttackPoisonDamage(hero, effect = {}) {
+  return (effect.damage || 0) + run.stage * ROGUE_VENOM_BLADE_STAGE_SCALING + (hero.runPoisonAttackDamage || 0);
+}
+
+function getRoguePoisonAbilityDamage(hero) {
+  return 9 + run.stage * 0.75 + (hero.runPoisonAbilityDamage || 0);
 }
 
 function onHeroDodged(enemy, hero) {

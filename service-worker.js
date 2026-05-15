@@ -1,4 +1,4 @@
-const CACHE_VERSION = "crownfall-v2";
+const CACHE_VERSION = "crownfall-v3";
 const CORE_ASSETS = [
   "./",
   "./index.html",
