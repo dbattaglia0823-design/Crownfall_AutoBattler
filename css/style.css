@@ -92,7 +92,14 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 
 .topbar::before { content: ""; position: absolute; left: 18px; right: 18px; top: 10px; height: 2px; background: linear-gradient(90deg, transparent, rgba(255,226,162,.55), transparent); }
 .logo-wrap { text-align: center; }
-.crest { font-size: 20px; color: var(--gold2); margin-bottom: 2px; text-shadow: 0 2px 0 #3f250f, 0 0 18px rgba(255,220,130,.18); }
+.game-icon {
+  display: block;
+  width: clamp(46px, 7vw, 74px);
+  height: clamp(46px, 7vw, 74px);
+  object-fit: contain;
+  margin: 0 auto 4px;
+  filter: drop-shadow(0 4px 0 #3f250f) drop-shadow(0 0 18px rgba(255,220,130,.18));
+}
 .game-logo { display: flex; flex-direction: column; align-items: center; line-height: 1; }
 .logo-main { font-size: clamp(28px, 4.2vw, 44px); font-weight: 900; letter-spacing: 1px; color: #f8e7bb; text-transform: uppercase; text-shadow: 0 2px 0 #6b4a22, 0 3px 0 #4a3014, 0 5px 10px rgba(0,0,0,.34); }
 .logo-sub { margin-top: 3px; font-size: clamp(11px, 1.5vw, 15px); letter-spacing: 4px; text-transform: uppercase; color: #d8b36a; text-shadow: 0 2px 0 #3c2410; }
@@ -186,7 +193,9 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .account-stat { padding: 14px; border: 1px solid rgba(255,226,162,.2); border-radius: 14px; background: rgba(18,13,10,.36); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
 .account-stat small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .5px; }
 .account-stat strong { color: var(--gold2); font-size: 23px; }
-.achievement-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; position: relative; z-index: 2; text-align: left; }
+.achievements-panel { max-width: none; }
+.achievement-top-actions { margin-top: 0; margin-bottom: 12px; }
+.achievement-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; position: relative; z-index: 2; text-align: left; }
 .achievement-summary { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px; border: 1px solid rgba(255,226,162,.22); border-radius: 14px; background: rgba(18,13,10,.34); color: var(--muted); }
 .achievement-summary strong { color: var(--gold2); font-size: 24px; }
 .achievement-card { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; align-items: start; min-height: 128px; padding: 14px; border: 1px solid rgba(255,226,162,.16); border-radius: 14px; background: rgba(18,13,10,.34); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
@@ -265,6 +274,7 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .difficulty-easy { border-color: rgba(101,167,101,.85); }
 .difficulty-medium { border-color: rgba(214,168,79,.85); }
 .difficulty-hard { border-color: rgba(185,75,66,.9); }
+.difficulty-endless { border-color: #050505; box-shadow: inset 0 0 0 1px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.05); }
 .hero-card { text-align: center; }
 .hero-card ul { text-align: left; }
 .hero-card li { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
@@ -309,8 +319,8 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .game-layout { display: grid; grid-template-columns: minmax(235px, .58fr) minmax(520px, 1.35fr) minmax(260px, .62fr); gap: 12px; align-items: start; }
 .battle-center-panel { min-width: 0; }
 .side-panel { display: grid; grid-template-columns: 1fr; gap: 10px; min-width: 0; }
-.side-panel-right { height: 100%; align-self: stretch; grid-template-rows: auto minmax(0, 1fr); }
-.side-panel-right > .panel:last-child { min-height: 0; display: flex; flex-direction: column; }
+.side-panel-right { height: 100%; align-self: stretch; grid-template-rows: auto minmax(300px, 1fr); }
+.side-panel-right > .panel:last-child { min-height: clamp(300px, 42vh, 520px); display: flex; flex-direction: column; }
 .side-panel > .panel { min-width: 0; }
 .side-panel .section-title { font-size: clamp(19px, 1.45vw, 23px); }
 
@@ -369,18 +379,21 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .battle-projectile-iceball { width: 28px; height: 28px; border-radius: 999px; background: radial-gradient(circle at 35% 30%, #eff6ff 0 16%, #bfdbfe 34%, #38bdf8 64%, rgba(14,116,144,.1) 100%); box-shadow: 0 0 16px #bae6fd, 0 0 30px rgba(56,189,248,.5); }
 .battle-projectile-iceball::after { content: ""; position: absolute; right: 13px; top: 8px; width: 48px; height: 10px; border-radius: 999px; background: linear-gradient(90deg, rgba(56,189,248,0), rgba(186,230,253,.8)); filter: blur(1px); }
 .battle-impact { position: absolute; pointer-events: none; z-index: 7; transform: translate(-50%, -50%) scale(var(--impact-scale)); }
-.battle-impact-shield { width: 58px; height: 58px; border: 4px solid rgba(186,230,253,.9); border-left-color: transparent; border-radius: 50%; box-shadow: 0 0 18px rgba(186,230,253,.58), inset 0 0 14px rgba(186,230,253,.18); }
+.battle-impact-shield { width: 58px; height: 58px; border: 4px solid rgba(186,230,253,.9); border-left-color: transparent; border-radius: 50%; box-shadow: 0 0 18px rgba(186,230,253,.58), inset 0 0 14px rgba(186,230,253,.18); animation: shieldImpact .38s ease-out forwards; }
 .battle-impact-shield::before { content: ""; position: absolute; inset: 12px; border: 2px solid rgba(255,255,255,.7); border-radius: 6px; transform: rotate(45deg); }
 .ability-vfx { position: absolute; pointer-events: none; z-index: 7; transform: translate(-50%, -50%) scale(var(--ability-scale)); width: 70px; height: 70px; border-radius: 999px; border: 3px solid rgba(255,255,255,.65); box-shadow: 0 0 18px rgba(255,255,255,.25), inset 0 0 20px rgba(255,255,255,.12); animation: abilityPop .42s ease-out forwards; }
 .ability-vfx-curse { border-color: rgba(192,132,252,.9); background: radial-gradient(circle, rgba(88,28,135,.36), transparent 66%); box-shadow: 0 0 22px rgba(192,132,252,.48); }
 .ability-vfx-poison { border-color: rgba(134,239,172,.9); background: radial-gradient(circle, rgba(22,101,52,.34), transparent 66%); box-shadow: 0 0 20px rgba(134,239,172,.45); }
 .ability-vfx-bleed { border-color: rgba(252,165,165,.9); background: radial-gradient(circle, rgba(127,29,29,.34), transparent 66%); box-shadow: 0 0 20px rgba(252,165,165,.45); }
 .ability-vfx-burn { border-color: rgba(251,146,60,.92); background: radial-gradient(circle, rgba(154,52,18,.38), transparent 66%); box-shadow: 0 0 22px rgba(251,146,60,.5); }
+.ability-vfx-magic { border-color: rgba(196,181,253,.92); background: radial-gradient(circle, rgba(124,58,237,.36), transparent 66%); box-shadow: 0 0 22px rgba(196,181,253,.5); }
+.ability-vfx-iceball { border-color: rgba(186,230,253,.95); background: radial-gradient(circle, rgba(14,116,144,.36), transparent 66%); box-shadow: 0 0 22px rgba(186,230,253,.5); }
 .ability-vfx-lightning { width: 84px; height: 84px; border-radius: 18px; border-color: rgba(253,230,138,.95); background: linear-gradient(135deg, transparent 38%, rgba(253,230,138,.95) 41% 49%, transparent 52%), radial-gradient(circle, rgba(250,204,21,.22), transparent 62%); box-shadow: 0 0 24px rgba(253,230,138,.58); animation: lightningBurst .38s steps(2, end) forwards; }
 .ability-vfx-holy-sword { border-color: rgba(253,230,138,.95); background: linear-gradient(90deg, transparent 45%, rgba(253,230,138,.85) 48% 52%, transparent 55%), radial-gradient(circle, rgba(250,204,21,.2), transparent 68%); box-shadow: 0 0 24px rgba(253,230,138,.5); }
 .ability-vfx-holy-shield { width: 96px; height: 96px; border-color: rgba(250,204,21,.7); background: radial-gradient(circle, rgba(250,204,21,.18), rgba(250,204,21,.08) 42%, transparent 70%); box-shadow: 0 0 28px rgba(250,204,21,.38), inset 0 0 24px rgba(250,204,21,.2); }
 .ability-vfx-holy-shield::before { content: ""; position: absolute; inset: 20px; border: 3px solid rgba(254,240,138,.82); border-radius: 8px 8px 18px 18px; clip-path: polygon(50% 0, 100% 18%, 86% 78%, 50% 100%, 14% 78%, 0 18%); }
 @keyframes abilityPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.45); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); } }
+@keyframes shieldImpact { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--impact-scale) * .55)) rotate(-22deg); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--impact-scale) * 1.28)) rotate(32deg); } }
 @keyframes lightningBurst { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.55) rotate(-8deg); filter: brightness(1.8); } 35% { opacity: 1; transform: translate(-50%, -50%) scale(1.12) rotate(4deg); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.45) rotate(10deg); filter: brightness(1); } }
 .skill-vfx { position: absolute; z-index: 7; width: 92px; height: 92px; transform: translate(-50%, -50%); pointer-events: none; display: grid; place-items: center; border: 2px solid color-mix(in srgb, var(--skill-color), transparent 28%); border-radius: 999px; color: var(--skill-color); background: radial-gradient(circle, color-mix(in srgb, var(--skill-color), transparent 72%), transparent 64%); box-shadow: 0 0 22px color-mix(in srgb, var(--skill-color), transparent 58%); animation: skillVfxPulse .85s ease-out forwards; }
 .skill-vfx::before, .skill-vfx::after { content: ""; position: absolute; inset: 12px; border: 2px solid currentColor; border-left-color: transparent; border-bottom-color: transparent; border-radius: 50%; opacity: .7; }
@@ -432,7 +445,7 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 body.disable-shake .screen-shake-light, body.disable-shake .screen-shake-heavy { animation: none; }
 @keyframes screenShakeLight { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(3px, -1px); } 55% { transform: translate(-3px, 1px); } 80% { transform: translate(2px, 1px); } }
 @keyframes screenShakeHeavy { 0%, 100% { transform: translate(0, 0); } 18% { transform: translate(5px, -2px); } 40% { transform: translate(-5px, 2px); } 62% { transform: translate(4px, 1px); } 82% { transform: translate(-2px, -1px); } }
-.log { flex: 1 1 0; min-height: 0; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; background: linear-gradient(180deg, rgba(47,35,25,.58), rgba(24,17,12,.7)); border: 1px solid rgba(111,84,55,.86); border-radius: 10px; padding: 9px; color: #d9c8a5; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.log { flex: 1 1 0; min-height: 260px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; background: linear-gradient(180deg, rgba(47,35,25,.58), rgba(24,17,12,.7)); border: 1px solid rgba(111,84,55,.86); border-radius: 10px; padding: 9px; color: #d9c8a5; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
 .log-line { flex: 0 0 auto; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: center; min-height: 32px; padding: 6px 8px; border: 1px solid rgba(111,84,55,.58); border-radius: 8px; background: rgba(47,35,25,.52); animation: logLineIn .18s ease-out; }
 .log-line span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,226,162,.1); color: var(--gold2); font-size: 12px; font-weight: 900; }
 .log-line p { min-width: 0; margin: 0; color: #e7d6b5; font-size: 12px; line-height: 1.25; }
@@ -597,7 +610,7 @@ body.hide-tooltips .tooltip-item::after { display: none; }
 .skill-tree-star { fill: rgba(255,226,162,.38); filter: url(#treeSoftGlow); }
 .skill-tree-star-1 { fill: rgba(159,197,218,.34); }
 .skill-tree-star-2 { fill: rgba(173,139,255,.34); }
-.skill-tree-line { stroke: rgba(128,106,78,.5); stroke-width: 5; stroke-linecap: round; }
+.skill-tree-line { fill: none; stroke: rgba(128,106,78,.5); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
 .skill-tree-line-available { stroke: rgba(214,168,79,.64); }
 .skill-tree-line-complete { stroke: rgba(255,226,162,.9); filter: drop-shadow(0 0 5px rgba(255,226,162,.22)); }
 .skill-node { position: absolute; width: 62px; height: 62px; padding: 0; transform: translate(-50%, -50%); border-radius: 999px; display: grid; place-items: center; color: #f8e7bb; background: radial-gradient(circle at 35% 26%, rgba(255,255,255,.18), transparent 28%), linear-gradient(180deg, #4b3523, #21150f); border: 3px solid #705334; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 6px 0 rgba(0,0,0,.24), 0 0 0 5px rgba(0,0,0,.12); font-family: Georgia, "Times New Roman", serif; }
@@ -639,7 +652,7 @@ body.hide-tooltips .tooltip-item::after { display: none; }
 .upgrade-panel > .actions { position: absolute; left: 16px; bottom: 16px; z-index: 6; margin: 0; }
 
 @media (max-width: 1250px) { .game-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .battle-center-panel { grid-column: 1 / -1; grid-row: 1; } .side-panel-left { grid-column: 1; grid-row: 2; } .side-panel-right { grid-column: 2; grid-row: 2; } .side-panel { grid-template-columns: 1fr; } }
-@media (max-width: 900px) { .game-layout { grid-template-columns: 1fr; } .battle-center-panel, .side-panel-left, .side-panel-right { grid-column: auto; grid-row: auto; } .choice-stat-sheet { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .game-layout { grid-template-columns: 1fr; } .battle-center-panel, .side-panel-left, .side-panel-right { grid-column: 1; } .battle-center-panel { grid-row: 1; } .side-panel-left { grid-row: 2; } .side-panel-right { grid-row: 3; } .choice-stat-sheet { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .tree-details { top: auto; bottom: 16px; right: 16px; max-height: 44vh; } }
 @media (max-width: 900px) { .grid-3, .reward-grid, .shop-grid, .relic-grid, .talent-grid, .account-stats-grid, .achievement-grid, .roguelike-map-layout, .character-browser, .skin-picker { grid-template-columns: 1fr; } .character-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .run-header { grid-template-columns: repeat(3, minmax(0, 1fr)); } .map-legend { order: -1; } }
 @media (max-width: 760px) { .tree-toolbar { align-items: stretch; flex-direction: column; } .tree-toolbar button { width: 100%; } }

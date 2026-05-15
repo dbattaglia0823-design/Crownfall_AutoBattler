@@ -11,6 +11,7 @@ function createWindow() {
     minHeight: 620,
     title: "Crownfall Auto Battler",
     backgroundColor: "#120d0a",
+    icon: path.join(__dirname, "..", "assets", "icons", "Crownfall.png"),
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,

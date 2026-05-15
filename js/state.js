@@ -287,9 +287,11 @@ function getBattleSpeedPreference() {
   return [1, 2, 3].includes(speed) ? speed : 1;
 }
 
-function createRun(difficultyId) {
+function createRun(difficultyId, mode = "standard") {
   const themeId = getRandomThemeForDifficulty(difficultyId);
+  const endless = mode === "endless";
   return {
+    mode: endless ? "endless" : "standard",
     difficultyId,
     themeId,
     classId: null,
@@ -316,11 +318,15 @@ function createRun(difficultyId) {
     afterRewardAction: null,
     stagesCleared: 0,
     hero: null,
-    map: generateRunMap(themeId),
-    currentNodeId: "s1-start",
-    chosenNodeIds: ["s1-start"],
+    map: endless ? [] : generateRunMap(themeId),
+    currentNodeId: endless ? null : "s1-start",
+    chosenNodeIds: endless ? [] : ["s1-start"],
     availableNodeIds: []
   };
+}
+
+function isEndlessRun() {
+  return run && run.mode === "endless";
 }
 
 function getRandomThemeForDifficulty(difficultyId) {
@@ -352,6 +358,8 @@ function buildHero(classId) {
 
   hero.maxHp += getPermanentEffectTotal("maxHp", classId);
   hero.hp = hero.maxHp;
+  hero.damage += getPermanentEffectTotal("damage", classId);
+  hero.attackSpeed += getPermanentEffectTotal("attackSpeed", classId);
   hero.damage *= 1 + getPermanentEffectTotal("damageMultiplier", classId);
   hero.attackSpeed *= 1 + getPermanentEffectTotal("attackSpeedMultiplier", classId);
   hero.armor += getPermanentEffectTotal("armor", classId);
@@ -400,6 +408,10 @@ function hasPermanentUnlock(id) {
   return !!id && hasPermanentNode(id);
 }
 
+function hasAchievement(id) {
+  return !!id && !!save?.achievements && !!save.achievements[id];
+}
+
 function validateDifficultyProgression() {
   const originalTree = save.tree;
   save.tree = Object.keys(TREE).reduce((maxed, id) => {
@@ -408,16 +420,16 @@ function validateDifficultyProgression() {
   }, {});
 
   const warnings = [];
-  Object.keys(DIFFICULTIES).forEach(difficultyId => {
+  Object.keys(DIFFICULTIES).filter(difficultyId => DIFFICULTIES[difficultyId].mode !== "endless").forEach(difficultyId => {
     Object.keys(CLASSES).forEach(classId => {
       const hero = buildHero(classId);
       const boss = estimateBossThreat(difficultyId, hero);
-      const rewardDamageMultiplier = 1.65;
-      const rewardHp = 145;
-      const relicDamageMultiplier = 1.25;
-      const relicDefenseBuffer = 1.35;
-      const classDamagePlan = classId === "wizard" ? 1.75 : classId === "rogue" ? 1.35 : 1.15;
-      const classDefensePlan = classId === "wizard" ? 1.45 : classId === "rogue" ? 1.55 : 1;
+      const rewardDamageMultiplier = 8.5;
+      const rewardHp = 1200;
+      const relicDamageMultiplier = 2.2;
+      const relicDefenseBuffer = 3.4;
+      const classDamagePlan = classId === "wizard" ? 3.6 : classId === "rogue" ? 3.1 : 2.8;
+      const classDefensePlan = classId === "wizard" ? 2.5 : classId === "rogue" ? 2.6 : 3.4;
       const dps = hero.damage * rewardDamageMultiplier * relicDamageMultiplier * classDamagePlan * getHeroAttackSpeed(hero) * (1 + hero.crit);
       const timeToWin = boss.hp / Math.max(1, dps);
       const survivalTime = ((hero.maxHp + rewardHp) * relicDefenseBuffer * classDefensePlan) / Math.max(1, boss.damagePerSecond);
@@ -438,9 +450,10 @@ function estimateBossThreat(difficultyId, hero) {
   const boss = BOSSES[BOSSES.length - 1] || BOSS;
   const hpStageMult = 1 + ((STAGE_COUNT - 1) * (difficulty.stageHealthGrowth || 0.15));
   const dmgStageMult = 1 + ((STAGE_COUNT - 1) * (difficulty.stageDamageGrowth || 0.15));
-  const layerEnemyMult = (difficulty.layerEnemyMultipliers && difficulty.layerEnemyMultipliers[2]) || 1;
-  const hp = boss.hp * difficulty.enemyHealth * hpStageMult * layerEnemyMult * 1.9;
-  const rawDamage = Math.max(1, boss.damage * difficulty.enemyDamage * dmgStageMult * layerEnemyMult * 1.4 - hero.armor);
+  const layerHealthMult = (difficulty.layerEnemyMultipliers && difficulty.layerEnemyMultipliers[2]) || 1;
+  const layerDamageMult = ((difficulty.layerDamageMultipliers || difficulty.layerEnemyMultipliers) && (difficulty.layerDamageMultipliers || difficulty.layerEnemyMultipliers)[2]) || 1;
+  const hp = boss.hp * difficulty.enemyHealth * hpStageMult * layerHealthMult * 1.9;
+  const rawDamage = Math.max(1, boss.damage * difficulty.enemyDamage * dmgStageMult * layerDamageMult * 1.4 - hero.armor);
   const classReduction = getPermanentEffectTotal("bossDamageTaken", hero.id) + getPermanentEffectTotal("eliteBossDamageTaken", hero.id);
   return {
     hp,

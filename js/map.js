@@ -77,6 +77,7 @@ function getThemeEventNodes(themeId) {
 }
 
 function showMap() {
+  if (isEndlessRun()) return beginNextEndlessStage();
   run.availableNodeIds = getCurrentNode().connectsTo;
   showScreen("mapScreen");
   const nextStage = run.stage + 1;

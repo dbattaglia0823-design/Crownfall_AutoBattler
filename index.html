@@ -9,14 +9,15 @@
   <meta name="apple-mobile-web-app-title" content="Crownfall" />
   <title>Crownfall Auto Battler</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="icon" type="image/png" href="assets/icons/Crownfall.png" />
+  <link rel="apple-touch-icon" href="assets/icons/Crownfall.png" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div class="logo-wrap">
-        <div class="crest">♛</div>
+        <img class="game-icon" src="assets/icons/Crownfall.png" alt="" aria-hidden="true" />
         <h1 class="game-logo"><span class="logo-main">Crownfall</span><span class="logo-sub">Auto Battler</span></h1>
         <p class="tagline">Medieval Roguelike Auto-Battler</p>
       </div>
@@ -30,9 +31,9 @@
       <div class="panel center-card main-menu-panel">
         <div class="menu-ornament">⚔ ◆ ⚔</div>
         <h2 class="menu-title">The Crown Has Fallen</h2>
-        <p class="menu-text">Choose a difficulty, select a hero, survive the layered map, defeat bosses, and spend Essence on upgrades between runs.</p>
+        <p class="menu-text">Choose a difficulty, select a hero, survive the layered map or push an endless duel, and spend Essence on upgrades between runs.</p>
         <div class="actions menu-actions">
-          <button onclick="showScreen('difficultyScreen')">Start Run</button>
+          <button onclick="startRunFlow()">Start Run</button>
           <button onclick="showScreen('charactersScreen')">Characters</button>
           <button onclick="showScreen('upgradeScreen')">Skill Tree</button>
           <button onclick="showScreen('statsScreen')">Account Stats</button>
@@ -59,10 +60,11 @@
     </section>
 
     <section id="achievementScreen" class="screen">
-      <div class="panel center-card flow-panel">
+      <div class="panel center-card flow-panel achievements-panel">
         <div class="screen-ornament">&#9819; &#10022; &#9819;</div>
         <h2 class="screen-title">Achievements</h2>
         <p class="screen-text">Milestones that add small bonuses to future runs.</p>
+        <div class="actions achievement-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div id="achievementGrid" class="achievement-grid"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
@@ -164,8 +166,8 @@
     <section id="difficultyScreen" class="screen">
       <div class="panel center-card flow-panel">
         <div class="screen-ornament">◆ ⚔ ◆</div>
-        <h2 class="screen-title">Select Difficulty</h2>
-        <p class="screen-text">Choose the danger level for this run. Harder paths empower enemies but return more Essence.</p>
+        <h2 id="difficultyTitle" class="screen-title">Select Difficulty</h2>
+        <p id="difficultyText" class="screen-text">Choose the danger level for this run. Harder paths empower enemies but return more Essence.</p>
         <div id="difficultyCards" class="grid-3"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
@@ -174,8 +176,8 @@
     <section id="classScreen" class="screen">
       <div class="panel center-card flow-panel">
         <div class="screen-ornament">♛ ◆ ♛</div>
-        <h2 class="screen-title">Select Hero</h2>
-        <p class="screen-text">Choose the champion who will carry the run. Each class has distinct stats, combat rhythm, and strengths.</p>
+        <h2 id="classTitle" class="screen-title">Select Hero</h2>
+        <p id="classText" class="screen-text">Choose the champion who will carry the run. Each class has distinct stats, combat rhythm, and strengths.</p>
         <div id="classCards" class="grid-3"></div>
         <div class="actions"><button onclick="showScreen('difficultyScreen')">Back</button></div>
       </div>
@@ -194,7 +196,7 @@
       <div class="game-layout">
         <aside class="side-panel side-panel-left">
           <div class="panel"><h3 class="section-title">Hero</h3><div id="heroStats" class="subtle"></div><div id="activeSkills" class="active-skill-list"></div><div id="heroUpgrades" class="ability-list"></div><div id="heroRelics" class="relic-list"></div><div id="heroTalents" class="talent-list"></div></div>
-          <div class="panel"><h3 class="section-title">Full Stats</h3><div id="heroFullStats" class="full-stat-list"></div></div>
+          <div class="panel"><h3 class="section-title">Extra Stats</h3><div id="heroFullStats" class="full-stat-list"></div></div>
         </aside>
         <div class="panel battle-center-panel"><div id="battlefield" class="battlefield"><div class="arena-line"></div></div><div id="specialSkills" class="special-skill-list"></div></div>
         <aside class="side-panel side-panel-right">

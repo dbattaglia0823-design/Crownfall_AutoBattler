@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const essenceTop = $("essenceTop"), highestClearTop = $("highestClearTop"), accountStatsGrid = $("accountStatsGrid"), achievementGrid = $("achievementGrid");
 const characterList = $("characterList"), characterDetails = $("characterDetails"), heroCharacterTab = $("heroCharacterTab"), enemyCharacterTab = $("enemyCharacterTab");
+const difficultyTitle = $("difficultyTitle"), difficultyText = $("difficultyText"), classTitle = $("classTitle"), classText = $("classText");
 const difficultyCards = $("difficultyCards"), classCards = $("classCards"), battleScreen = $("battleScreen"), runDifficulty = $("runDifficulty"), runClass = $("runClass"), runStage = $("runStage"), runGold = $("runGold"), runEssence = $("runEssence"), battleSpeedSelect = $("battleSpeedSelect");
 const battlefield = $("battlefield"), heroStats = $("heroStats"), heroFullStats = $("heroFullStats"), enemyStats = $("enemyStats"), activeSkills = $("activeSkills"), specialSkills = $("specialSkills"), heroUpgrades = $("heroUpgrades"), heroRelics = $("heroRelics"), heroTalents = $("heroTalents"), battleLog = $("battleLog");
 const rewardSubtitle = $("rewardSubtitle"), rewardHeroStats = $("rewardHeroStats"), rewardCards = $("rewardCards"), rewardRerollButton = $("rewardRerollButton"), relicSubtitle = $("relicSubtitle"), relicHeroStats = $("relicHeroStats"), relicCards = $("relicCards"), relicRerollButton = $("relicRerollButton");
@@ -321,7 +322,7 @@ function renderAchievements() {
 }
 
 function formatAchievementBonus(bonus = {}) {
-  return Object.entries(bonus).map(([key, value]) => key === "skin" ? `Unlocks ${value}` : `${Math.abs(value) < 1 ? `+${Math.round(value * 100)}%` : `+${value}`} ${key}`).join(", ");
+  return Object.entries(bonus).map(([key, value]) => (key === "skin" || key === "unlock") ? `Unlocks ${value}` : `${Math.abs(value) < 1 ? `+${Math.round(value * 100)}%` : `+${value}`} ${key}`).join(", ");
 }
 
 function showAchievementPopup(achievement) {
@@ -341,23 +342,41 @@ function showSanctuaryGainPopup(amount) {
   setTimeout(() => popup.remove(), 1100);
 }
 
+function startRunFlow() {
+  renderDifficulties();
+  showScreen("difficultyScreen");
+}
+
 function renderDifficulties() {
+  difficultyTitle.textContent = "Select Difficulty";
+  difficultyText.textContent = "Choose a route or enter Endless Mode. Harder paths return more Essence.";
   difficultyCards.innerHTML = Object.entries(DIFFICULTIES).map(([id, difficulty]) => {
-    const locked = difficulty.requiresNode && !hasPermanentUnlock(difficulty.requiresNode);
-    const icon = id === "easy" ? "&#9827;" : id === "medium" ? "&#9876;" : "&#9819;";
-    return `<div class="card choice-card difficulty-card difficulty-${id}${locked ? " choice-card-locked" : ""}" data-difficulty="${id}"><div class="choice-icon">${icon}</div><h3>${difficulty.name}</h3><p>${difficulty.description}</p><p class="subtle">Biome randomly chosen from: ${difficulty.themeIds.map(themeId => BIOME_THEMES[themeId].name).join(", ")}</p><button ${locked ? "disabled" : ""}>${locked ? "Locked" : `Select ${difficulty.name}`}</button></div>`;
+    const locked = isDifficultyLocked(difficulty);
+    const endless = difficulty.mode === "endless";
+    const icon = endless ? "&#9760;" : id === "easy" ? "&#9827;" : id === "medium" ? "&#9876;" : "&#9819;";
+    const modeText = locked && difficulty.requiresAchievement ? "Locked: defeat The Eternal Crown to unlock." : endless ? "Exponential scaling. Same upgrades and relics, then straight into the next fight." : `Biome randomly chosen from: ${difficulty.themeIds.map(themeId => BIOME_THEMES[themeId].name).join(", ")}`;
+    return `<div class="card choice-card difficulty-card difficulty-${id}${locked ? " choice-card-locked" : ""}" data-difficulty="${id}"><div class="choice-icon">${icon}</div><h3>${difficulty.name}</h3><p>${difficulty.description}</p><p class="subtle">${modeText}</p><button ${locked ? "disabled" : ""}>${locked ? "Locked" : `Select ${difficulty.name}`}</button></div>`;
   }).join("");
   difficultyCards.querySelectorAll("[data-difficulty]").forEach(card => {
     card.querySelector("button").onclick = () => {
       const id = card.dataset.difficulty;
-      if (DIFFICULTIES[id].requiresNode && !hasPermanentUnlock(DIFFICULTIES[id].requiresNode)) return;
-      run = createRun(id); applyRunTheme(); showScreen("classScreen");
+      if (isDifficultyLocked(DIFFICULTIES[id])) return;
+      run = createRun(id, DIFFICULTIES[id].mode || "standard"); applyRunTheme(); renderClasses(); showScreen("classScreen");
     };
   });
 }
 
+function isDifficultyLocked(difficulty) {
+  return !!((difficulty.requiresNode && !hasPermanentUnlock(difficulty.requiresNode)) || (difficulty.requiresAchievement && !hasAchievement(difficulty.requiresAchievement)));
+}
+
 function renderClasses() {
-  classCards.innerHTML = Object.entries(CLASSES).map(([id, heroClass]) => `<div class="card choice-card hero-card" data-class="${id}"><div class="hero-preview player ${getHeroSkinClass(id)} sprite-sheet-unit"><div class="sprite" style="background-image:url('${SPRITE_SHEETS.heroes[id]}');background-size:600% 100%;background-position:0% center;"></div></div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><ul>${heroClass.traits.map(trait => `<li>${getTraitIconMarkup(trait)}<span>${trait}</span></li>`).join("")}</ul><button>Begin as ${heroClass.name}</button></div>`).join("");
+  const endless = run?.mode === "endless";
+  classTitle.textContent = endless ? "Select Endless Hero" : "Select Hero";
+  classText.textContent = endless
+    ? "Choose the champion for the endless 1v1 gauntlet. Upgrades, relics, and class talents still appear between fights."
+    : "Choose the champion who will carry the run. Each class has distinct stats, combat rhythm, and strengths.";
+  classCards.innerHTML = Object.entries(CLASSES).map(([id, heroClass]) => `<div class="card choice-card hero-card" data-class="${id}"><div class="hero-preview player ${getHeroSkinClass(id)} sprite-sheet-unit"><div class="sprite" style="background-image:url('${SPRITE_SHEETS.heroes[id]}');background-size:600% 100%;background-position:0% center;"></div></div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><ul>${heroClass.traits.map(trait => `<li>${getTraitIconMarkup(trait)}<span>${trait}</span></li>`).join("")}</ul><button>${endless ? "Begin Endless as" : "Begin as"} ${heroClass.name}</button></div>`).join("");
   classCards.querySelectorAll("[data-class]").forEach(card => card.querySelector("button").onclick = () => startRun(card.dataset.class));
 }
 
@@ -399,7 +418,7 @@ function renderHeroCharacterDetails(classId) {
     ["Damage", (heroClass.damage * PLAYER_BASE_STAT_MULTIPLIER).toFixed(1)],
     ["Atk Spd", (heroClass.attackSpeed * PLAYER_BASE_STAT_MULTIPLIER).toFixed(2)],
     ["Armor", Math.round(heroClass.armor * PLAYER_BASE_STAT_MULTIPLIER)],
-    ["Crit", `${Math.round(heroClass.crit * PLAYER_BASE_STAT_MULTIPLIER * 100)}%`]
+    ["Crit", formatPercentCap(heroClass.crit * PLAYER_BASE_STAT_MULTIPLIER, STAT_CAPS.crit)]
   ];
   characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview player ${getHeroSkinClass(classId)} sprite-sheet-unit"><div class="sprite" style="background-image:url('${SPRITE_SHEETS.heroes[classId]}');background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><small>Equipped: ${escapeHtml(skin.name)}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("hero", classId, HERO_SKINS[classId])}`;
   characterDetails.querySelectorAll("[data-skin]").forEach(button => button.onclick = () => equipSkin("hero", classId, button.dataset.skin));
@@ -590,7 +609,12 @@ function getItemIconKind(item = {}) {
 }
 
 function getItemDisplayText(item) { return item.text || item.description || ""; }
-function getRelicDisplayDescription(relic) { return relic.claimDescription || relic.description || ""; }
+function getRelicDisplayDescription(relic) {
+  if (relic.claimDescription) return relic.claimDescription;
+  const effect = relic.effect || {};
+  const scaled = getRelicScaledDescription(effect);
+  return scaled ? `${relic.description || ""} Current: ${scaled}.` : relic.description || "";
+}
 function getUpgradeTooltip(name) { return run?.rewardDescriptions?.[name] || getItemDisplayText(REWARDS.find(r => r.name === name) || SHOP_ITEMS.find(i => i.name === name) || {}); }
 
 function claimRelic(relic) {
@@ -608,7 +632,15 @@ function continueAfterRelicChoice() {
 function continueAfterRunChoice() {
   if (shouldOfferClassTalent()) return showTalentChoices();
   if (run.afterRewardAction === "finalBoss") { run.afterRewardAction = null; return beginFinalBoss(); }
+  if (isEndlessRun()) return beginNextEndlessStage();
   showMap();
+}
+
+function beginNextEndlessStage() {
+  run.stage += 1;
+  save.highestClear = Math.max(save.highestClear, run.stagesCleared);
+  saveGame();
+  beginStage(getEndlessNodeType(run.stage));
 }
 
 function beginFinalBoss() {
@@ -618,16 +650,19 @@ function beginFinalBoss() {
 
 function shouldOfferClassTalent() { return CLASS_TALENT_STAGES.includes(run.stage) && getTalentChoices().length > 0; }
 function showTalentChoices() {
-  const choices = getTalentChoices(); if (!choices.length) return showMap();
+  const choices = getTalentChoices(); if (!choices.length) return continueAfterClassTalent();
   showScreen("talentScreen"); talentSubtitle.textContent = `Strengthen your ${CLASSES[run.classId].name} for this run.`;
   talentCards.innerHTML = choices.map((talent, index) => `<div class="card choice-card talent-card" data-index="${index}"><div class="choice-icon">${getItemIconMarkup(talent)}</div><h3>${talent.name}</h3><p>${talent.description}</p><p class="subtle">Tier ${talent.tier} Talent</p><button>Choose Talent</button></div>`).join("");
   talentCards.querySelectorAll("[data-index]").forEach(card => card.querySelector("button").onclick = () => claimTalent(choices[Number(card.dataset.index)]));
 }
 function getTalentChoices() { const owned = new Set(run.talents.map(t => t.id)); return shuffle(CLASS_TALENTS[run.classId].filter(t => !owned.has(t.id))).slice(0, 3); }
-function claimTalent(talent) { run.talents.push(talent); if (run.summary) run.summary.talentsChosen += 1; applyTalentToRun(talent); log(`Learned talent: ${talent.name}.`); updateRunHud(); showMap(); }
+function claimTalent(talent) { run.talents.push(talent); if (run.summary) run.summary.talentsChosen += 1; applyTalentToRun(talent); log(`Learned talent: ${talent.name}.`); updateRunHud(); continueAfterClassTalent(); }
+function continueAfterClassTalent() { return isEndlessRun() ? beginNextEndlessStage() : showMap(); }
 function applyTalentToRun(talent) {
   const hero = run.hero, effect = talent.effect;
   if (effect.armor) hero.armor += effect.armor; if (effect.regen) hero.regen = (hero.regen || 0) + effect.regen;
+  if (effect.armorMultiplier) multiplyArmor(hero, 1 + effect.armorMultiplier);
+  if (effect.bleedDamage) hero.runBleedDamage = (hero.runBleedDamage || 0) + effect.bleedDamage;
   if (effect.attackSpeedMultiplier) hero.attackSpeed *= 1 + effect.attackSpeedMultiplier; if (effect.damageMultiplier) hero.damage *= 1 + effect.damageMultiplier;
   if (effect.maxHpMultiplier) { const change = Math.round(hero.maxHp * effect.maxHpMultiplier); hero.maxHp = Math.max(1, hero.maxHp + change); hero.hp = Math.min(hero.hp, hero.maxHp); }
 }
@@ -637,21 +672,42 @@ function applyRelicToRun(relic) {
   if (effect.type === "stat") {
     if (effect.stat === "damageMultiplier") hero.damage *= 1 + effect.value;
     if (effect.stat === "attackSpeedMultiplier") hero.attackSpeed *= 1 + effect.value;
-    if (effect.stat === "damage") hero.damage += effect.value;
-    if (effect.stat === "attackSpeed") hero.attackSpeed += effect.value;
+    if (effect.stat === "maxHpMultiplier") multiplyMaxHp(hero, 1 + effect.value);
+    if (effect.stat === "armorMultiplier") multiplyArmor(hero, 1 + effect.value);
+    if (effect.stat === "damage") hero.damage += getRelicStatValue(effect, "damage");
+    if (effect.stat === "attackSpeed") hero.attackSpeed += getRelicStatValue(effect, "attackSpeed");
     if (effect.stat === "armor") hero.armor += effect.value;
     if (effect.stat === "luck") hero.luck = (hero.luck || 0) + effect.value;
     if (effect.stat === "lifeSteal") hero.lifeSteal = (hero.lifeSteal || 0) + effect.value;
     if (effect.stat === "blockChance") hero.runBlockChance = (hero.runBlockChance || 0) + effect.value;
-    if (effect.stat === "maxHp") { hero.maxHp += effect.value; hero.hp += effect.value; }
+    if (effect.stat === "maxHp") { const amount = getRelicStatValue(effect, "maxHp"); hero.maxHp += amount; hero.hp += amount; }
+    if (effect.maxHpMultiplier) multiplyMaxHp(hero, 1 + effect.maxHpMultiplier);
+    if (effect.maxHp) { const amount = effect.scalesMaxHpWithStage ? getScaledDungeonValue(effect.maxHp, "maxHp") : effect.maxHp; hero.maxHp += amount; hero.hp += amount; }
     if (effect.critChance) hero.crit += effect.critChance; if (effect.regen) hero.regen = (hero.regen || 0) + effect.regen;
     if (effect.essenceMultiplier) hero.runEssenceMultiplier = (hero.runEssenceMultiplier || 0) + effect.essenceMultiplier;
     if (effect.battleStartShield) hero.runStartShield = (hero.runStartShield || 0) + effect.battleStartShield;
   }
-  if (effect.type === "glassDagger") { hero.damage *= 1 + effect.damageMultiplier; hero.maxHp = Math.max(1, hero.maxHp + effect.maxHp); hero.hp = Math.min(hero.hp, hero.maxHp); }
+  if (effect.type === "glassDagger") { hero.damage *= 1 + effect.damageMultiplier; multiplyMaxHp(hero, 1 + (effect.maxHpMultiplier || 0), false); }
   if (effect.type === "gold") { run.gold += effect.value; if (run.summary) run.summary.goldEarned += effect.value; }
   if (effect.type === "abilityStat") hero[effect.stat] = (hero[effect.stat] || 0) + effect.value;
   if (effect.type === "stageGrowth") { run.stageGrowthRelics = run.stageGrowthRelics || []; run.stageGrowthRelics.push({ id: relic.id, stat: effect.stat, value: effect.value, stages: 0 }); }
+}
+
+function getRelicStatValue(effect, stat) {
+  if (!effect || effect.value === undefined) return 0;
+  return effect.scalesWithStage ? getScaledDungeonValue(effect.value, stat) : effect.value;
+}
+
+function getRelicScaledDescription(effect) {
+  if (!effect || effect.type !== "stat") return "";
+  const parts = [];
+  if (effect.scalesWithStage && ["damage", "attackSpeed", "maxHp"].includes(effect.stat)) {
+    parts.push(`+${getRelicStatValue(effect, effect.stat)} ${effect.stat === "maxHp" ? "max HP" : effect.stat === "attackSpeed" ? "attack speed" : "damage"}`);
+  }
+  if (effect.scalesMaxHpWithStage && effect.maxHp) {
+    parts.push(`+${getScaledDungeonValue(effect.maxHp, "maxHp")} max HP`);
+  }
+  return parts.join(", ");
 }
 
 function showShop() {
@@ -672,7 +728,7 @@ function leaveShop() { showMap(); }
 
 function renderChoiceHeroStats(target) {
   if (!target || !run?.hero) return; const hero = run.hero;
-  target.innerHTML = [["HP", `${Math.ceil(hero.hp)}/${Math.ceil(hero.maxHp)}`], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Armor", hero.armor], ["Life Steal", `${Math.round((hero.lifeSteal || 0) * 100)}%`], ["Crit", `${Math.round(hero.crit * 100)}%`], ["Luck", hero.luck || 0], ["Gold", Math.floor(run.gold)]].map(([l, v]) => `<div class="tooltip-item" data-tooltip="${escapeHtml(getTermTooltip(l))}"><small>${l}</small><strong>${v}</strong></div>`).join("");
+  target.innerHTML = [["HP", `${Math.ceil(hero.hp)}/${Math.ceil(hero.maxHp)}`], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Armor", hero.armor], ["Life Steal", `${Math.round((hero.lifeSteal || 0) * 100)}%`], ["Crit", formatPercentCap(hero.crit, STAT_CAPS.crit)], ["Luck", hero.luck || 0], ["Gold", Math.floor(run.gold)]].map(([l, v]) => `<div class="tooltip-item" data-tooltip="${escapeHtml(getTermTooltip(l))}"><small>${l}</small><strong>${v}</strong></div>`).join("");
 }
 
 function addRunUpgradeName(name, description, rarity = "Common") {
@@ -701,7 +757,7 @@ function renderRoguelikeMap() {
   requestAnimationFrame(drawMapConnections);
 }
 function getMapNodePreviewTitle(node) { return node.type === "Elite" ? "Elite Combat" : node.type === "Boss" ? "Boss Combat" : node.type === "Battle" ? "Combat" : node.type === "Treasure" ? "Treasure Event" : MAP_TYPES[node.type].label; }
-function getMapNodePreviewDescription(node) { return node.type === "Elite" ? "Harder fight. Better gold and Essence." : node.type === "Treasure" ? "Find gold, supplies, or a chance at a relic." : `${MAP_TYPES[node.type].description}.`; }
+function getMapNodePreviewDescription(node) { return node.type === "Elite" ? "Elite fight: 35 base gold, +20% Essence, and a relic reward." : node.type === "Treasure" ? "Gain 35 + 3 per stage gold; 35% relic chance plus Luck." : `${MAP_TYPES[node.type].description}.`; }
 function getVisibleMapLayer() { return Math.max(1, Math.ceil(Math.min(run.maxStage, run.stage + 1) / MAP_LAYER_SIZE)); }
 function getMapRowSlots(row) { if (row.length === 1) return [null, row[0], null]; if (row.length === 2) return [row[0], null, row[1]]; return row.slice(0, 3); }
 function drawMapConnections() {
@@ -711,55 +767,170 @@ function drawMapConnections() {
 
 function updateRunHud() {
   if (!run?.hero) return; const hero = run.hero, layer = Math.max(1, Math.ceil(run.stage / MAP_LAYER_SIZE)), stageInLayer = ((run.stage - 1) % MAP_LAYER_SIZE) + 1;
-  runDifficulty.textContent = DIFFICULTIES[run.difficultyId].name; runClass.textContent = CLASSES[run.classId].name; runStage.textContent = run.stage === FINAL_BOSS_STAGE ? "Final Boss" : `Layer ${layer}: ${stageInLayer} / ${MAP_LAYER_SIZE}`; runGold.textContent = Math.floor(run.gold); runEssence.textContent = Math.floor(run.essenceEarned); if (battleSpeedSelect) battleSpeedSelect.value = String(getBattleSpeedPreference());
-  heroStats.innerHTML = [["HP", `${Math.max(0, Math.ceil(hero.hp))}/${Math.ceil(hero.maxHp)}`], ["Armor", hero.armor], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Shield", Math.ceil(hero.shield || 0)], ["Crit", `${Math.round(hero.crit * 100)}%`], ["Regen", `${(hero.regen || 0).toFixed(1)}/s`], ["Luck", hero.luck || 0]].map(([l, v]) => statCell(l, v, getTermTooltip(l))).join("");
+  runDifficulty.textContent = DIFFICULTIES[run.difficultyId].name; runClass.textContent = CLASSES[run.classId].name; runStage.textContent = isEndlessRun() ? `Endless ${run.stage}` : run.stage === FINAL_BOSS_STAGE ? "Final Boss" : `Layer ${layer}: ${stageInLayer} / ${MAP_LAYER_SIZE}`; runGold.textContent = Math.floor(run.gold); runEssence.textContent = Math.floor(run.essenceEarned); if (battleSpeedSelect) battleSpeedSelect.value = String(getBattleSpeedPreference());
+  heroStats.innerHTML = [["HP", `${Math.max(0, Math.ceil(hero.hp))}/${Math.ceil(hero.maxHp)}`], ["Armor", hero.armor], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Shield", `${Math.ceil(hero.shield || 0)}/${getHeroShieldCap()}`], ["Crit", formatPercentCap(hero.crit, STAT_CAPS.crit)], ["Regen", `${(hero.regen || 0).toFixed(1)}/s`], ["Luck", hero.luck || 0]].map(([l, v]) => statCell(l, v, getTermTooltip(l))).join("");
   heroStats.className = "hero-stat-grid"; renderHeroFullStats(hero); renderEnemyStats();
   heroUpgrades.innerHTML = getRunUpgradeStacks().length ? getRunUpgradeStacks().map(upgrade => `<div class="pill upgrade-pill upgrade-${upgrade.rarity.toLowerCase()} tooltip-item" data-tooltip="${escapeHtml(getUpgradeTooltip(upgrade.name))}">${getItemIconMarkup(upgrade.source)}<span>${escapeHtml(upgrade.name)}</span>${upgrade.count > 1 ? `<strong>${upgrade.count}x</strong>` : ""}</div>`).join("") : `<div class="pill">No run upgrades yet</div>`;
   heroRelics.innerHTML = `<div class="relic-list-title">Relics</div>` + (run.relics.length ? run.relics.map(relic => `<div class="relic-pill relic-${relic.rarity.toLowerCase()} tooltip-item" data-tooltip="${escapeHtml(getRelicDisplayDescription(relic))}">${getItemIconMarkup(relic)}<strong>${escapeHtml(relic.name)}</strong></div>`).join("") : `<div class="pill">No relics yet</div>`);
   heroTalents.innerHTML = `<div class="talent-list-title">Class Talents</div>` + (run.talents.length ? run.talents.map(talent => `<div class="talent-pill tooltip-item" data-tooltip="${escapeHtml(talent.description)}">${getItemIconMarkup(talent)}<strong>${escapeHtml(talent.name)}</strong></div>`).join("") : `<div class="pill">No class talents yet</div>`);
   renderActiveSkills(); renderSpecialSkills();
 }
-function renderHeroFullStats(hero) { heroFullStats.innerHTML = [["Boss Damage", `${Math.round((getPermanentEffectTotal("bossDamage", hero.id) + getAchievementBonusTotal("bossDamage", hero.id) + getRelicEffectTotal("eliteBossDamage")) * 100)}%`], ["Life Steal", `${Math.round((hero.lifeSteal || 0) * 100)}%`], ["Start Shield", `${Math.round((hero.runStartShield || 0) + getPermanentEffectTotal("battleStartShield", hero.id))}`]].map(([l, v]) => `<div class="tooltip-item" data-tooltip="${escapeHtml(getTermTooltip(l))}"><span>${l}</span><strong>${v}</strong></div>`).join(""); }
+function renderHeroFullStats(hero) {
+  const bossDamage = getPermanentEffectTotal("bossDamage", hero.id) + getAchievementBonusTotal("bossDamage", hero.id) + getRelicEffectTotal("eliteBossDamage");
+  const bossReduction = getPermanentEffectTotal("bossDamageTaken", hero.id) + (hero.runBossDamageTaken || 0);
+  const eliteReduction = getPermanentEffectTotal("eliteBossDamageTaken", hero.id) + getTalentEffectValue("eliteBossDamageTaken");
+  const executeThreshold = Math.max(0.3, getPermanentEffectTotal("executeThreshold", hero.id) || 0, hero.runExecuteThreshold || 0);
+  const executeDamage = getPermanentEffectTotal("executeDamage", hero.id) + (hero.runExecuteDamage || 0);
+  const rows = [
+    ["Boss Damage", formatPercent(bossDamage)],
+    ["Boss DR", formatPercentCap(bossReduction, STAT_CAPS.bossReduction)],
+    ["Elite DR", formatPercent(eliteReduction)],
+    ["Block", formatPercentCap(getHeroBlockChance(hero), STAT_CAPS.block)],
+    ["Evasion", formatPercentCap(getHeroDodgeChance(hero), STAT_CAPS.dodge)],
+    ["Execute", `${formatPercent(executeDamage)} <${formatPercent(executeThreshold)}`],
+    ["Crit Damage", formatPercent(getTalentEffectValue("critDamage") + getPermanentEffectTotal("critDamage", hero.id) + getRelicEffectTotal("critBonus"))],
+    ["Atk Bonus", formatPercentCap(hero.battleAttackSpeedBonus || 0, getHeroBattleAttackSpeedBonusCap(hero))],
+    ["Dmg Bonus", formatPercentCap(hero.battleDamageBonus || 0, STAT_CAPS.battleDamageBonus)],
+    ["Life Steal", formatPercent(hero.lifeSteal || 0)],
+    ["Start Shield", `${Math.round((hero.runStartShield || 0) + getPermanentEffectTotal("battleStartShield", hero.id))}`],
+    ["Shield Cap", `${getHeroShieldCap()}`]
+  ];
+  if (hero.id === "rogue") rows.push(["Bleed", `${Math.round(getHeroBleedDamage(hero))}/s`]);
+  if (hero.id === "wizard") rows.push(["Splash Damage", formatPercent(getHeroSplashDamageMultiplier(hero))]);
+  heroFullStats.innerHTML = rows.map(([l, v]) => `<div class="tooltip-item" data-tooltip="${escapeHtml(getTermTooltip(l))}"><span>${l}</span><strong>${v}</strong></div>`).join("");
+}
+function formatPercent(value) { return `${Math.round((value || 0) * 100)}%`; }
+function formatPercentCap(value, cap) { return `${formatPercent(Math.min(value || 0, cap))}/${formatPercent(cap)}`; }
+const STAT_CAPS = { crit: 1, block: 0.85, dodge: 0.45, bossReduction: 0.9, battleDamageBonus: 0.4 };
+function getHeroDodgeChance(hero) { return Math.min(STAT_CAPS.dodge, getPermanentEffectTotal("evasion", hero.id) + (hero.runEvasion || 0)); }
+function getHeroBattleAttackSpeedBonusCap(hero) { return getPermanentEffectTotal("killAttackSpeedMax", hero.id) || 0.35; }
+function getHeroSplashDamageMultiplier(hero) { return 0.45 + getPermanentEffectTotal("splashDamageMultiplier", hero.id) + (hero.runSplashDamageMultiplier || 0); }
 function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.innerHTML = enemies.length ? enemies.map(e => `<div class="enemy-stat-row"><strong>${escapeHtml(e.name)}</strong><div class="enemy-status">${e.hp > 0 ? "ALIVE" : "DEAD"}</div><div class="enemy-stat-chips"><span>HP ${Math.max(0, Math.ceil(e.hp))}/${Math.ceil(e.maxHp)}</span><span>DMG ${Number(e.damage).toFixed(1)}</span><span>AS ${getEnemyAttackSpeed(e).toFixed(2)}</span><span>ARM ${e.armor}</span></div></div>`).join("") : `<div class="enemy-stat-empty">No active enemies</div>`; }
 function statCell(label, value, tooltip) { return `<div class="tooltip-item" data-tooltip="${escapeHtml(tooltip)}"><small>${label}</small><strong>${value}</strong></div>`; }
-function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", "Boss Damage": "Extra damage dealt to bosses.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start." })[term] || "A combat stat or effect."; }
+function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", "Boss Damage": "Extra damage dealt to bosses.", "Boss DR": "Damage reduction against bosses.", "Elite DR": "Damage reduction against elite and boss encounters.", Block: "Chance to reduce incoming hit damage.", Dodge: "Chance to avoid enemy attacks.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Shield Cap": "Maximum shield this hero can hold.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Damage per second applied by rogue attacks. One bleed can be active on each enemy.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect."; }
 function renderActiveSkills() { activeSkills.innerHTML = battle ? Object.entries(battle.activeSkills || {}).map(([name, time]) => `<div class="active-skill"><b>*</b><strong>${escapeHtml(name)}</strong><span>${time.toFixed(1)}s</span></div>`).join("") : ""; }
 function renderSpecialSkills() { const ids = run?.hero?.runAbilities || []; specialSkills.innerHTML = ids.length ? `<div class="special-skill-title">Special Skills</div><div class="special-skill-row">${ids.map(id => `<div class="special-skill"><b>${getAbilityIconMarkup(RUN_ABILITIES[id])}</b><strong>${RUN_ABILITIES[id].name}</strong><span>${Math.max(0, battle?.abilityCooldowns?.[id] || 0).toFixed(1)}s</span></div>`).join("")}</div>` : `<div class="special-skill-empty">No special skills unlocked</div>`; }
 function getAbilityIconMarkup(ability) { return `<span class="ability-icon ability-icon-${ability.id}" style="--ability-color:${ability.color}">${ability.icon}</span>`; }
 
 function renderBattle() {
-  battlefield.querySelectorAll(".unit,.float-text,.battle-particle,.battle-projectile,.battle-impact,.skill-vfx,.boss-intro-overlay,.battle-result-panel").forEach(node => node.remove());
+  battlefield.querySelectorAll(".unit,.float-text,.battle-particle,.skill-vfx,.boss-intro-overlay,.battle-result-panel").forEach(node => node.remove());
   if (!battle || !run) return;
   battlefield.appendChild(createUnitEl(run.hero, true)); battle.enemies.filter(e => e.hp > 0 || (e.deathTimer || 0) > 0).forEach(e => battlefield.appendChild(createUnitEl(e, false)));
   battlefield.classList.toggle("boss-intro-shake", battle.bossIntroTimer > 0 && !save.settings.reduceAnimations && !save.settings.disableShake);
   if (battle.bossIntroTimer > 0) renderBossIntro(); if (battle.state === "result") renderBattleResultPanel();
+  renderBattleParticles();
   battle.floatingTexts.forEach(float => { const div = document.createElement("div"), scale = getBattleScale(); div.className = `float-text ${float.variant ? `float-text-${float.variant}` : ""}`; div.style.left = float.x * scale.x + "px"; div.style.top = float.y * scale.y + "px"; div.style.color = float.color; div.textContent = float.text; battlefield.appendChild(div); }); battle.floatingTexts = [];
+}
+function renderBattleParticles() {
+  const scale = getBattleScale();
+  (battle.particles || []).forEach(particle => {
+    const progress = Math.min(1, particle.age / Math.max(.01, particle.life));
+    if (particle.type === "skill") {
+      const div = document.createElement("div");
+      div.className = `skill-vfx skill-vfx-${particle.theme || "global"}`;
+      div.style.left = particle.x * scale.x + "px";
+      div.style.top = (particle.y * scale.y - progress * 28) + "px";
+      div.style.setProperty("--skill-color", particle.color || "#ffe2a2");
+      div.style.opacity = Math.max(0, 1 - progress).toString();
+      div.style.animation = "none";
+      div.style.transform = `translate(-50%, -50%) scale(${.65 + progress * .7})`;
+      div.innerHTML = `<span>${escapeHtml(particle.label || "")}</span>`;
+      battlefield.appendChild(div);
+      return;
+    }
+    const div = document.createElement("div");
+    div.className = "battle-particle";
+    div.style.left = ((particle.x + (particle.vx || 0) * particle.age) * scale.x) + "px";
+    div.style.top = ((particle.y + (particle.vy || 0) * particle.age) * scale.y) + "px";
+    div.style.background = particle.color || "#ffe2a2";
+    div.style.opacity = Math.max(0, 1 - progress).toString();
+    battlefield.appendChild(div);
+  });
 }
 function renderBossIntro() { const boss = battle.enemies.find(e => e.boss); if (!boss) return; const progress = 1 - battle.bossIntroTimer / Math.max(.1, battle.bossIntroDuration || battle.bossIntroTimer), opacity = progress < .18 ? progress / .18 : progress > .72 ? Math.max(0, (1 - progress) / .28) : 1; const overlay = document.createElement("div"); overlay.className = `boss-intro-overlay${boss.finalBoss ? " boss-intro-final" : ""}`; overlay.style.opacity = opacity; overlay.style.setProperty("--intro-progress", progress); overlay.innerHTML = `<div class="boss-intro-tint"></div><div class="boss-intro-name"><small>${boss.finalBoss ? "THE CROWN AWAKENS" : "BOSS"}</small><h2>${escapeHtml(boss.name.toUpperCase())}</h2><strong>${boss.finalBoss ? "The Last Encounter" : "Final Encounter"}</strong></div>`; battlefield.appendChild(overlay); }
 function renderBattleResultPanel() { const r = battle.result, panel = document.createElement("div"); panel.className = `battle-result-panel${r.victory ? "" : " battle-result-defeat"}`; panel.innerHTML = `<div class="battle-result-kicker">${r.victory ? "Enemies Defeated" : "Hero Defeated"}</div><h2>${r.title}</h2><div class="battle-result-gains"><div><small>Gold Gained</small><strong>+${Math.floor(r.gold)}</strong></div><div><small>Essence Gained</small><strong>+${Math.floor(r.essence)}</strong></div></div><button onclick="continueBattleResult()">${r.nextLabel}</button>`; battlefield.appendChild(panel); }
 function getBattleScale() { return { x: battlefield.clientWidth / 900, y: battlefield.clientHeight / 430, unit: Math.max(.58, Math.min(battlefield.clientWidth / 900, battlefield.clientHeight / 430)) }; }
-function createUnitEl(unit, isHero) { const el = document.createElement("div"), scale = getBattleScale(), size = (unit.boss ? 104 : unit.miniBoss ? 92 : isHero ? 84 : 78) * scale.unit; el.className = `unit ${isHero ? "player " + unit.colorClass : `enemy ${unit.className} ${unit.skinClass || ""}`}`; el.style.left = unit.x * scale.x + "px"; el.style.top = unit.y * scale.y + "px"; el.style.width = size + "px"; el.style.height = size + "px"; const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100)); el.innerHTML = `<div class="hpbar"><div class="hpfill" style="width:${hp}%"></div><span class="hptext">${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}</span></div><div class="sprite"></div>`; const sheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : unit.boss ? SPRITE_SHEETS.enemies.boss : SPRITE_SHEETS.enemies[unit.className]; if (sheet) { el.classList.add("sprite-sheet-unit"); const sprite = el.querySelector(".sprite"); sprite.style.backgroundImage = `url("${sheet}")`; sprite.style.backgroundSize = "600% 100%"; sprite.style.backgroundPosition = "0% center"; } return el; }
-function spawnHeroAttackEffect(hero, enemy) { if (hero.id === "wizard") { playSound("magicCast"); return; } spawnSlashEffect(enemy, hero.id === "rogue" ? "rogue" : "sword"); }
+function createUnitEl(unit, isHero) { const el = document.createElement("div"), scale = getBattleScale(), size = (unit.boss ? 104 : unit.miniBoss ? 92 : isHero ? 84 : 78) * scale.unit; el.className = `unit ${isHero ? "player " + unit.colorClass : `enemy ${unit.className} ${unit.skinClass || ""}`}`; if (unit.spriteAnim?.type === "attack" || unit.spriteAnim?.type === "block") el.classList.add("attack-flash"); if ((unit.hitFlash || 0) > 0) el.classList.add("hit-flash"); if (unit.spriteAnim?.type === "downed" || (unit.hp <= 0 && !isHero)) el.classList.add("unit-downed"); el.style.left = unit.x * scale.x + "px"; el.style.top = unit.y * scale.y + "px"; el.style.width = size + "px"; el.style.height = size + "px"; const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100)), attackSpeed = isHero ? getHeroAttackSpeed(unit) : getEnemyAttackSpeed(unit), attackWindow = 1 / Math.max(.01, attackSpeed), attackProgress = Math.max(0, Math.min(100, (1 - Math.max(0, unit.attackCooldown || 0) / attackWindow) * 100)); el.innerHTML = `<div class="attackbar"><div class="attackfill" style="width:${attackProgress}%"></div><span class="attacktext">${attackSpeed.toFixed(2)}/s</span></div><div class="hpbar"><div class="hpfill" style="width:${hp}%"></div><span class="hptext">${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}</span></div><div class="sprite"></div>`; const sheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : unit.boss ? SPRITE_SHEETS.enemies.boss : SPRITE_SHEETS.enemies[unit.className]; if (sheet) { el.classList.add("sprite-sheet-unit"); const sprite = el.querySelector(".sprite"); sprite.style.backgroundImage = `url("${sheet}")`; sprite.style.backgroundSize = "600% 100%"; sprite.style.backgroundPosition = "0% center"; } return el; }
+function spawnHeroAttackEffect(hero, enemy) { if (hero.id === "wizard") { playSound("magicCast"); spawnAbilityProjectile(hero, enemy, "magic"); return; } spawnSlashEffect(enemy, hero.id === "rogue" ? "rogue" : "sword"); }
 function spawnSlashEffect(target, type) { if (!battlefield || save.settings.reduceAnimations) return; const scale = getBattleScale(), slash = document.createElement("div"); slash.className = `attack-vfx ${type}-slash-vfx`; slash.style.left = target.x * scale.x + "px"; slash.style.top = target.y * scale.y + "px"; battlefield.appendChild(slash); setTimeout(() => slash.remove(), 460); }
-function spawnAbilityProjectile() {}
-function spawnAbilityIndicator() {}
+function spawnAbilityProjectile(source, target, type = "magic") {
+  if (!battlefield || save.settings.reduceAnimations || !source || !target) return;
+  const scale = getBattleScale(), projectile = document.createElement("div");
+  projectile.className = `battle-projectile battle-projectile-${type}`;
+  projectile.style.left = source.x * scale.x + "px";
+  projectile.style.top = source.y * scale.y + "px";
+  battlefield.appendChild(projectile);
+  const frames = [
+    { left: source.x * scale.x + "px", top: source.y * scale.y + "px", opacity: .35, transform: "translate(-50%, -50%) scale(.72)" },
+    { left: target.x * scale.x + "px", top: target.y * scale.y + "px", opacity: 1, transform: "translate(-50%, -50%) scale(1.05)" }
+  ];
+  projectile.animate(frames, { duration: 230, easing: "cubic-bezier(.2,.85,.2,1)", fill: "forwards" });
+  setTimeout(() => { projectile.remove(); spawnAbilityIndicator(target, type); }, 240);
+}
+function spawnAbilityIndicator(target, type = "magic") {
+  if (!battlefield || save.settings.reduceAnimations || !target) return;
+  const scale = getBattleScale(), indicator = document.createElement("div");
+  indicator.className = `ability-vfx ability-vfx-${type}`;
+  indicator.style.left = target.x * scale.x + "px";
+  indicator.style.top = target.y * scale.y + "px";
+  indicator.style.setProperty("--ability-scale", scale.unit);
+  battlefield.appendChild(indicator);
+  setTimeout(() => indicator.remove(), 520);
+}
 function spawnBossSlashEffect(target) { spawnSlashEffect(target, "boss"); }
-function spawnShieldImpactEffect() {}
+function spawnShieldImpactEffect(target) {
+  if (!battlefield || save.settings.reduceAnimations || !target) return;
+  const scale = getBattleScale(), impact = document.createElement("div");
+  impact.className = "battle-impact battle-impact-shield";
+  impact.style.left = target.x * scale.x + "px";
+  impact.style.top = target.y * scale.y + "px";
+  impact.style.setProperty("--impact-scale", scale.unit);
+  battlefield.appendChild(impact);
+  setTimeout(() => impact.remove(), 420);
+}
 function markUnitHit(unit) { if (unit) unit.hitFlash = .16; }
-function spawnDeathParticles() {}
+function spawnDeathParticles(unit) {
+  if (!battle || save.settings.reduceAnimations || !unit) return;
+  const color = unit.boss ? "#fcd34d" : unit.miniBoss ? "#fca5a5" : "#e7d6b5";
+  for (let i = 0; i < (unit.boss ? 18 : 10); i++) {
+    const angle = Math.PI * 2 * (i / (unit.boss ? 18 : 10));
+    const speed = unit.boss ? 72 : 48;
+    battle.particles.push({ x: unit.x, y: unit.y - 4, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color, age: 0, life: .45 + Math.random() * .24 });
+  }
+}
 function triggerScreenShake(strength) { if (save.settings.disableShake || save.settings.reduceAnimations || !battlefield) return; battlefield.classList.remove("screen-shake-light", "screen-shake-heavy"); void battlefield.offsetWidth; battlefield.classList.add(strength === "heavy" ? "screen-shake-heavy" : "screen-shake-light"); setTimeout(() => battlefield.classList.remove("screen-shake-light", "screen-shake-heavy"), 260); }
 function log(message, type = "info") { const line = document.createElement("div"); line.className = `log-line log-${type}`; line.innerHTML = `<span>${type[0] || "i"}</span><p>${escapeHtml(message)}</p>`; battleLog.appendChild(line); battleLog.scrollTop = battleLog.scrollHeight; }
 
 function renderTree() { if (!treeCards) return; treeEssence.textContent = Math.floor(save.essence); treeCards.innerHTML = createTreeLinesSvg() + TREE_NODES.map(node => createTreeNodeButtonHtml(node)).join(""); renderTreeDetails(TREE[selectedTreeNodeId] || TREE.crown_legacy); applyTreeCamera(); refreshTopbar(); }
 function createTreeLinesSvg() {
-  const lines = TREE_NODES.flatMap(node => (node.prerequisites || []).map(prereqId => {
-    const parent = TREE[prereqId];
-    if (!parent) return "";
-    const complete = getTreeLevel(parent.id) > 0 && getTreeLevel(node.id) > 0;
-    const available = getTreeLevel(parent.id) > 0 && getTreeLevel(node.id) <= 0;
-    return `<line class="skill-tree-line ${complete ? "skill-tree-line-complete" : available ? "skill-tree-line-available" : ""}" x1="${parent.x}" y1="${parent.y}" x2="${node.x}" y2="${node.y}" />`;
-  }));
+  const edges = getTreeConnectionEdges();
+  const lines = edges.map(edge => {
+    const complete = getTreeLevel(edge.parent.id) > 0 && getTreeLevel(edge.node.id) > 0;
+    const available = getTreeLevel(edge.parent.id) > 0 && getTreeLevel(edge.node.id) <= 0;
+    return `<path class="skill-tree-line ${complete ? "skill-tree-line-complete" : available ? "skill-tree-line-available" : ""}" d="${getTreeConnectionPath(edge)}" />`;
+  });
   return `<svg class="skill-tree-lines" viewBox="0 0 3200 2660" aria-hidden="true">${lines.join("")}</svg>`;
+}
+function getTreeConnectionEdges() {
+  const childrenByParent = new Map();
+  TREE_NODES.forEach(node => (node.prerequisites || []).forEach(prereqId => {
+    if (!childrenByParent.has(prereqId)) childrenByParent.set(prereqId, []);
+    childrenByParent.get(prereqId).push(node);
+  }));
+  childrenByParent.forEach((children, parentId) => {
+    const parent = TREE[parentId] || { x: 0, y: 0 };
+    children.sort((a, b) => Math.atan2(a.y - parent.y, a.x - parent.x) - Math.atan2(b.y - parent.y, b.x - parent.x));
+  });
+  return TREE_NODES.flatMap(node => (node.prerequisites || []).map(prereqId => {
+    const parent = TREE[prereqId];
+    if (!parent) return null;
+    const siblings = childrenByParent.get(prereqId) || [node];
+    return { parent, node, siblingIndex: siblings.indexOf(node), siblingCount: siblings.length };
+  }).filter(Boolean));
+}
+function getTreeConnectionPath({ parent, node, siblingIndex, siblingCount }) {
+  const { p0, p1, p2, p3 } = getTreeConnectionControls({ parent, node, siblingIndex, siblingCount });
+  return `M ${p0.x} ${p0.y} C ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}, ${p3.x} ${p3.y}`;
 }
 function createTreeNodeButtonHtml(node) { const level = getTreeLevel(node.id), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, cost = getTreeUpgradeCost(node, level), available = !locked && !maxed && save.essence >= cost; return `<button class="skill-node skill-node-${node.type} skill-node-${node.classId} ${locked ? "skill-node-locked" : ""} ${maxed ? "skill-node-complete" : ""} ${available ? "skill-node-available" : ""} ${selectedTreeNodeId === node.id ? "skill-node-selected" : ""}" style="left:${node.x}px;top:${node.y}px" data-node="${node.id}"><span>${getTreeNodeInitials(node)}</span><small>${level}/${node.maxLevel}</small></button>`; }
 function renderTreeDetails(node) { const level = getTreeLevel(node.id), cost = getTreeUpgradeCost(node, level), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, prereqs = (node.prerequisites || []).map(id => TREE[id]?.name).filter(Boolean); treeDetails.innerHTML = `<div class="tree-detail-kicker">${node.branch}</div><h3>${node.name}</h3><p>${node.description}</p><div class="tree-detail-row"><span>Level</span><strong>${level}/${node.maxLevel}</strong></div><div class="tree-detail-row"><span>Cost</span><strong>${maxed ? "Maxed" : `${cost} Essence`}</strong></div>${prereqs.length ? `<div class="tree-detail-prereqs"><strong>Requires</strong><br>${prereqs.map(escapeHtml).join(", ")}</div>` : ""}<button ${locked || maxed || save.essence < cost ? "disabled" : ""}>${locked ? "Locked" : maxed ? "Completed" : "Purchase"}</button>`; treeDetails.querySelector("button").onclick = () => purchaseTreeNode(node.id); treeCards.querySelectorAll("[data-node]").forEach(button => button.onclick = () => { selectedTreeNodeId = button.dataset.node; renderTree(); }); }
@@ -863,4 +1034,94 @@ function clampTreeCamera() {}
 function validateSkillTreeLines() {
   const missing = TREE_NODES.flatMap(node => (node.prerequisites || []).filter(id => !TREE[id]).map(id => `${node.id} -> ${id}`));
   if (missing.length) console.warn("Skill tree has missing prerequisites:", missing);
+  const nodeOverlaps = getSkillTreeNodeOverlaps();
+  const lineNodeHits = getSkillTreeLineNodeIntersections();
+  const lineCrossings = getSkillTreeLineIntersections();
+  if (nodeOverlaps.length) console.warn("Skill tree has overlapping nodes:", nodeOverlaps);
+  if (lineNodeHits.length) console.warn("Skill tree lines intersect nodes:", lineNodeHits);
+  if (lineCrossings.length) console.warn("Skill tree lines intersect each other:", lineCrossings);
+  return { missing, nodeOverlaps, lineNodeHits, lineCrossings, valid: !missing.length && !nodeOverlaps.length && !lineNodeHits.length && !lineCrossings.length };
+}
+function getSkillTreeNodeOverlaps() {
+  const overlaps = [];
+  for (let i = 0; i < TREE_NODES.length; i += 1) {
+    for (let j = i + 1; j < TREE_NODES.length; j += 1) {
+      const a = TREE_NODES[i], b = TREE_NODES[j];
+      const minDistance = getSkillTreeNodeRadius(a) + getSkillTreeNodeRadius(b) + 18;
+      if (Math.hypot(a.x - b.x, a.y - b.y) < minDistance) overlaps.push(`${a.id} <-> ${b.id}`);
+    }
+  }
+  return overlaps;
+}
+function getSkillTreeLineNodeIntersections() {
+  return getSampledTreeEdges().flatMap(edge => {
+    return TREE_NODES.filter(node => node.id !== edge.parent.id && node.id !== edge.node.id).filter(node => {
+      return edge.segments.some(segment => getPointSegmentDistance(node, segment.a, segment.b) < getSkillTreeNodeRadius(node) + 9);
+    }).map(node => `${edge.parent.id} -> ${edge.node.id} crosses ${node.id}`);
+  });
+}
+function getSkillTreeLineIntersections() {
+  const edges = getSampledTreeEdges(), hits = [];
+  for (let i = 0; i < edges.length; i += 1) {
+    for (let j = i + 1; j < edges.length; j += 1) {
+      const a = edges[i], b = edges[j];
+      if (treeEdgesShareEndpoint(a, b)) continue;
+      if (a.segments.some(segmentA => b.segments.some(segmentB => segmentsIntersect(segmentA.a, segmentA.b, segmentB.a, segmentB.b)))) {
+        hits.push(`${a.parent.id} -> ${a.node.id} crosses ${b.parent.id} -> ${b.node.id}`);
+      }
+    }
+  }
+  return hits;
+}
+function getSampledTreeEdges() {
+  return getTreeConnectionEdges().map(edge => {
+    const points = sampleTreeConnection(edge, 18);
+    return { ...edge, segments: points.slice(1).map((point, index) => ({ a: points[index], b: point })) };
+  });
+}
+function sampleTreeConnection(edge, steps) {
+  const controls = getTreeConnectionControls(edge);
+  return Array.from({ length: steps + 1 }, (_, index) => getCubicPoint(controls, index / steps));
+}
+function getTreeConnectionControls({ parent, node, siblingIndex, siblingCount }) {
+  const dx = node.x - parent.x, dy = node.y - parent.y;
+  const length = Math.max(1, Math.hypot(dx, dy));
+  const nx = -dy / length, ny = dx / length;
+  const spread = siblingCount > 1 ? (siblingIndex - (siblingCount - 1) / 2) * 28 : 0;
+  const bend = Math.max(-64, Math.min(64, spread));
+  return {
+    p0: { x: parent.x, y: parent.y },
+    p1: { x: parent.x + dx * 0.36 + nx * bend, y: parent.y + dy * 0.36 + ny * bend },
+    p2: { x: parent.x + dx * 0.64 + nx * bend, y: parent.y + dy * 0.64 + ny * bend },
+    p3: { x: node.x, y: node.y }
+  };
+}
+function getCubicPoint({ p0, p1, p2, p3 }, t) {
+  const a = (1 - t) ** 3, b = 3 * (1 - t) ** 2 * t, c = 3 * (1 - t) * t ** 2, d = t ** 3;
+  return { x: a * p0.x + b * p1.x + c * p2.x + d * p3.x, y: a * p0.y + b * p1.y + c * p2.y + d * p3.y };
+}
+function getSkillTreeNodeRadius(node) {
+  if (node.type === "ability") return 52;
+  if (node.type === "center") return 43;
+  if (node.type === "capstone") return 41;
+  if (node.type === "unlock") return 38;
+  if (node.type === "class") return 37;
+  if (node.type === "notable") return 34;
+  return 31;
+}
+function getPointSegmentDistance(point, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const lengthSq = dx * dx + dy * dy;
+  const t = lengthSq ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSq)) : 0;
+  return Math.hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t));
+}
+function treeEdgesShareEndpoint(a, b) {
+  return a.parent.id === b.parent.id || a.parent.id === b.node.id || a.node.id === b.parent.id || a.node.id === b.node.id;
+}
+function segmentsIntersect(a, b, c, d) {
+  const o1 = segmentOrientation(a, b, c), o2 = segmentOrientation(a, b, d), o3 = segmentOrientation(c, d, a), o4 = segmentOrientation(c, d, b);
+  return o1 * o2 < 0 && o3 * o4 < 0;
+}
+function segmentOrientation(a, b, c) {
+  return Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
 }

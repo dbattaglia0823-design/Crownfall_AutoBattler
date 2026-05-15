@@ -6,7 +6,7 @@ function startRun(classId) {
   addAccountStat("runsStarted", 1);
   addAccountStat(`${classId}Runs`, 1);
   saveGame();
-  beginStage("Battle");
+  beginStage(getCurrentRunNodeType());
 }
 
 function beginStage(nodeType) {
@@ -40,6 +40,10 @@ function setupBattle(nodeType) {
   } else if (isBossStage(run.stage) || nodeType === "Boss") {
     enemies.push(makeEnemy(getBossForStage(run.stage), 640, 215, true, nodeType));
   } else if (nodeType === "Elite") {
+    const enemyPool = getAreaEnemyPool();
+    const baseEnemy = enemyPool[run.stage % enemyPool.length];
+    enemies.push(makeEnemy(baseEnemy, 640, 215, false, nodeType));
+  } else if (isEndlessRun()) {
     const enemyPool = getAreaEnemyPool();
     const baseEnemy = enemyPool[run.stage % enemyPool.length];
     enemies.push(makeEnemy(baseEnemy, 640, 215, false, nodeType));
@@ -90,7 +94,18 @@ function isBossStage(stage) {
 }
 
 function isFinalBossStage(stage) {
-  return stage === FINAL_BOSS_STAGE;
+  return !isEndlessRun() && stage === FINAL_BOSS_STAGE;
+}
+
+function getCurrentRunNodeType() {
+  if (!isEndlessRun()) return "Battle";
+  return getEndlessNodeType(run.stage);
+}
+
+function getEndlessNodeType(stage) {
+  if (stage > 0 && stage % 10 === 0) return "Boss";
+  if (stage > 0 && stage % 5 === 0) return "Elite";
+  return "Battle";
 }
 
 function getBossForStage(stage) {
@@ -157,13 +172,15 @@ function makeEnemy(base, x, y, boss, nodeType) {
   }
 
   const difficulty = DIFFICULTIES[run.difficultyId];
-  const hpStageMult = 1 + ((run.stage - 1) * (difficulty.stageHealthGrowth || 0.15));
-  const dmgStageMult = 1 + ((run.stage - 1) * (difficulty.stageDamageGrowth || 0.15));
-  const layerEnemyMult = getLayerEnemyMultiplier();
+  const endlessStage = Math.max(0, run.stage - 1);
+  const hpStageMult = isEndlessRun() ? Math.pow(difficulty.endlessHealthGrowth || 1.13, endlessStage) : 1 + (endlessStage * (difficulty.stageHealthGrowth || 0.15));
+  const dmgStageMult = isEndlessRun() ? Math.pow(difficulty.endlessDamageGrowth || 1.08, endlessStage) : 1 + (endlessStage * (difficulty.stageDamageGrowth || 0.15));
+  const layerHealthMult = isEndlessRun() ? 1 : getLayerEnemyMultiplier();
+  const layerDamageMult = isEndlessRun() ? 1 : getLayerEnemyDamageMultiplier();
   const secondLayerStage = Math.max(0, run.stage - MAP_LAYER_SIZE);
   const secondLayerArmor = secondLayerStage > 0 ? 1 + Math.floor(secondLayerStage / 2) : 0;
-  let hpMult = difficulty.enemyHealth * hpStageMult * layerEnemyMult;
-  let dmgMult = difficulty.enemyDamage * dmgStageMult * layerEnemyMult;
+  let hpMult = difficulty.enemyHealth * hpStageMult * layerHealthMult;
+  let dmgMult = difficulty.enemyDamage * dmgStageMult * layerDamageMult;
 
   const miniBoss = nodeType === "Elite" && !boss;
 
@@ -203,6 +220,13 @@ function getLayerEnemyMultiplier() {
   const difficulty = DIFFICULTIES[run.difficultyId] || {};
   const layer = Math.max(1, Math.min(3, Math.ceil(run.stage / MAP_LAYER_SIZE)));
   const multipliers = difficulty.layerEnemyMultipliers || [1, 1, 1];
+  return multipliers[layer - 1] || 1;
+}
+
+function getLayerEnemyDamageMultiplier() {
+  const difficulty = DIFFICULTIES[run.difficultyId] || {};
+  const layer = Math.max(1, Math.min(3, Math.ceil(run.stage / MAP_LAYER_SIZE)));
+  const multipliers = difficulty.layerDamageMultipliers || difficulty.layerEnemyMultipliers || [1, 1, 1];
   return multipliers[layer - 1] || 1;
 }
 
@@ -396,16 +420,15 @@ function heroAttack(hero, enemy) {
     triggerSkillVfx(enemy.x, enemy.y, "Rune Burst", "wizard");
   }
 
-  if (hero.id === "rogue" && Math.random() < 0.25 + getPermanentEffectTotal("bleedChance", hero.id) + (hero.runBleedChance || 0)) {
-    const bleedBonus = 1 + getTalentEffectValue("rogueBleedBonus") + getPermanentEffectTotal("rogueBleedBonus", hero.id);
-    damage += (6 + run.stage) * bleedBonus;
-    applyEnemyStatus(enemy, "bleed", {
-      damage: (4 + run.stage * 0.5 + getPermanentEffectTotal("bleedDamage", hero.id) + (hero.runBleedDamage || 0)) * bleedBonus,
-      duration: 3 + getPermanentEffectTotal("bleedDuration", hero.id) + (hero.runBleedDuration || 0)
+  if (hero.id === "rogue") {
+    const bleedDamage = getHeroBleedDamage(hero);
+    const bleedApplied = applyEnemyStatus(enemy, "bleed", {
+      damage: bleedDamage,
+      duration: Infinity
     });
     const bleedAttackSpeed = getPermanentEffectTotal("bleedAttackSpeed", hero.id) + (hero.runBleedAttackSpeed || 0);
-    hero.battleAttackSpeedBonus = Math.min(0.35, (hero.battleAttackSpeedBonus || 0) + bleedAttackSpeed);
-    if (getPermanentEffectTotal("rogueBleedBonus", hero.id) || bleedAttackSpeed || hero.runBleedChance || hero.runBleedDamage) triggerSkillVfx(enemy.x, enemy.y, "Bleed", "rogue");
+    if (bleedApplied && bleedAttackSpeed) hero.battleAttackSpeedBonus = Math.min(0.35, (hero.battleAttackSpeedBonus || 0) + bleedAttackSpeed);
+    if (bleedApplied && (getPermanentEffectTotal("bleedDamage", hero.id) || bleedAttackSpeed || hero.runBleedDamage || hero.runBleedDamageMultiplier)) triggerSkillVfx(enemy.x, enemy.y, "Bleed", "rogue");
   }
 
   if (hero.id === "wizard" && Math.random() < 0.18) {
@@ -499,6 +522,7 @@ function applyPendingHit(hit) {
 function enemyAttack(enemy, hero) {
   startUnitSpriteAnimation(enemy, "attack", 0.38);
   if (enemy.boss) spawnBossSlashEffect(hero);
+  else spawnSlashEffect(hero, "sword");
   let damage = Math.max(1, enemy.damage);
   let blockedByGuard = false;
   let blockPrevented = 0;
@@ -609,11 +633,12 @@ function prepareBattleResult(victory) {
   const eliteBonus = battle.nodeType === "Elite" ? getPermanentEffectTotal("eliteRewardMultiplier", run.classId) : 0;
   const encounterEssenceBonus = battle.nodeType === "Elite" || isBossStage(run.stage) || isFinalBossStage(run.stage) ? 0.2 : 0;
   if (eliteBonus) triggerSkillVfx(run.hero.x, run.hero.y, "Elite Bounty", run.classId);
-  const earned = Math.round(baseEssence * DIFFICULTIES[run.difficultyId].essenceMultiplier * (1 + encounterEssenceBonus + getPermanentEffectTotal("essenceMultiplier", run.classId) + getAchievementBonusTotal("essenceMultiplier", run.classId) + eliteBonus + getRelicEffectTotal("essenceMultiplier") + (run.hero.runEssenceMultiplier || 0)));
+  const layerRewardMultiplier = getLayerRewardMultiplier();
+  const earned = Math.round(baseEssence * layerRewardMultiplier * DIFFICULTIES[run.difficultyId].essenceMultiplier * (1 + encounterEssenceBonus + getPermanentEffectTotal("essenceMultiplier", run.classId) + getAchievementBonusTotal("essenceMultiplier", run.classId) + eliteBonus + getRelicEffectTotal("essenceMultiplier") + (run.hero.runEssenceMultiplier || 0)));
   const goldBefore = run.gold;
   run.essenceEarned += earned;
   const baseGoldReward = battle.nodeType === "Elite" ? 35 : 20 + run.stage * 1.4;
-  run.gold += Math.round(baseGoldReward * (1 + eliteBonus));
+  run.gold += Math.round(baseGoldReward * layerRewardMultiplier * (1 + eliteBonus));
   applyStageGrowthRelics();
   applyAfterBattleRelics();
   battle.result.gold = run.gold - goldBefore;
@@ -643,6 +668,10 @@ function applyStageGrowthRelics() {
     if (growth.stat === "damage") run.hero.damage += amount;
     if (growth.stat === "attackSpeed") run.hero.attackSpeed += amount;
     if (growth.stat === "armor") run.hero.armor += amount;
+    if (growth.stat === "damageMultiplier") run.hero.damage *= 1 + growth.value;
+    if (growth.stat === "attackSpeedMultiplier") run.hero.attackSpeed *= 1 + growth.value;
+    if (growth.stat === "armorMultiplier") multiplyArmor(run.hero, 1 + growth.value);
+    if (growth.stat === "maxHpMultiplier") multiplyMaxHp(run.hero, 1 + growth.value);
   });
 }
 
@@ -672,10 +701,22 @@ function recordBattleAccountStats(victory, gold, essence) {
   }
 }
 
+function getLayerRewardMultiplier() {
+  if (isEndlessRun()) return 1;
+  const layer = Math.max(1, Math.min(3, Math.ceil(run.stage / MAP_LAYER_SIZE)));
+  return [1, 1.12, 1.28][layer - 1] || 1;
+}
+
 function getVictoryContinueLabel() {
   if (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") return "Complete Run";
   if (battle.nodeType === "Elite" || isBossStage(run.stage)) return "Claim Relic";
   return "Continue";
+}
+
+function getHeroBleedDamage(hero) {
+  if (!hero || hero.id !== "rogue") return 0;
+  const baseBleed = 4 + run.stage * 0.5 + getPermanentEffectTotal("bleedDamage", hero.id) + (hero.runBleedDamage || 0);
+  return Math.max(1, baseBleed * (1 + (hero.runBleedDamageMultiplier || 0)));
 }
 
 function continueBattleResult() {
@@ -684,6 +725,17 @@ function continueBattleResult() {
   battle.state = "done";
 
   if (!victory) return endRun(false);
+  if (isEndlessRun()) {
+    if (isBossStage(run.stage)) {
+      run.afterRelicAction = "reward";
+      return showRelicRewards("Endless boss defeated. Claim one relic before the next duel.");
+    }
+    if (battle.nodeType === "Elite") {
+      run.afterRelicAction = "reward";
+      return showRelicRewards("Endless miniboss defeated. Claim one relic before the next duel.");
+    }
+    return showRewards();
+  }
   if (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") return endRun(true);
   if (isBossStage(run.stage)) {
     run.afterRelicAction = "reward";
@@ -711,9 +763,9 @@ function endRun(victory) {
   checkAchievements();
   saveGame();
   showScreen("runEndScreen");
-  runEndTitle.textContent = victory ? "Crownfall Broken" : "Run Failed";
+  runEndTitle.textContent = victory ? "Crownfall Broken" : isEndlessRun() ? "Endless Run Ended" : "Run Failed";
   const theme = BIOME_THEMES[run.themeId];
-  const routeName = theme ? `${DIFFICULTIES[run.difficultyId].name} / ${theme.name}` : DIFFICULTIES[run.difficultyId].name;
+  const routeName = isEndlessRun() ? DIFFICULTIES[run.difficultyId].name : theme ? `${DIFFICULTIES[run.difficultyId].name} / ${theme.name}` : DIFFICULTIES[run.difficultyId].name;
   runEndText.innerHTML = renderRunSummary(victory, routeName, essence);
   battle = null;
 }
@@ -910,13 +962,25 @@ function applyStatusEffects(dt) {
   }
   battle.enemies.forEach(enemy => {
     if (enemy.hp <= 0 || !enemy.statusEffects) return;
-    ["poison", "burn", "bleed"].forEach(type => {
+    ["poison", "burn"].forEach(type => {
       const status = enemy.statusEffects[type];
       if (!status) return;
       status.duration -= dt;
       damageEnemy(enemy, status.damage * dt, type === "poison" ? "#86efac" : type === "burn" ? "#fb923c" : "#fca5a5", { status: true });
       if (status.duration <= 0) delete enemy.statusEffects[type];
     });
+    const bleed = enemy.statusEffects.bleed;
+    if (bleed) {
+      bleed.duration -= dt;
+      bleed.tickTimer = (bleed.tickTimer ?? 1) - dt;
+      while (enemy.hp > 0 && bleed.tickTimer <= 0) {
+        const bleedDamage = damageEnemy(enemy, bleed.damage, "#fca5a5", { status: true });
+        addFloat(enemy.x, enemy.y - 46, Math.round(bleedDamage), "#fca5a5", { variant: "heavy" });
+        log(`${enemy.name} bleeds for ${Math.round(bleedDamage)} damage.`, "skill");
+        bleed.tickTimer += 1;
+      }
+      if (bleed.duration <= 0) delete enemy.statusEffects.bleed;
+    }
     const slow = enemy.statusEffects.slow;
     if (slow) {
       slow.duration -= dt;
@@ -937,8 +1001,15 @@ function applyEnemyStatus(enemy, type, effect) {
   const status = {
     duration,
     damage: (effect.damage || 0) * damageMultiplier,
-    value: effect.value || 0
+    value: effect.value || 0,
+    tickTimer: type === "bleed" ? 1 : undefined
   };
+  if (type === "bleed" && enemy.statusEffects.bleed) {
+    enemy.statusEffects.bleed.damage = status.damage;
+    enemy.statusEffects.bleed.duration = Infinity;
+    enemy.statusEffects.bleed.tickTimer = enemy.statusEffects.bleed.tickTimer ?? 1;
+    return false;
+  }
   enemy.statusEffects[type] = status;
   addFloat(enemy.x, enemy.y - 58, getStatusFloatText(type, status), getStatusColor(type));
   if (["poison", "burn", "bleed", "slow", "curse"].includes(type)) {
@@ -954,6 +1025,7 @@ function applyEnemyStatus(enemy, type, effect) {
       log(`Wildfire spread to ${spreadTarget.name}.`, "skill");
     }
   }
+  return true;
 }
 
 function getStatusColor(type) {

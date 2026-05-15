@@ -23,7 +23,7 @@
     "directories": {
       "output": "dist-electron"
     },
-    "icon": "assets/icons/icon-512.png",
+    "icon": "assets/icons/Crownfall.png",
     "files": [
       "index.html",
       "manifest.webmanifest",
