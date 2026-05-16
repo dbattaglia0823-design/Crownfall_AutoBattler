@@ -724,7 +724,7 @@ function getVictoryContinueLabel() {
 
 function getHeroBleedDamage(hero) {
   if (!hero || hero.id !== "rogue") return 0;
-  const baseBleed = 4 + run.stage * 0.5 + getPermanentEffectTotal("bleedDamage", hero.id) + (hero.runBleedDamage || 0);
+  const baseBleed = 4 + run.stage * 0.5 + getTalentEffectValue("bleedDamage") + getPermanentEffectTotal("bleedDamage", hero.id) + (hero.runBleedDamage || 0);
   return Math.max(1, baseBleed * (1 + (hero.runBleedDamageMultiplier || 0)));
 }
 
