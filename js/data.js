@@ -291,8 +291,8 @@ const DIFFICULTIES = {
     essenceMultiplier: 0.6,
     enemyPool: AREA_ENEMY_POOLS.easy,
     themeIds: ["hauntedForest", "goblinCamp"],
-    layerEnemyMultipliers: [1.1, 1.35, 1.65],
-    layerDamageMultipliers: [1.05, 1.18, 1.32]
+    layerEnemyMultipliers: [1.0, 1.3, 1.6],
+    layerDamageMultipliers: [1.0, 1.18, 1.3]
   },
   medium: {
     name: "Ashen Ramparts",
@@ -305,8 +305,8 @@ const DIFFICULTIES = {
     essenceMultiplier: 1.1,
     enemyPool: AREA_ENEMY_POOLS.medium,
     themeIds: ["ruinedKeep", "cursedMarsh"],
-    layerEnemyMultipliers: [1.35, 1.65, 2.25],
-    layerDamageMultipliers: [1.1, 1.32, 1.58]
+    layerEnemyMultipliers: [1.35, 1.6, 2.0],
+    layerDamageMultipliers: [1.1, 1.3, 1.5]
   },
   hard: {
     name: "Crownfall Keep",
