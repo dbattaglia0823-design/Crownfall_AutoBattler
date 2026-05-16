@@ -22,7 +22,7 @@ const ENEMY_SKIN_ESSENCE_COST = 150;
 
 const CLASSES = {
   knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 220, damage: 16, attackSpeed: 0.71, armor: 5, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
-  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed for 4 + 0.5 per stage damage each second.", hp: 135, damage: 13, attackSpeed: 1.16, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Guaranteed bleed"] },
+  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed.", hp: 135, damage: 13, attackSpeed: 1.16, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Guaranteed bleed"] },
   wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 115, damage: 28, attackSpeed: 0.58, armor: 1, crit: 0.1, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
 };
 
