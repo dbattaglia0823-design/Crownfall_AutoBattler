@@ -28,7 +28,7 @@ const CLASSES = {
 
 const SPRITE_SHEETS = {
   heroes: {
-    knight: "assets/heroes/knight-sheet.svg",
+    knight: "assets/heroes/knight-sheet.png",
     rogue: "assets/heroes/rogue-sheet.svg",
     wizard: "assets/heroes/wizard-sheet.svg"
   },
