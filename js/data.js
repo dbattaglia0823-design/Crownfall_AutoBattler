@@ -28,26 +28,138 @@ const CLASSES = {
 
 const SPRITE_SHEETS = {
   heroes: {
-    knight: "assets/heroes/knight-sheet.svg",
+    knight: "assets/heroes/knight-sheet.png",
     rogue: "assets/heroes/rogue-sheet.svg",
     wizard: "assets/heroes/wizard-sheet.svg"
   },
   enemies: {
-    goblin: "assets/enemies/goblin-sheet.svg",
+    goblin: "assets/enemies/goblin-sheet.png",
     skeleton: "assets/enemies/skeleton-sheet.svg",
     orc: "assets/enemies/orc-sheet.svg",
     wolf: "assets/enemies/wolf-sheet.svg",
-    bandit: "assets/enemies/bandit-sheet.svg",
+    bandit: "assets/enemies/bandit-sheet.png",
     cultist: "assets/enemies/cultist-sheet.svg",
-    dark_archer: "assets/enemies/dark-archer-sheet.svg",
-    plague_rat: "assets/enemies/plague-rat-sheet.svg",
-    armored_knight: "assets/enemies/armored-knight-sheet.svg",
+    dark_archer: "assets/enemies/dark-archer-sheet.png",
+    plague_rat: "assets/enemies/plague-rat-sheet.png",
+    armored_knight: "assets/enemies/armored-knight-sheet.png",
     fallen_knight: "assets/enemies/fallen-knight-sheet.svg",
     necromancer: "assets/enemies/necromancer-sheet.svg",
     wraith: "assets/enemies/wraith-sheet.svg",
     troll: "assets/enemies/troll-sheet.svg",
     raider: "assets/enemies/raider-sheet.svg",
-    boss: "assets/enemies/boss-sheet.svg"
+    boss: "assets/enemies/boss-sheet.png"
+  }
+};
+
+const SKIN_SPRITE_SHEETS = {
+  heroes: {
+    knight: {
+      royal_vanguard: "assets/heroes/skins/knight-royal-vanguard-sheet.png",
+      crimson_champion: "assets/heroes/skins/crimson-champion-sheet.png",
+      golden_oath: "assets/heroes/skins/knight-golden-oath-sheet.png"
+    },
+    rogue: {
+      verdant_shade: "assets/heroes/skins/rogue-verdant-shade-sheet.png",
+      crimson_ghost: "assets/heroes/skins/rogue-crimson-ghost-sheet.png",
+      gilded_contract: "assets/heroes/skins/rogue-gilded-contract-sheet.png"
+    },
+    wizard: {
+      astral_scholar: "assets/heroes/skins/wizard-astral-scholar-sheet.png",
+      starfire_magus: "assets/heroes/skins/wizard-starfire-magus-sheet.png",
+      auric_arcana: "assets/heroes/skins/wizard-auric-arcana-sheet.png"
+    }
+  },
+  enemies: {
+    goblin: {
+      crownmark: "assets/enemies/skins/goblin-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/goblin-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/goblin-goldbound-sheet.png"
+    },
+    wolf: {
+      crownmark: "assets/enemies/skins/wolf-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/wolf-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/wolf-goldbound-sheet.png"
+    },
+    bandit: {
+      crownmark: "assets/enemies/skins/bandit-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/bandit-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/bandit-goldbound-sheet.png"
+    },
+    plague_rat: {
+      crownmark: "assets/enemies/skins/plague_rat-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/plague_rat-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/plague_rat-goldbound-sheet.png"
+    },
+    dark_archer: {
+      crownmark: "assets/enemies/skins/dark_archer-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/dark_archer-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/dark_archer-goldbound-sheet.png"
+    },
+    skeleton: {
+      crownmark: "assets/enemies/skins/skeleton-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/skeleton-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/skeleton-goldbound-sheet.png"
+    },
+    wraith: {
+      crownmark: "assets/enemies/skins/wraith-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/wraith-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/wraith-goldbound-sheet.png"
+    },
+    necromancer: {
+      crownmark: "assets/enemies/skins/necromancer-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/necromancer-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/necromancer-goldbound-sheet.png"
+    },
+    orc: {
+      crownmark: "assets/enemies/skins/orc-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/orc-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/orc-goldbound-sheet.png"
+    },
+    raider: {
+      crownmark: "assets/enemies/skins/raider-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/raider-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/raider-goldbound-sheet.png"
+    },
+    troll: {
+      crownmark: "assets/enemies/skins/troll-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/troll-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/troll-goldbound-sheet.png"
+    },
+    armored_knight: {
+      crownmark: "assets/enemies/skins/armored_knight-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/armored_knight-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/armored_knight-goldbound-sheet.png"
+    },
+    fallen_knight: {
+      crownmark: "assets/enemies/skins/fallen_knight-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/fallen_knight-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/fallen_knight-goldbound-sheet.png"
+    },
+    cultist: {
+      crownmark: "assets/enemies/skins/cultist-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/cultist-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/cultist-goldbound-sheet.png"
+    },
+    fallen_king_shade: {
+      crownmark: "assets/enemies/skins/fallen_king_shade-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/fallen_king_shade-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/fallen_king_shade-goldbound-sheet.png"
+    },
+    crown_hound: {
+      crownmark: "assets/enemies/skins/crown_hound-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/crown_hound-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/crown_hound-goldbound-sheet.png"
+    },
+    oathbreaker: {
+      crownmark: "assets/enemies/skins/oathbreaker-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/oathbreaker-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/oathbreaker-goldbound-sheet.png"
+    },
+    blood_acolyte: {
+      crownmark: "assets/enemies/skins/blood_acolyte-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/blood_acolyte-nemesis-sheet.png",
+      goldbound: "assets/enemies/skins/blood_acolyte-goldbound-sheet.png"
+    }
   }
 };
 
@@ -55,17 +167,20 @@ const HERO_SKINS = {
   knight: [
     { id: "base", name: "Classic Oath", className: "", unlock: { type: "base" } },
     { id: "royal_vanguard", name: "Royal Vanguard", className: "skin-tree", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } },
-    { id: "iron_champion", name: "Iron Champion", className: "skin-achievement", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } }
+    { id: "crimson_champion", name: "Crimson Champion", className: "skin-achievement", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } },
+    { id: "golden_oath", name: "Golden Oath", className: "skin-gold", unlock: { type: "achievement", achievement: "knight_layer3_clear" } }
   ],
   rogue: [
     { id: "base", name: "Classic Contract", className: "", unlock: { type: "base" } },
     { id: "verdant_shade", name: "Verdant Shade", className: "skin-tree", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } },
-    { id: "crimson_ghost", name: "Crimson Ghost", className: "skin-achievement", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } }
+    { id: "crimson_ghost", name: "Crimson Ghost", className: "skin-achievement", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } },
+    { id: "gilded_contract", name: "Gilded Contract", className: "skin-gold", unlock: { type: "achievement", achievement: "rogue_layer3_clear" } }
   ],
   wizard: [
     { id: "base", name: "Classic Arcana", className: "", unlock: { type: "base" } },
     { id: "astral_scholar", name: "Astral Scholar", className: "skin-tree", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } },
-    { id: "starfire_magus", name: "Starfire Magus", className: "skin-achievement", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } }
+    { id: "starfire_magus", name: "Starfire Magus", className: "skin-achievement", unlock: { type: "purchase", cost: HERO_SKIN_ESSENCE_COST } },
+    { id: "auric_arcana", name: "Auric Arcana", className: "skin-gold", unlock: { type: "achievement", achievement: "wizard_layer3_clear" } }
   ]
 };
 
@@ -73,7 +188,8 @@ function getEnemySkinSet(enemyId, enemyName) {
   return [
     { id: "base", name: `${enemyName} Classic`, className: "", unlock: { type: "base" } },
     { id: "crownmark", name: `${enemyName} Crownmark`, className: "skin-tree", unlock: { type: "purchase", cost: ENEMY_SKIN_ESSENCE_COST } },
-    { id: "nemesis", name: `${enemyName} Nemesis`, className: "skin-achievement", unlock: { type: "purchase", cost: ENEMY_SKIN_ESSENCE_COST } }
+    { id: "nemesis", name: `${enemyName} Nemesis`, className: "skin-achievement", unlock: { type: "purchase", cost: ENEMY_SKIN_ESSENCE_COST } },
+    { id: "goldbound", name: `${enemyName} Goldbound`, className: "skin-gold", unlock: { type: "achievement", achievement: `slayer_${enemyId}` } }
   ];
 }
 
@@ -414,6 +530,9 @@ const ACHIEVEMENTS = [
   { id: "reward_seeker", name: "Reward Seeker", description: "Choose 30 run upgrades.", goal: "Choose 30 upgrades", condition: save => save.stats.rewardsClaimed >= 30, bonus: { maxHp: 3 } },
   { id: "knight_oath", name: "Knight Oath", description: "Start 5 Knight runs.", goal: "Start 5 Knight runs", condition: save => save.stats.knightRuns >= 5, bonus: { knightArmor: 1 } },
   { id: "rogue_contract", name: "Rogue Contract", description: "Start 5 Rogue runs.", goal: "Start 5 Rogue runs", condition: save => save.stats.rogueRuns >= 5, bonus: { rogueCritChance: 0.01 } },
+  { id: "knight_layer3_clear", name: "Golden Oath", description: "Win a run with the Knight by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Knight", condition: save => save.stats.knightLayer3Clears >= 1, bonus: { skin: "Knight Golden Oath" } },
+  { id: "rogue_layer3_clear", name: "Gilded Contract", description: "Win a run with the Rogue by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Rogue", condition: save => save.stats.rogueLayer3Clears >= 1, bonus: { skin: "Rogue Gilded Contract" } },
+  { id: "wizard_layer3_clear", name: "Auric Arcana", description: "Win a run with the Wizard by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Wizard", condition: save => save.stats.wizardLayer3Clears >= 1, bonus: { skin: "Wizard Auric Arcana" } },
   { id: "eternal_crown", name: "Eternal Crownbreaker", description: "Kill the final boss with 1,000,000 HP.", goal: "Defeat The Eternal Crown", condition: save => save.stats.finalBossKills >= 1, bonus: { unlock: "Endless Mode", damageMultiplier: 0.08, maxHp: 40, armor: 3, luck: 3, essenceMultiplier: 0.05 } },
   ...ENEMY_KILL_ACHIEVEMENTS
 ];

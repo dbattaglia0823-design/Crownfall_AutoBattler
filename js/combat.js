@@ -748,9 +748,9 @@ function continueBattleResult() {
   if (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") return endRun(true);
   if (isBossStage(run.stage)) {
     run.afterRelicAction = "reward";
-    if (run.stage === STAGE_COUNT) run.afterRewardAction = "finalBoss";
+    if (run.stage === STAGE_COUNT) run.afterRewardAction = "completeRun";
     return showRelicRewards(run.stage === STAGE_COUNT
-      ? "Third map boss defeated. Claim one relic and choose a reward before the final fight."
+      ? "Layer 3 cleared. Claim one relic and choose a final reward before completing the run."
       : "Boss defeated. Claim one relic before pushing into the next map layer.");
   }
   if (battle.nodeType === "Elite") {
@@ -767,6 +767,7 @@ function endRun(victory) {
   save.highestClear = Math.max(save.highestClear, run.stagesCleared);
   addAccountStat("runsEnded", 1);
   addAccountStat(victory ? "victories" : "defeats", 1);
+  if (victory && !isEndlessRun() && run.stagesCleared >= STAGE_COUNT) addAccountStat(`${run.classId}Layer3Clears`, 1);
   addAccountStat("totalEssenceEarned", essence);
   if (victory) save.firstBossDefeated = true;
   checkAchievements();

@@ -59,6 +59,9 @@ function defaultAccountStats() {
     knightRuns: 0,
     rogueRuns: 0,
     wizardRuns: 0,
+    knightLayer3Clears: 0,
+    rogueLayer3Clears: 0,
+    wizardLayer3Clears: 0,
     enemyKills: {}
   };
 }
@@ -164,6 +167,12 @@ function getSelectedEnemySkin(enemyId) {
   return isSkinUnlocked(skin) && isSkinPurchased("enemy", enemyId, skin.id) ? skin : getEnemySkin(enemyId, "base");
 }
 
+function getSkinSpriteSheet(kind, ownerId, skinId, baseSheet) {
+  if (!skinId || skinId === "base") return baseSheet;
+  const bucket = kind === "hero" ? SKIN_SPRITE_SHEETS.heroes : SKIN_SPRITE_SHEETS.enemies;
+  return (bucket && bucket[ownerId] && bucket[ownerId][skinId]) || baseSheet;
+}
+
 function isSkinUnlocked(skin) {
   if (!skin || !skin.unlock || skin.unlock.type === "base") return true;
   if (skin.unlock.type === "purchase") return true;
@@ -174,6 +183,8 @@ function isSkinUnlocked(skin) {
 
 function isSkinPurchased(kind, ownerId, skinId, purchases = save?.skinPurchases) {
   if (skinId === "base") return true;
+  const skin = kind === "hero" ? getHeroSkin(ownerId, skinId) : getEnemySkin(ownerId, skinId);
+  if (skin && skin.unlock && skin.unlock.type === "achievement" && isSkinUnlocked(skin)) return true;
   const bucket = kind === "hero" ? "heroes" : "enemies";
   return !!purchases?.[bucket]?.[ownerId]?.[skinId];
 }
@@ -181,6 +192,7 @@ function isSkinPurchased(kind, ownerId, skinId, purchases = save?.skinPurchases)
 function getSkinUnlockText(skin) {
   if (!skin || !skin.unlock || skin.unlock.type === "base") return "Unlocked";
   if (skin.unlock.type === "purchase") return `${skin.unlock.cost || 0} Essence`;
+  if (skin.unlock.type === "achievement") return "Achievement";
   return "Locked";
 }
 

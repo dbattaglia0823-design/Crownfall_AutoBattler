@@ -237,11 +237,14 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .character-stat-grid div { padding: 10px; border: 1px solid rgba(111,84,55,.78); border-radius: 8px; background: rgba(47,35,25,.58); }
 .character-stat-grid small { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px; }
 .character-stat-grid strong { color: var(--gold2); font-size: 17px; }
-.skin-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.skin-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .skin-option { min-height: 78px; padding: 10px; text-align: left; border-radius: 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 4px 0 #1d120a; }
 .skin-option strong { display: block; color: #ffe2a2; margin-bottom: 5px; }
 .skin-option span { display: block; color: #d7c4a3; font-size: 12px; line-height: 1.25; }
-.skin-option-selected { border-color: #86efac; background: linear-gradient(#42643d, #263a25); }
+.skin-option-equipped { border-color: #86efac; }
+.skin-option-selected { border-color: #facc15; background: linear-gradient(#6b4a18, #32200d); }
+.skin-action { margin-top: 12px; display: flex; justify-content: flex-end; }
+.skin-action button { width: min(260px, 100%); }
 
 .grid-3, .reward-grid, .shop-grid, .relic-grid, .talent-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
 .card { background: linear-gradient(180deg, rgba(55,39,28,.96), rgba(28,20,15,.96)); border: 2px solid #705334; border-radius: 16px; padding: 16px; min-height: 170px; text-align: left; position: relative; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 10px 24px rgba(0,0,0,.26); transition: transform .12s, filter .12s, box-shadow .12s, outline-color .12s; }
@@ -640,6 +643,7 @@ body.hide-tooltips .tooltip-item::after { display: none; }
 .choice-card-locked { opacity: .66; filter: grayscale(.35); }
 .alt-skin .sprite, .skin-tree .sprite { filter: drop-shadow(0 8px 4px rgba(0,0,0,.34)) hue-rotate(145deg) saturate(1.35) brightness(1.08); }
 .skin-achievement .sprite { filter: drop-shadow(0 8px 4px rgba(0,0,0,.34)) hue-rotate(305deg) saturate(1.55) brightness(1.12) contrast(1.08); }
+.skin-gold .sprite { filter: drop-shadow(0 8px 5px rgba(0,0,0,.38)) sepia(.82) saturate(1.9) hue-rotate(345deg) brightness(1.22) contrast(1.08); }
 .tree-details { position: absolute; right: 16px; top: 16px; z-index: 8; width: min(330px, calc(100vw - 32px)); max-height: calc(100vh - 116px); overflow-y: auto; text-align: left; min-height: 0; padding: 16px; border: 2px solid #6f5437; border-radius: 18px; background: linear-gradient(180deg, rgba(47,35,25,.98), rgba(21,15,12,.99)); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 14px 30px rgba(0,0,0,.34); pointer-events: auto; }
 .tree-detail-kicker { color: #d6a84f; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; font-weight: 900; margin-bottom: 8px; }
 .tree-details h3 { color: var(--gold2); font-size: 25px; margin-bottom: 10px; }

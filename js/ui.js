@@ -19,6 +19,7 @@ let treePinch = null;
 let treeHasInitialCenter = false;
 let characterBrowserTab = "heroes";
 let selectedCharacterId = "knight";
+let previewSkins = { heroes: {}, enemies: {} };
 
 function refreshTopbar() {
   essenceTop.textContent = Math.floor(save.essence);
@@ -376,7 +377,10 @@ function renderClasses() {
   classText.textContent = endless
     ? "Choose the champion for the endless 1v1 gauntlet. Upgrades, relics, and class talents still appear between fights."
     : "Choose the champion who will carry the run. Each class has distinct stats, combat rhythm, and strengths.";
-  classCards.innerHTML = Object.entries(CLASSES).map(([id, heroClass]) => `<div class="card choice-card hero-card" data-class="${id}"><div class="hero-preview player ${getHeroSkinClass(id)} sprite-sheet-unit"><div class="sprite" style="background-image:url('${SPRITE_SHEETS.heroes[id]}');background-size:600% 100%;background-position:0% center;"></div></div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><ul>${heroClass.traits.map(trait => `<li>${getTraitIconMarkup(trait)}<span>${trait}</span></li>`).join("")}</ul><button>${endless ? "Begin Endless as" : "Begin as"} ${heroClass.name}</button></div>`).join("");
+  classCards.innerHTML = Object.entries(CLASSES).map(([id, heroClass]) => {
+    const skin = getSelectedHeroSkin(id);
+    return `<div class="card choice-card hero-card" data-class="${id}"><div class="hero-preview player ${getHeroSkinClass(id)} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.heroes[id], "hero", id, skin)};background-size:600% 100%;background-position:0% center;"></div></div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><ul>${heroClass.traits.map(trait => `<li>${getTraitIconMarkup(trait)}<span>${trait}</span></li>`).join("")}</ul><button>${endless ? "Begin Endless as" : "Begin as"} ${heroClass.name}</button></div>`;
+  }).join("");
   classCards.querySelectorAll("[data-class]").forEach(card => card.querySelector("button").onclick = () => startRun(card.dataset.class));
 }
 
@@ -397,10 +401,10 @@ function renderCharacterBrowser() {
   heroCharacterTab.classList.toggle("character-tab-active", characterBrowserTab === "heroes");
   enemyCharacterTab.classList.toggle("character-tab-active", characterBrowserTab === "enemies");
   const items = characterBrowserTab === "heroes"
-    ? Object.entries(CLASSES).map(([id, data]) => ({ id, name: data.name, sheet: SPRITE_SHEETS.heroes[id], className: getHeroSkinClass(id) }))
-    : getAllCharacterEnemies().map(enemy => ({ id: enemy.id, name: enemy.name, sheet: SPRITE_SHEETS.enemies[enemy.className], className: `enemy ${enemy.className} ${getSelectedEnemySkin(enemy.id).className}` }));
+    ? Object.entries(CLASSES).map(([id, data]) => ({ id, name: data.name, baseSheet: SPRITE_SHEETS.heroes[id], skin: getSelectedHeroSkin(id), className: getHeroSkinClass(id) }))
+    : getAllCharacterEnemies().map(enemy => ({ id: enemy.id, name: enemy.name, baseSheet: SPRITE_SHEETS.enemies[enemy.className], skin: getSelectedEnemySkin(enemy.id), className: `enemy ${enemy.className} ${getSelectedEnemySkin(enemy.id).className}` }));
   if (!items.some(item => item.id === selectedCharacterId)) selectedCharacterId = items[0]?.id || "";
-  characterList.innerHTML = items.map(item => `<button class="character-list-item ${item.id === selectedCharacterId ? "character-list-selected" : ""}" data-character="${item.id}"><span class="character-list-sprite ${item.className} sprite-sheet-unit"><span class="sprite" style="background-image:url('${item.sheet}');background-size:600% 100%;background-position:0% center;"></span></span><strong>${escapeHtml(item.name)}</strong></button>`).join("");
+  characterList.innerHTML = items.map(item => `<button class="character-list-item ${item.id === selectedCharacterId ? "character-list-selected" : ""}" data-character="${item.id}"><span class="character-list-sprite ${item.className} sprite-sheet-unit"><span class="sprite" style="${getSpriteBackgroundStyle(item.baseSheet, characterBrowserTab === "heroes" ? "hero" : "enemy", item.id, item.skin)};background-size:600% 100%;background-position:0% center;"></span></span><strong>${escapeHtml(item.name)}</strong></button>`).join("");
   characterList.querySelectorAll("[data-character]").forEach(button => button.onclick = () => { selectedCharacterId = button.dataset.character; renderCharacterBrowser(); });
   renderCharacterDetails();
 }
@@ -412,7 +416,8 @@ function renderCharacterDetails() {
 
 function renderHeroCharacterDetails(classId) {
   const heroClass = CLASSES[classId] || CLASSES.knight;
-  const skin = getSelectedHeroSkin(classId);
+  const skin = getPreviewSkin("hero", classId) || getSelectedHeroSkin(classId);
+  const equippedSkin = getSelectedHeroSkin(classId);
   const stats = [
     ["HP", Math.round(heroClass.hp * PLAYER_BASE_STAT_MULTIPLIER)],
     ["Damage", (heroClass.damage * PLAYER_BASE_STAT_MULTIPLIER).toFixed(1)],
@@ -420,22 +425,23 @@ function renderHeroCharacterDetails(classId) {
     ["Armor", Math.round(heroClass.armor * PLAYER_BASE_STAT_MULTIPLIER)],
     ["Crit", formatPercentCap(heroClass.crit * PLAYER_BASE_STAT_MULTIPLIER, STAT_CAPS.crit)]
   ];
-  characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview player ${getHeroSkinClass(classId)} sprite-sheet-unit"><div class="sprite" style="background-image:url('${SPRITE_SHEETS.heroes[classId]}');background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><small>Equipped: ${escapeHtml(skin.name)}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("hero", classId, HERO_SKINS[classId])}`;
-  characterDetails.querySelectorAll("[data-skin]").forEach(button => button.onclick = () => equipSkin("hero", classId, button.dataset.skin));
+  characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview player ${[heroClass.colorClass, skin.className].filter(Boolean).join(" ")} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.heroes[classId], "hero", classId, skin)};background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><small>Equipped: ${escapeHtml(equippedSkin.name)}${skin.id !== equippedSkin.id ? ` | Previewing: ${escapeHtml(skin.name)}` : ""}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("hero", classId, HERO_SKINS[classId])}`;
+  wireSkinPicker("hero", classId);
 }
 
 function renderEnemyCharacterDetails(enemyId) {
   const enemy = getAllCharacterEnemies().find(item => item.id === enemyId) || getAllCharacterEnemies()[0];
   if (!enemy) return;
-  const skin = getSelectedEnemySkin(enemy.id);
+  const skin = getPreviewSkin("enemy", enemy.id) || getSelectedEnemySkin(enemy.id);
+  const equippedSkin = getSelectedEnemySkin(enemy.id);
   const stats = [
     ["HP", Math.round(enemy.hp * ENEMY_BASE_STAT_MULTIPLIER)],
     ["Damage", (enemy.damage * ENEMY_BASE_STAT_MULTIPLIER).toFixed(1)],
     ["Atk Spd", (enemy.attackSpeed * ENEMY_BASE_STAT_MULTIPLIER).toFixed(2)],
     ["Armor", Math.round(enemy.armor * ENEMY_BASE_STAT_MULTIPLIER)]
   ];
-  characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview enemy ${enemy.className} ${skin.className} sprite-sheet-unit"><div class="sprite" style="background-image:url('${SPRITE_SHEETS.enemies[enemy.className]}');background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${enemy.name}</h3><p>Known enemy profile from the Crownfall routes.</p><small>Equipped: ${escapeHtml(skin.name)}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("enemy", enemy.id, getEnemySkinSet(enemy.id, enemy.name))}`;
-  characterDetails.querySelectorAll("[data-skin]").forEach(button => button.onclick = () => equipSkin("enemy", enemy.id, button.dataset.skin));
+  characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview enemy ${enemy.className} ${skin.className} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.enemies[enemy.className], "enemy", enemy.id, skin)};background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${enemy.name}</h3><p>Known enemy profile from the Crownfall routes.</p><small>Equipped: ${escapeHtml(equippedSkin.name)}${skin.id !== equippedSkin.id ? ` | Previewing: ${escapeHtml(skin.name)}` : ""}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("enemy", enemy.id, getEnemySkinSet(enemy.id, enemy.name))}`;
+  wireSkinPicker("enemy", enemy.id);
 }
 
 function renderCharacterStatGrid(stats) {
@@ -443,15 +449,53 @@ function renderCharacterStatGrid(stats) {
 }
 
 function renderSkinPicker(kind, ownerId, skins) {
+  const preview = getPreviewSkin(kind, ownerId);
+  const previewId = preview ? preview.id : null;
   return `<div class="skin-picker">${skins.map(skin => {
     const unlocked = isSkinUnlocked(skin);
     const purchased = isSkinPurchased(kind, ownerId, skin.id);
     const selected = kind === "hero" ? (save.skins.heroes[ownerId] || "base") === skin.id : (save.skins.enemies[ownerId] || "base") === skin.id;
     const cost = skin.unlock?.cost || 0;
-    const disabled = !unlocked || (!purchased && save.essence < cost);
-    const action = purchased ? selected ? "Equipped" : "Equip" : `Buy - ${cost} Essence`;
-    return `<button class="skin-option ${selected ? "skin-option-selected" : ""}" data-skin="${skin.id}" ${disabled ? "disabled" : ""}><strong>${escapeHtml(skin.name)}</strong><span>${unlocked ? action : escapeHtml(getSkinUnlockText(skin))}</span></button>`;
-  }).join("")}</div>`;
+    const status = !unlocked ? `Locked - ${getSkinUnlockText(skin)}` : purchased ? selected ? "Equipped" : "Unlocked" : `Unowned - ${cost} Essence`;
+    return `<button class="skin-option ${selected ? "skin-option-equipped" : ""} ${previewId === skin.id ? "skin-option-selected" : ""}" data-skin-preview="${skin.id}"><strong>${escapeHtml(skin.name)}</strong><span>${escapeHtml(status)}</span></button>`;
+  }).join("")}</div>${renderSkinAction(kind, ownerId, preview || skins.find(skin => skin.id === "base") || skins[0])}`;
+}
+
+function renderSkinAction(kind, ownerId, skin) {
+  if (!skin) return "";
+  const unlocked = isSkinUnlocked(skin);
+  const purchased = isSkinPurchased(kind, ownerId, skin.id);
+  const selected = kind === "hero" ? (save.skins.heroes[ownerId] || "base") === skin.id : (save.skins.enemies[ownerId] || "base") === skin.id;
+  const cost = skin.unlock?.cost || 0;
+  const disabled = !unlocked || (!purchased && save.essence < cost) || selected;
+  const text = !unlocked ? `Locked: ${getSkinUnlockText(skin)}` : selected ? "Equipped" : purchased ? "Equip Previewed Skin" : `Buy & Equip - ${cost} Essence`;
+  return `<div class="skin-action"><button data-skin-action="${skin.id}" ${disabled ? "disabled" : ""}>${escapeHtml(text)}</button></div>`;
+}
+
+function wireSkinPicker(kind, ownerId) {
+  characterDetails.querySelectorAll("[data-skin-preview]").forEach(button => button.onclick = () => previewSkin(kind, ownerId, button.dataset.skinPreview));
+  const action = characterDetails.querySelector("[data-skin-action]");
+  if (action) action.onclick = () => equipSkin(kind, ownerId, action.dataset.skinAction);
+}
+
+function previewSkin(kind, ownerId, skinId) {
+  const skin = kind === "hero" ? getHeroSkin(ownerId, skinId) : getEnemySkin(ownerId, skinId);
+  if (!skin) return;
+  const bucket = kind === "hero" ? "heroes" : "enemies";
+  previewSkins[bucket][ownerId] = skinId;
+  renderCharacterDetails();
+}
+
+function getPreviewSkin(kind, ownerId) {
+  const bucket = kind === "hero" ? "heroes" : "enemies";
+  const skinId = previewSkins[bucket][ownerId] || (kind === "hero" ? save.skins.heroes[ownerId] : save.skins.enemies[ownerId]) || "base";
+  return kind === "hero" ? getHeroSkin(ownerId, skinId) : getEnemySkin(ownerId, skinId);
+}
+
+function getSpriteBackgroundStyle(baseSheet, kind, ownerId, skin) {
+  const skinSheet = getSkinSpriteSheet(kind, ownerId, skin && skin.id, baseSheet);
+  const images = skinSheet && skinSheet !== baseSheet ? [`url('${skinSheet}')`, `url('${baseSheet}')`] : [`url('${baseSheet}')`];
+  return `background-image:${images.join(",")}`;
 }
 
 function equipSkin(kind, ownerId, skinId) {
@@ -469,6 +513,7 @@ function equipSkin(kind, ownerId, skinId) {
   }
   if (!save.skins) save.skins = defaultSkins();
   save.skins[kind === "hero" ? "heroes" : "enemies"][ownerId] = skinId;
+  previewSkins[kind === "hero" ? "heroes" : "enemies"][ownerId] = skinId;
   saveGame();
   renderCharacterBrowser();
 }
@@ -631,6 +676,7 @@ function continueAfterRelicChoice() {
 
 function continueAfterRunChoice() {
   if (shouldOfferClassTalent()) return showTalentChoices();
+  if (run.afterRewardAction === "completeRun") { run.afterRewardAction = null; return endRun(true); }
   if (run.afterRewardAction === "finalBoss") { run.afterRewardAction = null; return beginFinalBoss(); }
   if (isEndlessRun()) return beginNextEndlessStage();
   showMap();
@@ -849,7 +895,7 @@ function renderBattleParticles() {
 function renderBossIntro() { const boss = battle.enemies.find(e => e.boss); if (!boss) return; const progress = 1 - battle.bossIntroTimer / Math.max(.1, battle.bossIntroDuration || battle.bossIntroTimer), opacity = progress < .18 ? progress / .18 : progress > .72 ? Math.max(0, (1 - progress) / .28) : 1; const overlay = document.createElement("div"); overlay.className = `boss-intro-overlay${boss.finalBoss ? " boss-intro-final" : ""}`; overlay.style.opacity = opacity; overlay.style.setProperty("--intro-progress", progress); overlay.innerHTML = `<div class="boss-intro-tint"></div><div class="boss-intro-name"><small>${boss.finalBoss ? "THE CROWN AWAKENS" : "BOSS"}</small><h2>${escapeHtml(boss.name.toUpperCase())}</h2><strong>${boss.finalBoss ? "The Last Encounter" : "Final Encounter"}</strong></div>`; battlefield.appendChild(overlay); }
 function renderBattleResultPanel() { const r = battle.result, panel = document.createElement("div"); panel.className = `battle-result-panel${r.victory ? "" : " battle-result-defeat"}`; panel.innerHTML = `<div class="battle-result-kicker">${r.victory ? "Enemies Defeated" : "Hero Defeated"}</div><h2>${r.title}</h2><div class="battle-result-gains"><div><small>Gold Gained</small><strong>+${Math.floor(r.gold)}</strong></div><div><small>Essence Gained</small><strong>+${Math.floor(r.essence)}</strong></div></div><button onclick="continueBattleResult()">${r.nextLabel}</button>`; battlefield.appendChild(panel); }
 function getBattleScale() { return { x: battlefield.clientWidth / 900, y: battlefield.clientHeight / 430, unit: Math.max(.58, Math.min(battlefield.clientWidth / 900, battlefield.clientHeight / 430)) }; }
-function createUnitEl(unit, isHero) { const el = document.createElement("div"), scale = getBattleScale(), size = (unit.boss ? 104 : unit.miniBoss ? 92 : isHero ? 84 : 78) * scale.unit; el.className = `unit ${isHero ? "player " + unit.colorClass : `enemy ${unit.className} ${unit.skinClass || ""}`}`; if (unit.spriteAnim?.type === "attack" || unit.spriteAnim?.type === "block") el.classList.add("attack-flash"); if ((unit.hitFlash || 0) > 0) el.classList.add("hit-flash"); if (unit.spriteAnim?.type === "downed" || (unit.hp <= 0 && !isHero)) el.classList.add("unit-downed"); el.style.left = unit.x * scale.x + "px"; el.style.top = unit.y * scale.y + "px"; el.style.width = size + "px"; el.style.height = size + "px"; const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100)), attackSpeed = isHero ? getHeroAttackSpeed(unit) : getEnemyAttackSpeed(unit), attackWindow = 1 / Math.max(.01, attackSpeed), attackProgress = Math.max(0, Math.min(100, (1 - Math.max(0, unit.attackCooldown || 0) / attackWindow) * 100)); el.innerHTML = `<div class="attackbar"><div class="attackfill" style="width:${attackProgress}%"></div><span class="attacktext">${attackSpeed.toFixed(2)}/s</span></div><div class="hpbar"><div class="hpfill" style="width:${hp}%"></div><span class="hptext">${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}</span></div><div class="sprite"></div>`; const sheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : unit.boss ? SPRITE_SHEETS.enemies.boss : SPRITE_SHEETS.enemies[unit.className]; if (sheet) { el.classList.add("sprite-sheet-unit"); const sprite = el.querySelector(".sprite"); sprite.style.backgroundImage = `url("${sheet}")`; sprite.style.backgroundSize = "600% 100%"; sprite.style.backgroundPosition = "0% center"; } return el; }
+function createUnitEl(unit, isHero) { const el = document.createElement("div"), scale = getBattleScale(), size = (unit.boss ? 104 : unit.miniBoss ? 92 : isHero ? 84 : 78) * scale.unit; el.className = `unit ${isHero ? "player " + unit.colorClass : `enemy ${unit.className} ${unit.skinClass || ""}`}`; if (unit.spriteAnim?.type === "attack" || unit.spriteAnim?.type === "block") el.classList.add("attack-flash"); if ((unit.hitFlash || 0) > 0) el.classList.add("hit-flash"); if (unit.spriteAnim?.type === "downed" || (unit.hp <= 0 && !isHero)) el.classList.add("unit-downed"); el.style.left = unit.x * scale.x + "px"; el.style.top = unit.y * scale.y + "px"; el.style.width = size + "px"; el.style.height = size + "px"; const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100)), attackSpeed = isHero ? getHeroAttackSpeed(unit) : getEnemyAttackSpeed(unit), attackWindow = 1 / Math.max(.01, attackSpeed), attackProgress = Math.max(0, Math.min(100, (1 - Math.max(0, unit.attackCooldown || 0) / attackWindow) * 100)); el.innerHTML = `<div class="attackbar"><div class="attackfill" style="width:${attackProgress}%"></div><span class="attacktext">${attackSpeed.toFixed(2)}/s</span></div><div class="hpbar"><div class="hpfill" style="width:${hp}%"></div><span class="hptext">${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}</span></div><div class="sprite"></div>`; const baseSheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : unit.boss ? SPRITE_SHEETS.enemies.boss : SPRITE_SHEETS.enemies[unit.className]; const skin = isHero ? getHeroSkin(unit.id, unit.skinId || "base") : getEnemySkin(unit.id, unit.skinId || "base"); if (baseSheet) { el.classList.add("sprite-sheet-unit"); const sprite = el.querySelector(".sprite"); sprite.style.cssText = `${getSpriteBackgroundStyle(baseSheet, isHero ? "hero" : "enemy", unit.id, skin)};background-size:600% 100%;background-position:0% center;`; } return el; }
 function spawnHeroAttackEffect(hero, enemy) { if (hero.id === "wizard") { playSound("magicCast"); spawnAbilityProjectile(hero, enemy, "magic"); return; } spawnSlashEffect(enemy, hero.id === "rogue" ? "rogue" : "sword"); }
 function spawnSlashEffect(target, type) { if (!battlefield || save.settings.reduceAnimations) return; const scale = getBattleScale(), slash = document.createElement("div"); slash.className = `attack-vfx ${type}-slash-vfx`; slash.style.left = target.x * scale.x + "px"; slash.style.top = target.y * scale.y + "px"; battlefield.appendChild(slash); setTimeout(() => slash.remove(), 460); }
 function spawnAbilityProjectile(source, target, type = "magic") {
