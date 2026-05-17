@@ -36,7 +36,7 @@ const SPRITE_SHEETS = {
     goblin: "assets/enemies/goblin-sheet.png",
     skeleton: "assets/enemies/skeleton-sheet.svg",
     orc: "assets/enemies/orc-sheet.svg",
-    wolf: "assets/enemies/wolf-sheet.svg",
+    wolf: "assets/enemies/wolf-sheet.png",
     bandit: "assets/enemies/bandit-sheet.png",
     cultist: "assets/enemies/cultist-sheet.svg",
     dark_archer: "assets/enemies/dark-archer-sheet.png",
