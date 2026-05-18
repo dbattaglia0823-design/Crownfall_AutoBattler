@@ -183,6 +183,21 @@
       </div>
     </section>
 
+    <section id="buildTestScreen" class="screen">
+      <div class="panel center-card flow-panel build-test-panel">
+        <div class="screen-ornament">â™› âš™ â™›</div>
+        <h2 class="screen-title">Build Test</h2>
+        <p id="buildTestText" class="screen-text">Assemble a build, then fight the Eternal Crown.</p>
+        <div id="buildTestSummary" class="build-test-summary"></div>
+        <div id="buildTestStats" class="build-test-stats"></div>
+        <div id="buildTestCategories" class="build-test-categories"></div>
+        <div class="actions">
+          <button onclick="startBuildTestFight()">Fight Eternal Crown</button>
+          <button onclick="showScreen('classScreen')">Back</button>
+        </div>
+      </div>
+    </section>
+
     <section id="battleScreen" class="screen">
       <div class="run-header">
         <div class="stat-box"><small>Route</small><strong id="runDifficulty">-</strong></div>
@@ -195,10 +210,10 @@
       </div>
       <div class="game-layout">
         <aside class="side-panel side-panel-left">
-          <div class="panel"><h3 class="section-title">Hero</h3><div id="heroStats" class="subtle"></div><div id="activeSkills" class="active-skill-list"></div><div id="heroUpgrades" class="ability-list"></div><div id="heroRelics" class="relic-list"></div><div id="heroTalents" class="talent-list"></div></div>
+          <div class="panel"><h3 class="section-title">Hero</h3><div id="heroStats" class="subtle"></div><div id="activeSkills" class="active-skill-list"></div></div>
           <div class="panel"><h3 class="section-title">Extra Stats</h3><div id="heroFullStats" class="full-stat-list"></div></div>
         </aside>
-        <div class="panel battle-center-panel"><div id="battlefield" class="battlefield"><div class="arena-line"></div></div><div id="specialSkills" class="special-skill-list"></div></div>
+        <div class="panel battle-center-panel"><div id="battlefield" class="battlefield"><div class="arena-line"></div></div><div id="buildTestFightHud" class="build-test-fight-hud"><button id="buildTestPauseButton" onclick="toggleBuildTestPause()">Pause</button><div><small>Damage</small><strong id="buildTestDamageCounter">0</strong></div><div><small>Timer</small><strong id="buildTestTimer">0:00</strong></div></div><div id="specialSkills" class="special-skill-list"></div><div class="battle-loadout-lists"><div id="heroUpgrades" class="ability-list"></div><div id="heroRelics" class="relic-list"></div><div id="heroTalents" class="talent-list"></div></div></div>
         <aside class="side-panel side-panel-right">
           <div class="panel enemy-stat-panel"><h3 class="section-title">Enemies</h3><div id="enemyStats" class="enemy-stat-list"></div></div>
           <div class="panel"><h3 class="section-title">Battle Log</h3><div id="battleLog" class="log"></div></div>

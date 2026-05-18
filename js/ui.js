@@ -3,7 +3,8 @@ const essenceTop = $("essenceTop"), highestClearTop = $("highestClearTop"), acco
 const characterList = $("characterList"), characterDetails = $("characterDetails"), heroCharacterTab = $("heroCharacterTab"), enemyCharacterTab = $("enemyCharacterTab");
 const difficultyTitle = $("difficultyTitle"), difficultyText = $("difficultyText"), classTitle = $("classTitle"), classText = $("classText");
 const difficultyCards = $("difficultyCards"), classCards = $("classCards"), battleScreen = $("battleScreen"), runDifficulty = $("runDifficulty"), runClass = $("runClass"), runStage = $("runStage"), runGold = $("runGold"), runEssence = $("runEssence"), battleSpeedSelect = $("battleSpeedSelect");
-const battlefield = $("battlefield"), heroStats = $("heroStats"), heroFullStats = $("heroFullStats"), enemyStats = $("enemyStats"), activeSkills = $("activeSkills"), specialSkills = $("specialSkills"), heroUpgrades = $("heroUpgrades"), heroRelics = $("heroRelics"), heroTalents = $("heroTalents"), battleLog = $("battleLog");
+const buildTestText = $("buildTestText"), buildTestSummary = $("buildTestSummary"), buildTestStats = $("buildTestStats"), buildTestCategories = $("buildTestCategories");
+const battlefield = $("battlefield"), buildTestFightHud = $("buildTestFightHud"), buildTestPauseButton = $("buildTestPauseButton"), buildTestDamageCounter = $("buildTestDamageCounter"), buildTestTimer = $("buildTestTimer"), heroStats = $("heroStats"), heroFullStats = $("heroFullStats"), enemyStats = $("enemyStats"), activeSkills = $("activeSkills"), specialSkills = $("specialSkills"), heroUpgrades = $("heroUpgrades"), heroRelics = $("heroRelics"), heroTalents = $("heroTalents"), battleLog = $("battleLog");
 const rewardSubtitle = $("rewardSubtitle"), rewardHeroStats = $("rewardHeroStats"), rewardCards = $("rewardCards"), rewardRerollButton = $("rewardRerollButton"), relicSubtitle = $("relicSubtitle"), relicHeroStats = $("relicHeroStats"), relicCards = $("relicCards"), relicRerollButton = $("relicRerollButton");
 const talentSubtitle = $("talentSubtitle"), talentCards = $("talentCards"), mapScreen = $("mapScreen"), mapSubtitle = $("mapSubtitle"), mapConnections = $("mapConnections"), mapBoard = $("mapBoard"), mapLegend = $("mapLegend");
 const shopSubtitle = $("shopSubtitle"), shopGold = $("shopGold"), shopHeroStats = $("shopHeroStats"), shopCards = $("shopCards"), shopRerollButton = $("shopRerollButton"), runEndTitle = $("runEndTitle"), runEndText = $("runEndText");
@@ -20,6 +21,14 @@ let treeHasInitialCenter = false;
 let characterBrowserTab = "heroes";
 let selectedCharacterId = "knight";
 let previewSkins = { heroes: {}, enemies: {} };
+let lastAttackSoundAt = 0;
+const BUILD_TEST_ATTACK_SOUND_INTERVAL = 0.1;
+const BUILD_TEST_EFFECT_LIMITS = {
+  ".attack-vfx": 10,
+  ".battle-projectile": 6,
+  ".ability-vfx": 8,
+  ".battle-impact": 5
+};
 
 function refreshTopbar() {
   essenceTop.textContent = Math.floor(save.essence);
@@ -29,6 +38,7 @@ function refreshTopbar() {
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(screen => screen.classList.remove("active"));
   $(id).classList.add("active");
+  document.body.classList.toggle("build-test-mode", id === "battleScreen" && isBuildTestRun());
   if (id === "upgradeScreen") {
     renderTree();
     if (!treeHasInitialCenter) requestAnimationFrame(() => { resetTreeView(); treeHasInitialCenter = true; });
@@ -106,6 +116,12 @@ function changeBattleSpeed(value) {
   updateRunHud();
 }
 
+function toggleBuildTestPause() {
+  if (!battle || !isBuildTestRun() || battle.state === "result" || battle.state === "done") return;
+  battle.paused = !battle.paused;
+  updateBuildTestFightHud();
+}
+
 function normalizeBattleSpeed(value) {
   const speed = Number(value) || 1;
   return [1, 2, 3].includes(speed) ? speed : 1;
@@ -138,6 +154,11 @@ function getAudioContext() {
 function playSound(type) {
   const ctx = getAudioContext();
   if (!ctx) return;
+  if (isBuildTestRun() && ["swordHit", "magicCast", "crit"].includes(type)) {
+    const now = performance.now() / 1000;
+    if (now - lastAttackSoundAt < BUILD_TEST_ATTACK_SOUND_INTERVAL) return;
+    lastAttackSoundAt = now;
+  }
   const volume = Math.max(0, Math.min(1, Number(save.settings.sfxVolume ?? 70) / 100));
   const specs = {
     button: [360, 520, 0.045, "triangle", 0.12], map: [260, 420, 0.09, "sine", 0.16],
@@ -335,10 +356,10 @@ function showAchievementPopup(achievement) {
   setTimeout(() => popup.remove(), 4300);
 }
 
-function showSanctuaryGainPopup(amount) {
+function showSanctuaryGainPopup(amount, regen = 0) {
   const popup = document.createElement("div");
   popup.className = "sanctuary-gain-popup";
-  popup.textContent = `+${amount} Max HP`;
+  popup.textContent = `+${amount} Max HP${regen ? `, +${regen} Regen` : ""}`;
   mapScreen.appendChild(popup);
   setTimeout(() => popup.remove(), 1100);
 }
@@ -354,8 +375,9 @@ function renderDifficulties() {
   difficultyCards.innerHTML = Object.entries(DIFFICULTIES).map(([id, difficulty]) => {
     const locked = isDifficultyLocked(difficulty);
     const endless = difficulty.mode === "endless";
-    const icon = endless ? "&#9760;" : id === "easy" ? "&#9827;" : id === "medium" ? "&#9876;" : "&#9819;";
-    const modeText = locked && difficulty.requiresAchievement ? "Locked: defeat The Eternal Crown to unlock." : endless ? "Exponential scaling. Same upgrades and relics, then straight into the next fight." : `Biome randomly chosen from: ${difficulty.themeIds.map(themeId => BIOME_THEMES[themeId].name).join(", ")}`;
+    const buildTest = difficulty.mode === "buildTest";
+    const icon = buildTest ? "BT" : endless ? "&#9760;" : id === "easy" ? "&#9827;" : id === "medium" ? "&#9876;" : "&#9819;";
+    const modeText = locked && difficulty.requiresAchievement ? "Locked: defeat The Eternal Crown to unlock." : buildTest ? "Choose a hero, build freely, then fight only the Eternal Crown." : endless ? "Exponential scaling. Same upgrades and relics, then straight into the next fight." : `Biome randomly chosen from: ${difficulty.themeIds.map(themeId => BIOME_THEMES[themeId].name).join(", ")}`;
     return `<div class="card choice-card difficulty-card difficulty-${id}${locked ? " choice-card-locked" : ""}" data-difficulty="${id}"><div class="choice-icon">${icon}</div><h3>${difficulty.name}</h3><p>${difficulty.description}</p><p class="subtle">${modeText}</p><button ${locked ? "disabled" : ""}>${locked ? "Locked" : `Select ${difficulty.name}`}</button></div>`;
   }).join("");
   difficultyCards.querySelectorAll("[data-difficulty]").forEach(card => {
@@ -373,13 +395,16 @@ function isDifficultyLocked(difficulty) {
 
 function renderClasses() {
   const endless = run?.mode === "endless";
-  classTitle.textContent = endless ? "Select Endless Hero" : "Select Hero";
-  classText.textContent = endless
+  const buildTest = isBuildTestRun();
+  classTitle.textContent = buildTest ? "Select Build Test Hero" : endless ? "Select Endless Hero" : "Select Hero";
+  classText.textContent = buildTest
+    ? "Choose the champion for the build lab. You will pick skills, upgrades, relics, and talents before the test fight."
+    : endless
     ? "Choose the champion for the endless 1v1 gauntlet. Upgrades, relics, and class talents still appear between fights."
     : "Choose the champion who will carry the run. Each class has distinct stats, combat rhythm, and strengths.";
   classCards.innerHTML = Object.entries(CLASSES).map(([id, heroClass]) => {
     const skin = getSelectedHeroSkin(id);
-    return `<div class="card choice-card hero-card" data-class="${id}"><div class="hero-preview player ${getHeroSkinClass(id)} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.heroes[id], "hero", id, skin)};background-size:600% 100%;background-position:0% center;"></div></div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><ul>${heroClass.traits.map(trait => `<li>${getTraitIconMarkup(trait)}<span>${trait}</span></li>`).join("")}</ul><button>${endless ? "Begin Endless as" : "Begin as"} ${heroClass.name}</button></div>`;
+    return `<div class="card choice-card hero-card" data-class="${id}"><div class="hero-preview player ${getHeroSkinClass(id)} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.heroes[id], "hero", id, skin)};background-size:600% 100%;background-position:0% center;"></div></div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><ul>${heroClass.traits.map(trait => `<li>${getTraitIconMarkup(trait)}<span>${trait}</span></li>`).join("")}</ul><button>${buildTest ? "Build Test as" : endless ? "Begin Endless as" : "Begin as"} ${heroClass.name}</button></div>`;
   }).join("");
   classCards.querySelectorAll("[data-class]").forEach(card => card.querySelector("button").onclick = () => startRun(card.dataset.class));
 }
@@ -402,7 +427,7 @@ function renderCharacterBrowser() {
   enemyCharacterTab.classList.toggle("character-tab-active", characterBrowserTab === "enemies");
   const items = characterBrowserTab === "heroes"
     ? Object.entries(CLASSES).map(([id, data]) => ({ id, name: data.name, baseSheet: SPRITE_SHEETS.heroes[id], skin: getSelectedHeroSkin(id), className: getHeroSkinClass(id) }))
-    : getAllCharacterEnemies().map(enemy => ({ id: enemy.id, name: enemy.name, baseSheet: SPRITE_SHEETS.enemies[enemy.className], skin: getSelectedEnemySkin(enemy.id), className: `enemy ${enemy.className} ${getSelectedEnemySkin(enemy.id).className}` }));
+    : getAllCharacterEnemies().map(enemy => ({ id: enemy.id, name: enemy.name, baseSheet: getEnemySpriteSheet(enemy), skin: getSelectedEnemySkin(enemy.id), className: `enemy ${enemy.className} ${getSelectedEnemySkin(enemy.id).className}` }));
   if (!items.some(item => item.id === selectedCharacterId)) selectedCharacterId = items[0]?.id || "";
   characterList.innerHTML = items.map(item => `<button class="character-list-item ${item.id === selectedCharacterId ? "character-list-selected" : ""}" data-character="${item.id}"><span class="character-list-sprite ${item.className} sprite-sheet-unit"><span class="sprite" style="${getSpriteBackgroundStyle(item.baseSheet, characterBrowserTab === "heroes" ? "hero" : "enemy", item.id, item.skin)};background-size:600% 100%;background-position:0% center;"></span></span><strong>${escapeHtml(item.name)}</strong></button>`).join("");
   characterList.querySelectorAll("[data-character]").forEach(button => button.onclick = () => { selectedCharacterId = button.dataset.character; renderCharacterBrowser(); });
@@ -440,7 +465,7 @@ function renderEnemyCharacterDetails(enemyId) {
     ["Atk Spd", (enemy.attackSpeed * ENEMY_BASE_STAT_MULTIPLIER).toFixed(2)],
     ["Armor", Math.round(enemy.armor * ENEMY_BASE_STAT_MULTIPLIER)]
   ];
-  characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview enemy ${enemy.className} ${skin.className} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.enemies[enemy.className], "enemy", enemy.id, skin)};background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${enemy.name}</h3><p>Known enemy profile from the Crownfall routes.</p><small>Equipped: ${escapeHtml(equippedSkin.name)}${skin.id !== equippedSkin.id ? ` | Previewing: ${escapeHtml(skin.name)}` : ""}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("enemy", enemy.id, getEnemySkinSet(enemy.id, enemy.name))}`;
+  characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview enemy ${enemy.className} ${skin.className} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(getEnemySpriteSheet(enemy), "enemy", enemy.id, skin)};background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${enemy.name}</h3><p>Known enemy profile from the Crownfall routes.</p><small>Equipped: ${escapeHtml(equippedSkin.name)}${skin.id !== equippedSkin.id ? ` | Previewing: ${escapeHtml(skin.name)}` : ""}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("enemy", enemy.id, getEnemySkinSet(enemy.id, enemy.name))}`;
   wireSkinPicker("enemy", enemy.id);
 }
 
@@ -494,8 +519,18 @@ function getPreviewSkin(kind, ownerId) {
 
 function getSpriteBackgroundStyle(baseSheet, kind, ownerId, skin) {
   const skinSheet = getSkinSpriteSheet(kind, ownerId, skin && skin.id, baseSheet);
-  const images = skinSheet && skinSheet !== baseSheet ? [`url('${skinSheet}')`, `url('${baseSheet}')`] : [`url('${baseSheet}')`];
+  const images = [`url('${skinSheet || baseSheet}')`];
   return `background-image:${images.join(",")}`;
+}
+
+function getSpriteSheetPosition(unit) {
+  const framePositions = ["0%", "20%", "40%", "60%", "80%", "100%"];
+  let frame = 0;
+  if (unit && (unit.spriteAnim?.type === "downed" || unit.hp <= 0)) frame = 5;
+  else if (unit && (unit.hitFlash || 0) > 0) frame = 3;
+  else if (unit && unit.spriteAnim?.type === "block") frame = 2;
+  else if (unit && unit.spriteAnim?.type === "attack") frame = 1;
+  return `${framePositions[frame]} center`;
 }
 
 function equipSkin(kind, ownerId, skinId) {
@@ -523,9 +558,211 @@ function getTraitIconMarkup(trait) {
   return getObjectIconMarkup(kind, "Common");
 }
 
+function renderBuildTest() {
+  if (!run || !buildTestCategories) return;
+  if (!run.buildTestSelections) run.buildTestSelections = { skills: {}, upgrades: {}, relics: {}, talents: {} };
+  const openCategories = new Set([...buildTestCategories.querySelectorAll(".build-test-category[open]")].map(category => category.dataset.category));
+  buildTestText.textContent = `${CLASSES[run.classId].name} build lab. Pick your loadout, then fight the Eternal Crown.`;
+  buildTestSummary.innerHTML = renderBuildTestSummary();
+  renderBuildTestStats();
+  buildTestCategories.innerHTML = getBuildTestCategories().map(category => `
+    <details class="build-test-category" data-category="${category.id}" ${openCategories.has(category.id) ? "open" : ""}>
+      <summary><span>${category.name}</span><strong>${category.items.length}</strong></summary>
+      <div class="build-test-item-list">
+        ${category.items.map(item => renderBuildTestItem(category.id, item, category.single)).join("")}
+      </div>
+    </details>
+  `).join("");
+  buildTestCategories.querySelectorAll("[data-build-change]").forEach(button => {
+    button.onclick = () => changeBuildTestCount(button.dataset.buildCategory, button.dataset.buildId, Number(button.dataset.buildChange));
+  });
+  buildTestCategories.querySelectorAll("[data-build-count]").forEach(input => {
+    input.onchange = () => setBuildTestCount(input.dataset.buildCategory, input.dataset.buildId, input.value);
+    input.oninput = () => setBuildTestCount(input.dataset.buildCategory, input.dataset.buildId, input.value, true);
+  });
+}
+
+function renderBuildTestSummary() {
+  const selections = run.buildTestSelections || {};
+  const total = ["skills", "upgrades", "relics", "talents"].reduce((sum, key) => sum + Object.values(selections[key] || {}).reduce((inner, count) => inner + count, 0), 0);
+  return `<div><small>Hero</small><strong>${escapeHtml(CLASSES[run.classId].name)}</strong></div><div><small>Selected</small><strong>${total}</strong></div><div><small>Test</small><strong>Eternal Crown</strong></div>`;
+}
+
+function renderBuildTestStats() {
+  if (!buildTestStats || !run?.classId) return;
+  const preview = getBuildTestPreviewHero();
+  const stats = [
+    ["HP", Math.ceil(preview.maxHp)],
+    ["Damage", preview.damage.toFixed(1)],
+    ["Atk Spd", getHeroAttackSpeed(preview).toFixed(2)],
+    ["Armor", Math.round(preview.armor)],
+    ["Crit", formatPercentCap(preview.crit, STAT_CAPS.crit)],
+    ["Block", formatPercentCap(getHeroBlockChance(preview), STAT_CAPS.block)],
+    ["Evasion", formatPercentCap(getHeroDodgeChance(preview), STAT_CAPS.dodge)],
+    ["Regen", `${(preview.regen || 0).toFixed(1)}/s`],
+    ["Life Steal", formatPercent(preview.lifeSteal || 0)],
+    ["Luck", preview.luck || 0],
+    ["Start Shield", Math.round((preview.runStartShield || 0) + getPermanentEffectTotal("battleStartShield", preview.id))],
+    ["Skills", (preview.runAbilities || []).length]
+  ];
+  buildTestStats.innerHTML = stats.map(([label, value]) => `<div><small>${label}</small><strong>${value}</strong></div>`).join("");
+}
+
+function getBuildTestPreviewHero() {
+  const originalHero = run.hero;
+  const originalRelics = run.relics;
+  const originalTalents = run.talents;
+  const originalStageGrowthRelics = run.stageGrowthRelics;
+  const originalRewardNames = run.rewardNames;
+  const originalRewardCounts = run.rewardCounts;
+  const originalRewardDescriptions = run.rewardDescriptions;
+  const originalRewardRarities = run.rewardRarities;
+  const originalGold = run.gold;
+  const originalSummary = run.summary;
+  const preview = buildHero(run.classId);
+  run.hero = preview;
+  run.relics = [];
+  run.talents = [];
+  run.stageGrowthRelics = [];
+  run.rewardNames = [];
+  run.rewardCounts = {};
+  run.rewardDescriptions = {};
+  run.rewardRarities = {};
+  run.gold = 0;
+  run.summary = { ...(originalSummary || {}), goldEarned: 0, relicsCollected: 0, talentsChosen: 0 };
+  applyBuildTestSelections();
+  run.hero = originalHero;
+  run.relics = originalRelics;
+  run.talents = originalTalents;
+  run.stageGrowthRelics = originalStageGrowthRelics;
+  run.rewardNames = originalRewardNames;
+  run.rewardCounts = originalRewardCounts;
+  run.rewardDescriptions = originalRewardDescriptions;
+  run.rewardRarities = originalRewardRarities;
+  run.gold = originalGold;
+  run.summary = originalSummary;
+  return preview;
+}
+
+function getBuildTestCategories() {
+  const classId = run.classId;
+  const skillIds = new Set(Object.keys(run.buildTestSelections.skills || {}).filter(id => run.buildTestSelections.skills[id] > 0));
+  const classMatches = item => !item.classId || item.classId === classId;
+  const abilityMatches = item => !item.requiresAbility || skillIds.has(item.requiresAbility);
+  const anyAbilityMatches = item => !item.requiresAnyAbility || item.requiresAnyAbility.some(id => skillIds.has(id));
+  return [
+    { id: "skills", name: "Skills", single: true, items: sortBuildTestItems(Object.values(RUN_ABILITIES).filter(ability => ability.classId === classId).map(ability => ({ id: ability.id, name: ability.name, description: ability.description, rarity: "Mythic", iconSource: ability }))) },
+    { id: "upgrades", name: "Upgrades", items: sortBuildTestItems(REWARDS.filter(reward => !reward.abilityId && classMatches(reward) && abilityMatches(reward)).map(reward => ({ id: getBuildItemId("upgrade", reward.name), source: reward, name: reward.name, description: getItemDisplayText(reward), rarity: reward.rarity || "Common" }))) },
+    { id: "relics", name: "Relics", items: sortBuildTestItems(RELICS.filter(relic => classMatches(relic) && abilityMatches(relic) && anyAbilityMatches(relic)).map(relic => ({ id: relic.id, source: relic, name: relic.name, description: getRelicDisplayDescription(relic), rarity: relic.rarity || "Common" }))) },
+    { id: "talents", name: "Talents", single: true, items: sortBuildTestItems((CLASS_TALENTS[classId] || []).map(talent => ({ id: talent.id, source: talent, name: talent.name, description: talent.description, rarity: "Epic" }))) }
+  ];
+}
+
+function sortBuildTestItems(items) {
+  const rank = { Mythic: 5, Legendary: 4, Epic: 3, Rare: 2, Common: 1 };
+  return [...items].sort((a, b) => (rank[b.rarity] || 0) - (rank[a.rarity] || 0) || a.name.localeCompare(b.name));
+}
+
+function renderBuildTestItem(categoryId, item, single = false) {
+  const count = (run.buildTestSelections?.[categoryId]?.[item.id]) || 0;
+  const icon = item.iconSource ? getAbilityIconMarkup(item.iconSource) : item.source ? getItemIconMarkup(item.source) : "";
+  return `<div class="build-test-item build-test-${String(item.rarity || "Common").toLowerCase()}">
+    <div class="build-test-item-icon">${icon}</div>
+    <div class="build-test-item-copy"><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.description || "")}</p></div>
+    <div class="build-test-counter">
+      <button data-build-category="${categoryId}" data-build-id="${escapeHtml(item.id)}" data-build-change="-1" ${count <= 0 ? "disabled" : ""}>-</button>
+      <input data-build-category="${categoryId}" data-build-id="${escapeHtml(item.id)}" data-build-count="1" type="number" min="0" ${single ? `max="1"` : ""} value="${count}" aria-label="${escapeHtml(item.name)} count">
+      <button data-build-category="${categoryId}" data-build-id="${escapeHtml(item.id)}" data-build-change="1" ${single && count >= 1 ? "disabled" : ""}>+</button>
+    </div>
+  </div>`;
+}
+
+function getBuildItemId(kind, name) {
+  return `${kind}_${String(name).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+}
+
+function changeBuildTestCount(category, id, delta) {
+  const bucket = run.buildTestSelections?.[category];
+  if (!bucket) return;
+  const single = category === "skills" || category === "talents";
+  bucket[id] = Math.max(0, (bucket[id] || 0) + delta);
+  if (single) bucket[id] = Math.min(1, bucket[id]);
+  if (bucket[id] <= 0) delete bucket[id];
+  renderBuildTest();
+}
+
+function setBuildTestCount(category, id, value, editing = false) {
+  const bucket = run.buildTestSelections?.[category];
+  if (!bucket) return;
+  const single = category === "skills" || category === "talents";
+  const count = Math.max(0, Math.floor(Number(value) || 0));
+  const next = single ? Math.min(1, count) : count;
+  if (next > 0) bucket[id] = next;
+  else delete bucket[id];
+  if (!editing) renderBuildTest();
+  else {
+    buildTestSummary.innerHTML = renderBuildTestSummary();
+    renderBuildTestStats();
+  }
+}
+
+function startBuildTestFight() {
+  if (!isBuildTestRun()) return;
+  run.hero = buildHero(run.classId);
+  run.rewardNames = []; run.rewardCounts = {}; run.rewardDescriptions = {}; run.rewardRarities = {};
+  run.relics = []; run.talents = []; run.stageGrowthRelics = [];
+  applyBuildTestSelections();
+  run.stage = FINAL_BOSS_STAGE;
+  run.currentNodeId = "build-test-crown";
+  addAccountStat("runsStarted", 1);
+  addAccountStat(`${run.classId}Runs`, 1);
+  saveGame();
+  log("Build Test begins. The Eternal Crown answers your build.");
+  beginStage("BuildTest");
+}
+
+function applyBuildTestSelections() {
+  const selections = run.buildTestSelections || {};
+  Object.entries(selections.skills || {}).forEach(([id, count]) => { if (count > 0) grantRunAbility(run.hero, id); });
+  const upgrades = getBuildTestCategories().find(category => category.id === "upgrades")?.items || [];
+  upgrades.forEach(item => {
+    const count = selections.upgrades?.[item.id] || 0;
+    for (let i = 0; i < count; i++) {
+      item.source.apply(run.hero);
+      addRunUpgradeName(item.source.name, getItemDisplayText(item.source), item.source.rarity || "Common");
+    }
+  });
+  const relics = getBuildTestCategories().find(category => category.id === "relics")?.items || [];
+  relics.forEach(item => {
+    const count = selections.relics?.[item.id] || 0;
+    for (let i = 0; i < count; i++) {
+      const relic = { ...item.source, claimDescription: getRelicDisplayDescription(item.source) };
+      run.relics.push(relic);
+      applyRelicToRun(relic);
+    }
+  });
+  (CLASS_TALENTS[run.classId] || []).forEach(talent => {
+    if ((selections.talents?.[talent.id] || 0) > 0) {
+      run.talents.push(talent);
+      applyTalentToRun(talent);
+    }
+  });
+  run.hero.hp = run.hero.maxHp;
+}
+
+function getRunStageLabel() {
+  if (!run) return "Stage 1";
+  if (isBuildTestRun()) return "Build Test";
+  if (isEndlessRun()) return `Endless Stage ${run.stage}`;
+  if (run.stage === FINAL_BOSS_STAGE) return "Final Boss";
+  const layer = Math.max(1, Math.ceil(run.stage / MAP_LAYER_SIZE));
+  const stageInLayer = ((run.stage - 1) % MAP_LAYER_SIZE) + 1;
+  return `Layer ${layer}: ${stageInLayer} / ${MAP_LAYER_SIZE}`;
+}
+
 function showRewards() {
   showScreen("rewardScreen");
-  rewardSubtitle.textContent = `Stage ${run.stage} cleared. Choose one run upgrade.`;
+  rewardSubtitle.textContent = `${getRunStageLabel()} cleared. Choose one run upgrade.`;
   renderChoiceHeroStats(rewardHeroStats);
   run.rewardChoices = getRewardChoices(); run.rewardRerolled = false; renderRewards();
 }
@@ -573,7 +810,7 @@ function grantRunAbility(hero, abilityId) {
 function showRelicRewards(message) {
   const choices = getRelicChoices();
   if (!choices.length) return continueAfterRelicChoice();
-  showScreen("relicScreen"); relicSubtitle.textContent = message || `Relic earned on Stage ${run.stage}. Choose one relic for this run.`;
+  showScreen("relicScreen"); relicSubtitle.textContent = message || `Relic earned on ${getRunStageLabel()}. Choose one relic for this run.`;
   renderChoiceHeroStats(relicHeroStats); run.relicChoices = choices; run.relicRerolled = false; renderRelicRewards();
 }
 
@@ -677,7 +914,7 @@ function continueAfterRelicChoice() {
 function continueAfterRunChoice() {
   if (shouldOfferClassTalent()) return showTalentChoices();
   if (run.afterRewardAction === "completeRun") { run.afterRewardAction = null; return endRun(true); }
-  if (run.afterRewardAction === "finalBoss") { run.afterRewardAction = null; return beginFinalBoss(); }
+  if (run.afterRewardAction === "finalBoss") { run.afterRewardAction = null; recordLayer3VictoryBeforeEternalCrown(); return beginFinalBoss(); }
   if (isEndlessRun()) return beginNextEndlessStage();
   showMap();
 }
@@ -697,13 +934,17 @@ function beginFinalBoss() {
 function shouldOfferClassTalent() { return CLASS_TALENT_STAGES.includes(run.stage) && getTalentChoices().length > 0; }
 function showTalentChoices() {
   const choices = getTalentChoices(); if (!choices.length) return continueAfterClassTalent();
-  showScreen("talentScreen"); talentSubtitle.textContent = `Strengthen your ${CLASSES[run.classId].name} for this run.`;
+  showScreen("talentScreen"); talentSubtitle.textContent = `${getRunStageLabel()}. Strengthen your ${CLASSES[run.classId].name} for this run.`;
   talentCards.innerHTML = choices.map((talent, index) => `<div class="card choice-card talent-card" data-index="${index}"><div class="choice-icon">${getItemIconMarkup(talent)}</div><h3>${talent.name}</h3><p>${talent.description}</p><p class="subtle">Tier ${talent.tier} Talent</p><button>Choose Talent</button></div>`).join("");
   talentCards.querySelectorAll("[data-index]").forEach(card => card.querySelector("button").onclick = () => claimTalent(choices[Number(card.dataset.index)]));
 }
 function getTalentChoices() { const owned = new Set(run.talents.map(t => t.id)); return shuffle(CLASS_TALENTS[run.classId].filter(t => !owned.has(t.id))).slice(0, 3); }
 function claimTalent(talent) { run.talents.push(talent); if (run.summary) run.summary.talentsChosen += 1; applyTalentToRun(talent); log(`Learned talent: ${talent.name}.`); updateRunHud(); continueAfterClassTalent(); }
-function continueAfterClassTalent() { return isEndlessRun() ? beginNextEndlessStage() : showMap(); }
+function continueAfterClassTalent() {
+  if (run.afterRewardAction === "completeRun") { run.afterRewardAction = null; return endRun(true); }
+  if (run.afterRewardAction === "finalBoss") { run.afterRewardAction = null; recordLayer3VictoryBeforeEternalCrown(); return beginFinalBoss(); }
+  return isEndlessRun() ? beginNextEndlessStage() : showMap();
+}
 function applyTalentToRun(talent) {
   const hero = run.hero, effect = talent.effect;
   if (effect.armor) hero.armor += effect.armor; if (effect.regen) hero.regen = (hero.regen || 0) + effect.regen;
@@ -723,6 +964,7 @@ function applyRelicToRun(relic) {
     if (effect.stat === "damage") hero.damage += getRelicStatValue(effect, "damage");
     if (effect.stat === "attackSpeed") hero.attackSpeed += getRelicStatValue(effect, "attackSpeed");
     if (effect.stat === "armor") hero.armor += effect.value;
+    if (effect.stat === "regen") hero.regen = (hero.regen || 0) + effect.value;
     if (effect.stat === "luck") hero.luck = (hero.luck || 0) + effect.value;
     if (effect.stat === "lifeSteal") hero.lifeSteal = (hero.lifeSteal || 0) + effect.value;
     if (effect.stat === "blockChance") hero.runBlockChance = (hero.runBlockChance || 0) + effect.value;
@@ -735,6 +977,7 @@ function applyRelicToRun(relic) {
   }
   if (effect.type === "glassDagger") { hero.damage *= 1 + effect.damageMultiplier; multiplyMaxHp(hero, 1 + (effect.maxHpMultiplier || 0), false); }
   if (effect.type === "gold") { run.gold += effect.value; if (run.summary) run.summary.goldEarned += effect.value; }
+  if (effect.type === "essenceMultiplier") hero.runEssenceMultiplier = (hero.runEssenceMultiplier || 0) + effect.value;
   if (effect.type === "abilityStat") hero[effect.stat] = (hero[effect.stat] || 0) + effect.value;
   if (effect.type === "stageGrowth") { run.stageGrowthRelics = run.stageGrowthRelics || []; run.stageGrowthRelics.push({ id: relic.id, stat: effect.stat, value: effect.value, stages: 0 }); }
 }
@@ -758,7 +1001,7 @@ function getRelicScaledDescription(effect) {
 
 function showShop() {
   showScreen("shopScreen"); const surcharge = (run.shopsVisited || 0) * 50;
-  shopSubtitle.textContent = `Stage ${run.stage} merchant. Buy any upgrades you can afford, or continue.${surcharge ? ` Items cost +${surcharge} gold from prior shops.` : ""}`;
+  shopSubtitle.textContent = `${getRunStageLabel()} merchant. Buy any upgrades you can afford, or continue.${surcharge ? ` Items cost +${surcharge} gold from prior shops.` : ""}`;
   run.shopItems = getShopChoices(surcharge); run.shopsVisited = (run.shopsVisited || 0) + 1; run.shopRerolled = false; addAccountStat("shopsVisited", 1); saveGame(); renderShop();
 }
 function renderShop() {
@@ -812,21 +1055,53 @@ function drawMapConnections() {
 }
 
 function updateRunHud() {
-  if (!run?.hero) return; const hero = run.hero, layer = Math.max(1, Math.ceil(run.stage / MAP_LAYER_SIZE)), stageInLayer = ((run.stage - 1) % MAP_LAYER_SIZE) + 1;
-  runDifficulty.textContent = DIFFICULTIES[run.difficultyId].name; runClass.textContent = CLASSES[run.classId].name; runStage.textContent = isEndlessRun() ? `Endless ${run.stage}` : run.stage === FINAL_BOSS_STAGE ? "Final Boss" : `Layer ${layer}: ${stageInLayer} / ${MAP_LAYER_SIZE}`; runGold.textContent = Math.floor(run.gold); runEssence.textContent = Math.floor(run.essenceEarned); if (battleSpeedSelect) battleSpeedSelect.value = String(getBattleSpeedPreference());
+  if (!run?.hero) return; const hero = run.hero;
+  runDifficulty.textContent = DIFFICULTIES[run.difficultyId].name; runClass.textContent = CLASSES[run.classId].name; runStage.textContent = getRunStageLabel(); runGold.textContent = Math.floor(run.gold); runEssence.textContent = Math.floor(run.essenceEarned); if (battleSpeedSelect) battleSpeedSelect.value = String(getBattleSpeedPreference());
   heroStats.innerHTML = [["HP", `${Math.max(0, Math.ceil(hero.hp))}/${Math.ceil(hero.maxHp)}`], ["Armor", hero.armor], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Shield", `${Math.ceil(hero.shield || 0)}/${getHeroShieldCap()}`], ["Crit", formatPercentCap(hero.crit, STAT_CAPS.crit)], ["Regen", `${(hero.regen || 0).toFixed(1)}/s`], ["Luck", hero.luck || 0]].map(([l, v]) => statCell(l, v, getTermTooltip(l))).join("");
   heroStats.className = "hero-stat-grid"; renderHeroFullStats(hero); renderEnemyStats();
-  heroUpgrades.innerHTML = getRunUpgradeStacks().length ? getRunUpgradeStacks().map(upgrade => `<div class="pill upgrade-pill upgrade-${upgrade.rarity.toLowerCase()} tooltip-item" data-tooltip="${escapeHtml(getUpgradeTooltip(upgrade.name))}">${getItemIconMarkup(upgrade.source)}<span>${escapeHtml(upgrade.name)}</span>${upgrade.count > 1 ? `<strong>${upgrade.count}x</strong>` : ""}</div>`).join("") : `<div class="pill">No run upgrades yet</div>`;
-  heroRelics.innerHTML = `<div class="relic-list-title">Relics</div>` + (run.relics.length ? run.relics.map(relic => `<div class="relic-pill relic-${relic.rarity.toLowerCase()} tooltip-item" data-tooltip="${escapeHtml(getRelicDisplayDescription(relic))}">${getItemIconMarkup(relic)}<strong>${escapeHtml(relic.name)}</strong></div>`).join("") : `<div class="pill">No relics yet</div>`);
-  heroTalents.innerHTML = `<div class="talent-list-title">Class Talents</div>` + (run.talents.length ? run.talents.map(talent => `<div class="talent-pill tooltip-item" data-tooltip="${escapeHtml(talent.description)}">${getItemIconMarkup(talent)}<strong>${escapeHtml(talent.name)}</strong></div>`).join("") : `<div class="pill">No class talents yet</div>`);
+  const upgrades = sortRunUpgrades(getRunUpgradeStacks()), relics = sortRunRelics(run.relics), talents = sortRunTalents(run.talents);
+  heroUpgrades.innerHTML = `<div class="loadout-list-title">Upgrades</div>` + (upgrades.length ? upgrades.map(upgrade => `<div class="pill upgrade-pill upgrade-${upgrade.rarity.toLowerCase()} tooltip-item" data-tooltip="${escapeHtml(getUpgradeTooltip(upgrade.name))}">${getItemIconMarkup(upgrade.source)}<span>${escapeHtml(upgrade.name)}</span>${upgrade.count > 1 ? `<strong>${upgrade.count}x</strong>` : ""}</div>`).join("") : `<div class="pill">No run upgrades yet</div>`);
+  heroRelics.innerHTML = `<div class="relic-list-title">Relics</div>` + (relics.length ? relics.map(relic => `<div class="relic-pill relic-${relic.rarity.toLowerCase()} tooltip-item" data-tooltip="${escapeHtml(getRelicDisplayDescription(relic))}">${getItemIconMarkup(relic)}<strong>${escapeHtml(relic.name)}</strong></div>`).join("") : `<div class="pill">No relics yet</div>`);
+  heroTalents.innerHTML = `<div class="talent-list-title">Class Talents</div>` + (talents.length ? talents.map(talent => `<div class="talent-pill tooltip-item" data-tooltip="${escapeHtml(talent.description)}">${getItemIconMarkup(talent)}<strong>${escapeHtml(talent.name)}</strong></div>`).join("") : `<div class="pill">No class talents yet</div>`);
+  updateBuildTestFightHud();
   renderActiveSkills(); renderSpecialSkills();
 }
+
+function sortRunUpgrades(upgrades) {
+  return [...(upgrades || [])].sort((a, b) => getRarityRank(b.rarity) - getRarityRank(a.rarity) || b.count - a.count || a.name.localeCompare(b.name));
+}
+
+function sortRunRelics(relics) {
+  return [...(relics || [])].sort((a, b) => getRarityRank(b.rarity) - getRarityRank(a.rarity) || a.name.localeCompare(b.name));
+}
+
+function sortRunTalents(talents) {
+  return [...(talents || [])].sort((a, b) => (b.tier || 0) - (a.tier || 0) || a.name.localeCompare(b.name));
+}
+
+function getRarityRank(rarity) {
+  return RARITY_SORT_RANK[rarity] || 0;
+}
+
+function updateBuildTestFightHud() {
+  if (!buildTestFightHud) return;
+  const visible = !!battle && isBuildTestRun();
+  buildTestFightHud.style.display = visible ? "" : "none";
+  if (!visible) return;
+  buildTestDamageCounter.textContent = Math.round(battle.damageDone || 0).toLocaleString();
+  buildTestTimer.textContent = formatBattleTimer(battle.elapsed || 0);
+  buildTestPauseButton.textContent = battle.paused ? "Resume" : "Pause";
+}
+
+function formatBattleTimer(seconds) {
+  const total = Math.max(0, Math.floor(seconds || 0));
+  const minutes = Math.floor(total / 60);
+  return `${minutes}:${String(total % 60).padStart(2, "0")}`;
+}
 function renderHeroFullStats(hero) {
-  const bossDamage = getPermanentEffectTotal("bossDamage", hero.id) + getAchievementBonusTotal("bossDamage", hero.id) + getRelicEffectTotal("eliteBossDamage");
   const executeThreshold = getHeroExecuteThreshold(hero);
   const executeDamage = getPermanentEffectTotal("executeDamage", hero.id) + (hero.runExecuteDamage || 0);
   const rows = [
-    ["Boss Damage", formatPercent(bossDamage)],
     ["Block", formatPercentCap(getHeroBlockChance(hero), STAT_CAPS.block)],
     ["Evasion", formatPercentCap(getHeroDodgeChance(hero), STAT_CAPS.dodge)],
     ["Execute", `${formatPercent(executeDamage)} <${formatPercent(executeThreshold)}`],
@@ -847,12 +1122,13 @@ function renderHeroFullStats(hero) {
 function formatPercent(value) { return `${Math.round((value || 0) * 100)}%`; }
 function formatPercentCap(value, cap) { return `${formatPercent(Math.min(value || 0, cap))}/${formatPercent(cap)}`; }
 const STAT_CAPS = { crit: 1, block: 0.85, dodge: 0.45, battleDamageBonus: 0.4 };
+const RARITY_SORT_RANK = { Mythic: 5, Legendary: 4, Epic: 3, Rare: 2, Common: 1 };
 function getHeroDodgeChance(hero) { return Math.min(STAT_CAPS.dodge, getPermanentEffectTotal("evasion", hero.id) + (hero.runEvasion || 0)); }
 function getHeroBattleAttackSpeedBonusCap(hero) { return getPermanentEffectTotal("killAttackSpeedMax", hero.id) || 0.35; }
 function getHeroSplashDamageMultiplier(hero) { return 0.5 + getPermanentEffectTotal("splashDamageMultiplier", hero.id) + (hero.runSplashDamageMultiplier || 0); }
-function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.innerHTML = enemies.length ? enemies.map(e => `<div class="enemy-stat-row"><strong>${escapeHtml(e.name)}</strong><div class="enemy-status">${e.hp > 0 ? "ALIVE" : "DEAD"}</div><div class="enemy-stat-chips"><span>HP ${Math.max(0, Math.ceil(e.hp))}/${Math.ceil(e.maxHp)}</span><span>DMG ${Number(e.damage).toFixed(1)}</span><span>AS ${getEnemyAttackSpeed(e).toFixed(2)}</span><span>ARM ${e.armor}</span></div></div>`).join("") : `<div class="enemy-stat-empty">No active enemies</div>`; }
+function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.innerHTML = enemies.length ? enemies.map(e => `<div class="enemy-stat-row"><strong>${escapeHtml(e.name)}</strong><div class="enemy-status">${e.hp > 0 ? "ALIVE" : "DEAD"}</div><div class="enemy-stat-chips"><span>HP ${e.buildTestBoss ? "Infinite" : `${Math.max(0, Math.ceil(e.hp))}/${Math.ceil(e.maxHp)}`}</span><span>DMG ${Number(e.damage).toFixed(1)}</span><span>AS ${getEnemyAttackSpeed(e).toFixed(2)}</span><span>ARM ${e.armor}</span></div></div>`).join("") : `<div class="enemy-stat-empty">No active enemies</div>`; }
 function statCell(label, value, tooltip) { return `<div class="tooltip-item" data-tooltip="${escapeHtml(tooltip)}"><small>${label}</small><strong>${value}</strong></div>`; }
-function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", "Boss Damage": "Extra damage dealt to bosses.", Block: "Chance to reduce incoming hit damage.", Dodge: "Chance to avoid enemy attacks.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Shield Cap": "Maximum shield this hero can hold.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Damage per second applied by rogue attacks. One bleed can be active on each enemy.", Poison: "Damage per second from rogue poison effects.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect."; }
+function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", Block: "Chance to reduce incoming hit damage.", Dodge: "Chance to avoid enemy attacks.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Shield Cap": "Maximum shield this hero can hold.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Damage per second applied by rogue attacks. One bleed can be active on each enemy.", Poison: "Damage per second from rogue poison effects.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect."; }
 function renderActiveSkills() { activeSkills.innerHTML = battle ? Object.entries(battle.activeSkills || {}).map(([name, time]) => `<div class="active-skill"><b>*</b><strong>${escapeHtml(name)}</strong><span>${time.toFixed(1)}s</span></div>`).join("") : ""; }
 function renderSpecialSkills() { const ids = run?.hero?.runAbilities || []; specialSkills.innerHTML = ids.length ? `<div class="special-skill-title">Special Skills</div><div class="special-skill-row">${ids.map(id => `<div class="special-skill"><b>${getAbilityIconMarkup(RUN_ABILITIES[id])}</b><strong>${RUN_ABILITIES[id].name}</strong><span>${Math.max(0, battle?.abilityCooldowns?.[id] || 0).toFixed(1)}s</span></div>`).join("")}</div>` : `<div class="special-skill-empty">No special skills unlocked</div>`; }
 function getAbilityIconMarkup(ability) { return `<span class="ability-icon ability-icon-${ability.id}" style="--ability-color:${ability.color}">${ability.icon}</span>`; }
@@ -864,11 +1140,13 @@ function renderBattle() {
   battlefield.classList.toggle("boss-intro-shake", battle.bossIntroTimer > 0 && !save.settings.reduceAnimations && !save.settings.disableShake);
   if (battle.bossIntroTimer > 0) renderBossIntro(); if (battle.state === "result") renderBattleResultPanel();
   renderBattleParticles();
-  battle.floatingTexts.forEach(float => { const div = document.createElement("div"), scale = getBattleScale(); div.className = `float-text ${float.variant ? `float-text-${float.variant}` : ""}`; div.style.left = float.x * scale.x + "px"; div.style.top = float.y * scale.y + "px"; div.style.color = float.color; div.textContent = float.text; battlefield.appendChild(div); }); battle.floatingTexts = [];
+  const floats = isBuildTestRun() ? battle.floatingTexts.slice(-24) : battle.floatingTexts;
+  floats.forEach(float => { const div = document.createElement("div"), scale = getBattleScale(); div.className = `float-text ${float.variant ? `float-text-${float.variant}` : ""}`; div.style.left = float.x * scale.x + "px"; div.style.top = float.y * scale.y + "px"; div.style.color = float.color; div.textContent = float.text; battlefield.appendChild(div); }); battle.floatingTexts = [];
 }
 function renderBattleParticles() {
   const scale = getBattleScale();
-  (battle.particles || []).forEach(particle => {
+  const particles = isBuildTestRun() ? (battle.particles || []).slice(-48) : (battle.particles || []);
+  particles.forEach(particle => {
     const progress = Math.min(1, particle.age / Math.max(.01, particle.life));
     if (particle.type === "skill") {
       const div = document.createElement("div");
@@ -893,13 +1171,13 @@ function renderBattleParticles() {
   });
 }
 function renderBossIntro() { const boss = battle.enemies.find(e => e.boss); if (!boss) return; const progress = 1 - battle.bossIntroTimer / Math.max(.1, battle.bossIntroDuration || battle.bossIntroTimer), opacity = progress < .18 ? progress / .18 : progress > .72 ? Math.max(0, (1 - progress) / .28) : 1; const overlay = document.createElement("div"); overlay.className = `boss-intro-overlay${boss.finalBoss ? " boss-intro-final" : ""}`; overlay.style.opacity = opacity; overlay.style.setProperty("--intro-progress", progress); overlay.innerHTML = `<div class="boss-intro-tint"></div><div class="boss-intro-name"><small>${boss.finalBoss ? "THE CROWN AWAKENS" : "BOSS"}</small><h2>${escapeHtml(boss.name.toUpperCase())}</h2><strong>${boss.finalBoss ? "The Last Encounter" : "Final Encounter"}</strong></div>`; battlefield.appendChild(overlay); }
-function renderBattleResultPanel() { const r = battle.result, panel = document.createElement("div"); panel.className = `battle-result-panel${r.victory ? "" : " battle-result-defeat"}`; panel.innerHTML = `<div class="battle-result-kicker">${r.victory ? "Enemies Defeated" : "Hero Defeated"}</div><h2>${r.title}</h2><div class="battle-result-gains"><div><small>Gold Gained</small><strong>+${Math.floor(r.gold)}</strong></div><div><small>Essence Gained</small><strong>+${Math.floor(r.essence)}</strong></div></div><button onclick="continueBattleResult()">${r.nextLabel}</button>`; battlefield.appendChild(panel); }
+function renderBattleResultPanel() { const r = battle.result, panel = document.createElement("div"); panel.className = `battle-result-panel${r.victory ? "" : " battle-result-defeat"}`; const finalCrown = battle.nodeType === "FinalBoss" || isFinalBossStage(run.stage); panel.innerHTML = `<div class="battle-result-kicker">${r.victory ? "Enemies Defeated" : finalCrown ? "The Crown Awakens" : "Hero Defeated"}</div><h2>${r.title}</h2><div class="battle-result-gains"><div><small>Gold Gained</small><strong>+${Math.floor(r.gold)}</strong></div><div><small>Essence Gained</small><strong>+${Math.floor(r.essence)}</strong></div></div><button onclick="continueBattleResult()">${r.nextLabel}</button>`; battlefield.appendChild(panel); }
 function getBattleScale() { return { x: battlefield.clientWidth / 900, y: battlefield.clientHeight / 430, unit: Math.max(.58, Math.min(battlefield.clientWidth / 900, battlefield.clientHeight / 430)) }; }
-function createUnitEl(unit, isHero) { const el = document.createElement("div"), scale = getBattleScale(), size = (unit.boss ? 104 : unit.miniBoss ? 92 : isHero ? 84 : 78) * scale.unit; el.className = `unit ${isHero ? "player " + unit.colorClass : `enemy ${unit.className} ${unit.skinClass || ""}`}`; if (unit.spriteAnim?.type === "attack" || unit.spriteAnim?.type === "block") el.classList.add("attack-flash"); if ((unit.hitFlash || 0) > 0) el.classList.add("hit-flash"); if (unit.spriteAnim?.type === "downed" || (unit.hp <= 0 && !isHero)) el.classList.add("unit-downed"); el.style.left = unit.x * scale.x + "px"; el.style.top = unit.y * scale.y + "px"; el.style.width = size + "px"; el.style.height = size + "px"; const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100)), attackSpeed = isHero ? getHeroAttackSpeed(unit) : getEnemyAttackSpeed(unit), attackWindow = 1 / Math.max(.01, attackSpeed), attackProgress = Math.max(0, Math.min(100, (1 - Math.max(0, unit.attackCooldown || 0) / attackWindow) * 100)); el.innerHTML = `<div class="attackbar"><div class="attackfill" style="width:${attackProgress}%"></div><span class="attacktext">${attackSpeed.toFixed(2)}/s</span></div><div class="hpbar"><div class="hpfill" style="width:${hp}%"></div><span class="hptext">${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}</span></div><div class="sprite"></div>`; const baseSheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : unit.boss ? SPRITE_SHEETS.enemies.boss : SPRITE_SHEETS.enemies[unit.className]; const skin = isHero ? getHeroSkin(unit.id, unit.skinId || "base") : getEnemySkin(unit.id, unit.skinId || "base"); if (baseSheet) { el.classList.add("sprite-sheet-unit"); const sprite = el.querySelector(".sprite"); sprite.style.cssText = `${getSpriteBackgroundStyle(baseSheet, isHero ? "hero" : "enemy", unit.id, skin)};background-size:600% 100%;background-position:0% center;`; } return el; }
+function createUnitEl(unit, isHero) { const el = document.createElement("div"), scale = getBattleScale(), size = (unit.finalBoss ? 156 : unit.boss ? 135.2 : unit.miniBoss ? 101.2 : isHero ? 92.4 : 85.8) * scale.unit; el.className = `unit ${isHero ? "player " + unit.colorClass : `enemy ${unit.className} ${unit.skinClass || ""}`}`; if (unit.spriteAnim?.type === "attack" || unit.spriteAnim?.type === "block") el.classList.add("attack-flash"); if ((unit.hitFlash || 0) > 0) el.classList.add("hit-flash"); if (unit.spriteAnim?.type === "downed" || (unit.hp <= 0 && !isHero)) el.classList.add("unit-downed"); el.style.left = unit.x * scale.x + "px"; el.style.top = unit.y * scale.y + "px"; el.style.width = size + "px"; el.style.height = size + "px"; const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100)), attackSpeed = isHero ? getHeroAttackSpeed(unit) : getEnemyAttackSpeed(unit), attackWindow = 1 / Math.max(.01, attackSpeed), attackProgress = Math.max(0, Math.min(100, (1 - Math.max(0, unit.attackCooldown || 0) / attackWindow) * 100)), hpText = unit.buildTestBoss ? "Infinite" : `${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}`; el.innerHTML = `<div class="attackbar"><div class="attackfill" style="width:${attackProgress}%"></div><span class="attacktext">${attackSpeed.toFixed(2)}/s</span></div><div class="hpbar"><div class="hpfill" style="width:${hp}%"></div><span class="hptext">${hpText}</span></div><div class="sprite"></div>`; const baseSheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : getEnemySpriteSheet(unit); const skin = isHero ? getHeroSkin(unit.id, unit.skinId || "base") : getEnemySkin(unit.id, unit.skinId || "base"); if (baseSheet) { el.classList.add("sprite-sheet-unit"); const sprite = el.querySelector(".sprite"); sprite.style.cssText = `${getSpriteBackgroundStyle(baseSheet, isHero ? "hero" : "enemy", unit.id, skin)};background-size:600% 100%;background-position:${getSpriteSheetPosition(unit)};`; } return el; }
 function spawnHeroAttackEffect(hero, enemy) { if (hero.id === "wizard") { playSound("magicCast"); spawnAbilityProjectile(hero, enemy, "magic"); return; } spawnSlashEffect(enemy, hero.id === "rogue" ? "rogue" : "sword"); }
-function spawnSlashEffect(target, type) { if (!battlefield || save.settings.reduceAnimations) return; const scale = getBattleScale(), slash = document.createElement("div"); slash.className = `attack-vfx ${type}-slash-vfx`; slash.style.left = target.x * scale.x + "px"; slash.style.top = target.y * scale.y + "px"; battlefield.appendChild(slash); setTimeout(() => slash.remove(), 460); }
+function spawnSlashEffect(target, type) { if (!battlefield || save.settings.reduceAnimations || !canSpawnBuildTestEffect(".attack-vfx")) return; const scale = getBattleScale(), slash = document.createElement("div"); slash.className = `attack-vfx ${type}-slash-vfx`; slash.style.left = target.x * scale.x + "px"; slash.style.top = target.y * scale.y + "px"; battlefield.appendChild(slash); setTimeout(() => slash.remove(), isBuildTestRun() ? 150 : 460); }
 function spawnAbilityProjectile(source, target, type = "magic") {
-  if (!battlefield || save.settings.reduceAnimations || !source || !target) return;
+  if (!battlefield || save.settings.reduceAnimations || !source || !target || !canSpawnBuildTestEffect(".battle-projectile")) return;
   const scale = getBattleScale(), projectile = document.createElement("div");
   projectile.className = `battle-projectile battle-projectile-${type}`;
   projectile.style.left = source.x * scale.x + "px";
@@ -909,42 +1187,54 @@ function spawnAbilityProjectile(source, target, type = "magic") {
     { left: source.x * scale.x + "px", top: source.y * scale.y + "px", opacity: .35, transform: "translate(-50%, -50%) scale(.72)" },
     { left: target.x * scale.x + "px", top: target.y * scale.y + "px", opacity: 1, transform: "translate(-50%, -50%) scale(1.05)" }
   ];
-  projectile.animate(frames, { duration: 230, easing: "cubic-bezier(.2,.85,.2,1)", fill: "forwards" });
-  setTimeout(() => { projectile.remove(); spawnAbilityIndicator(target, type); }, 240);
+  const duration = isBuildTestRun() ? 120 : 230;
+  projectile.animate(frames, { duration, easing: "cubic-bezier(.2,.85,.2,1)", fill: "forwards" });
+  setTimeout(() => { projectile.remove(); spawnAbilityIndicator(target, type); }, duration + 10);
 }
 function spawnAbilityIndicator(target, type = "magic") {
-  if (!battlefield || save.settings.reduceAnimations || !target) return;
+  if (!battlefield || save.settings.reduceAnimations || !target || !canSpawnBuildTestEffect(".ability-vfx")) return;
   const scale = getBattleScale(), indicator = document.createElement("div");
   indicator.className = `ability-vfx ability-vfx-${type}`;
   indicator.style.left = target.x * scale.x + "px";
   indicator.style.top = target.y * scale.y + "px";
   indicator.style.setProperty("--ability-scale", scale.unit);
   battlefield.appendChild(indicator);
-  setTimeout(() => indicator.remove(), 520);
+  setTimeout(() => indicator.remove(), isBuildTestRun() ? 170 : 520);
 }
 function spawnBossSlashEffect(target) { spawnSlashEffect(target, "boss"); }
 function spawnShieldImpactEffect(target) {
-  if (!battlefield || save.settings.reduceAnimations || !target) return;
+  if (!battlefield || save.settings.reduceAnimations || !target || !canSpawnBuildTestEffect(".battle-impact")) return;
   const scale = getBattleScale(), impact = document.createElement("div");
   impact.className = "battle-impact battle-impact-shield";
   impact.style.left = target.x * scale.x + "px";
   impact.style.top = target.y * scale.y + "px";
   impact.style.setProperty("--impact-scale", scale.unit);
   battlefield.appendChild(impact);
-  setTimeout(() => impact.remove(), 420);
+  setTimeout(() => impact.remove(), isBuildTestRun() ? 150 : 420);
 }
 function markUnitHit(unit) { if (unit) unit.hitFlash = .16; }
 function spawnDeathParticles(unit) {
   if (!battle || save.settings.reduceAnimations || !unit) return;
+  if (isBuildTestRun() && battle.particles.length >= 48) return;
   const color = unit.boss ? "#fcd34d" : unit.miniBoss ? "#fca5a5" : "#e7d6b5";
-  for (let i = 0; i < (unit.boss ? 18 : 10); i++) {
-    const angle = Math.PI * 2 * (i / (unit.boss ? 18 : 10));
+  const count = isBuildTestRun() ? 6 : (unit.boss ? 18 : 10);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.PI * 2 * (i / count);
     const speed = unit.boss ? 72 : 48;
     battle.particles.push({ x: unit.x, y: unit.y - 4, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color, age: 0, life: .45 + Math.random() * .24 });
   }
 }
 function triggerScreenShake(strength) { if (save.settings.disableShake || save.settings.reduceAnimations || !battlefield) return; battlefield.classList.remove("screen-shake-light", "screen-shake-heavy"); void battlefield.offsetWidth; battlefield.classList.add(strength === "heavy" ? "screen-shake-heavy" : "screen-shake-light"); setTimeout(() => battlefield.classList.remove("screen-shake-light", "screen-shake-heavy"), 260); }
-function log(message, type = "info") { const line = document.createElement("div"); line.className = `log-line log-${type}`; line.innerHTML = `<span>${type[0] || "i"}</span><p>${escapeHtml(message)}</p>`; battleLog.appendChild(line); battleLog.scrollTop = battleLog.scrollHeight; }
+function canSpawnBuildTestEffect(selector) {
+  if (!isBuildTestRun() || !battlefield) return true;
+  return battlefield.querySelectorAll(selector).length < (BUILD_TEST_EFFECT_LIMITS[selector] || 10);
+}
+function setBattleLogVisible(visible) {
+  const panel = battleLog?.closest(".panel");
+  if (panel) panel.style.display = visible ? "" : "none";
+  if (!visible && battleLog) battleLog.innerHTML = "";
+}
+function log(message, type = "info") { if (isBuildTestRun()) return; const line = document.createElement("div"); line.className = `log-line log-${type}`; line.innerHTML = `<span>${type[0] || "i"}</span><p>${escapeHtml(message)}</p>`; battleLog.appendChild(line); battleLog.scrollTop = battleLog.scrollHeight; }
 
 function renderTree() { if (!treeCards) return; treeEssence.textContent = Math.floor(save.essence); treeCards.innerHTML = createTreeLinesSvg() + TREE_NODES.map(node => createTreeNodeButtonHtml(node)).join(""); renderTreeDetails(TREE[selectedTreeNodeId] || TREE.crown_legacy); applyTreeCamera(); refreshTopbar(); }
 function createTreeLinesSvg() {

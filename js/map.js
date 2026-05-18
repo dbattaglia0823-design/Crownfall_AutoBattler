@@ -1,7 +1,7 @@
-function generateRunMap(themeId) {
+function generateRunMap(themeId, stages = STAGE_COUNT) {
   const rows = [[{ id: "s1-start", stage: 1, type: "Battle", connectsTo: [] }]];
 
-  for (let stage = 2; stage <= STAGE_COUNT; stage++) {
+  for (let stage = 2; stage <= stages; stage++) {
     if (stage % MAP_LAYER_SIZE === 0) {
       rows.push([{ id: `s${stage}-boss`, stage, type: "Boss", connectsTo: [] }]);
       continue;
@@ -23,25 +23,10 @@ function generateRunMap(themeId) {
   for (let rowIndex = 0; rowIndex < rows.length - 1; rowIndex++) {
     const lower = rows[rowIndex];
     const upper = rows[rowIndex + 1];
+    const nextRowIds = upper.map(next => next.id);
 
-    lower.forEach((node, index) => {
-      if (node.id === "s1-start") {
-        node.connectsTo = upper.map(next => next.id);
-        return;
-      }
-
-      const primary = Math.round((index / Math.max(1, lower.length - 1)) * (upper.length - 1));
-      const links = [upper[primary].id];
-
-      if (upper[primary - 1] && Math.random() < 0.38) {
-        links.push(upper[primary - 1].id);
-      }
-
-      if (upper[primary + 1] && Math.random() < 0.48) {
-        links.push(upper[primary + 1].id);
-      }
-
-      node.connectsTo = [...new Set(links)];
+    lower.forEach(node => {
+      node.connectsTo = nextRowIds;
     });
   }
 
@@ -56,7 +41,9 @@ function getStageNodeTypes(stage, count, themeId) {
   // Round 4 and 9: only Merchant / Sanctuary
   if (stage % MAP_LAYER_SIZE === 4 || stage % MAP_LAYER_SIZE === 9) {
     const themeEvents = getThemeEventNodes(themeId);
-    return Array.from({ length: count }, (_, index) => themeEvents[index % themeEvents.length]);
+    const types = Array.from({ length: count }, (_, index) => themeEvents[index % themeEvents.length]);
+    if (!types.includes("Heal")) types[count - 1] = "Heal";
+    return types;
   }
 
   // Round 5: only Elite
@@ -72,6 +59,7 @@ function getStageNodeTypes(stage, count, themeId) {
 function getThemeEventNodes(themeId) {
   const theme = BIOME_THEMES[themeId || (run && run.themeId)];
   const events = theme && theme.eventNodes && theme.eventNodes.length ? [...theme.eventNodes] : ["Merchant", "Heal"];
+  if (!events.includes("Heal")) events.push("Heal");
   if (hasPermanentUnlock("unlock_events") && !events.includes("Treasure")) events.push("Treasure");
   return events;
 }
@@ -102,15 +90,18 @@ function handleMapChoice(node) {
   run.stage = node.stage;
 
   if (node.type === "Heal") {
-    const maxHpGain = SANCTUARY_HP_GAIN;
+    const layer = Math.max(1, Math.ceil(run.stage / MAP_LAYER_SIZE));
+    const maxHpGain = SANCTUARY_BASE_HP_GAIN + ((layer - 1) * SANCTUARY_LAYER_HP_GAIN);
+    const regenGain = SANCTUARY_BASE_REGEN_GAIN + ((layer - 1) * SANCTUARY_LAYER_REGEN_GAIN);
     run.hero.maxHp += maxHpGain;
     run.hero.hp = Math.min(run.hero.maxHp, (run.hero.hp || 0) + maxHpGain);
+    run.hero.regen = (run.hero.regen || 0) + regenGain;
     run.stagesCleared = Math.max(run.stagesCleared, run.stage);
     save.highestClear = Math.max(save.highestClear, run.stagesCleared);
     saveGame();
-    log(`Visited a sanctuary. Gained ${maxHpGain} max HP.`);
+    log(`Visited a sanctuary. Gained ${maxHpGain} max HP and +${regenGain} HP regen.`);
     showMap();
-    showSanctuaryGainPopup(maxHpGain);
+    showSanctuaryGainPopup(maxHpGain, regenGain);
     return;
   }
 

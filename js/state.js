@@ -21,14 +21,14 @@ function defaultSave() {
 function defaultSkins() {
   return {
     heroes: Object.keys(CLASSES).reduce((skins, id) => ({ ...skins, [id]: "base" }), {}),
-    enemies: Object.values(ENEMY_ARCHETYPES).reduce((skins, enemy) => ({ ...skins, [enemy.id]: "base" }), {})
+    enemies: getAllCharacterEnemies().reduce((skins, enemy) => ({ ...skins, [enemy.id]: "base" }), {})
   };
 }
 
 function defaultSkinPurchases() {
   return {
     heroes: Object.keys(CLASSES).reduce((purchases, id) => ({ ...purchases, [id]: { base: true } }), {}),
-    enemies: Object.values(ENEMY_ARCHETYPES).reduce((purchases, enemy) => ({ ...purchases, [enemy.id]: { base: true } }), {})
+    enemies: getAllCharacterEnemies().reduce((purchases, enemy) => ({ ...purchases, [enemy.id]: { base: true } }), {})
   };
 }
 
@@ -125,9 +125,15 @@ function normalizeSkins(storedSkins, fallback, purchases) {
     if (!getHeroSkin(id, next.heroes[id]) || !isSkinPurchased("hero", id, next.heroes[id], purchases)) next.heroes[id] = "base";
   });
   Object.keys(next.enemies).forEach(id => {
+    next.enemies[id] = normalizeSkinId(next.enemies[id]);
     if (!getEnemySkin(id, next.enemies[id]) || !isSkinPurchased("enemy", id, next.enemies[id], purchases)) next.enemies[id] = "base";
   });
   return next;
+}
+
+function normalizeSkinId(skinId) {
+  const legacyGoldenSkinId = ["gold", "bound"].join("");
+  return skinId === legacyGoldenSkinId ? "golden" : skinId;
 }
 
 function normalizeSkinPurchases(storedPurchases, fallback) {
@@ -141,6 +147,11 @@ function normalizeSkinPurchases(storedPurchases, fallback) {
   });
   Object.keys(next.enemies).forEach(id => {
     next.enemies[id] = { ...next.enemies[id], ...((storedPurchases && storedPurchases.enemies && storedPurchases.enemies[id]) || {}) };
+    const legacyGoldenSkinId = ["gold", "bound"].join("");
+    if (next.enemies[id][legacyGoldenSkinId]) {
+      next.enemies[id].golden = true;
+      delete next.enemies[id][legacyGoldenSkinId];
+    }
     next.enemies[id].base = true;
   });
   return next;
@@ -151,6 +162,7 @@ function getHeroSkin(classId, skinId) {
 }
 
 function getEnemySkin(enemyId, skinId) {
+  skinId = normalizeSkinId(skinId);
   const enemy = getAllCharacterEnemies().find(item => item.id === enemyId) || Object.values(ENEMY_ARCHETYPES).find(item => item.id === enemyId) || { id: enemyId, name: "Enemy" };
   return getEnemySkinSet(enemy.id, enemy.name).find(skin => skin.id === skinId) || null;
 }
@@ -162,7 +174,7 @@ function getSelectedHeroSkin(classId) {
 }
 
 function getSelectedEnemySkin(enemyId) {
-  const skinId = save?.skins?.enemies?.[enemyId] || "base";
+  const skinId = normalizeSkinId(save?.skins?.enemies?.[enemyId] || "base");
   const skin = getEnemySkin(enemyId, skinId) || getEnemySkin(enemyId, "base");
   return isSkinUnlocked(skin) && isSkinPurchased("enemy", enemyId, skin.id) ? skin : getEnemySkin(enemyId, "base");
 }
@@ -182,6 +194,7 @@ function isSkinUnlocked(skin) {
 }
 
 function isSkinPurchased(kind, ownerId, skinId, purchases = save?.skinPurchases) {
+  skinId = normalizeSkinId(skinId);
   if (skinId === "base") return true;
   const skin = kind === "hero" ? getHeroSkin(ownerId, skinId) : getEnemySkin(ownerId, skinId);
   if (skin && skin.unlock && skin.unlock.type === "achievement" && isSkinUnlocked(skin)) return true;
@@ -198,11 +211,18 @@ function getSkinUnlockText(skin) {
 
 function getAllCharacterEnemies() {
   const seen = new Set();
-  return Object.values(ENEMY_ARCHETYPES).filter(enemy => {
+  const enemies = typeof CHARACTER_ENEMIES !== "undefined" ? CHARACTER_ENEMIES : Object.values(ENEMY_ARCHETYPES);
+  return enemies.filter(enemy => {
+    if (enemy.id === "fallen_king_shade") return false;
     if (seen.has(enemy.id)) return false;
     seen.add(enemy.id);
     return true;
   });
+}
+
+function getEnemySpriteSheet(enemy) {
+  if (!enemy) return "";
+  return SPRITE_SHEETS.enemies[enemy.id] || SPRITE_SHEETS.enemies[enemy.className] || "";
 }
 
 function migrateTreeSave(tree, oldTree) {
@@ -302,8 +322,9 @@ function getBattleSpeedPreference() {
 function createRun(difficultyId, mode = "standard") {
   const themeId = getRandomThemeForDifficulty(difficultyId);
   const endless = mode === "endless";
+  const buildTest = mode === "buildTest";
   return {
-    mode: endless ? "endless" : "standard",
+    mode: buildTest ? "buildTest" : endless ? "endless" : "standard",
     difficultyId,
     themeId,
     classId: null,
@@ -330,15 +351,20 @@ function createRun(difficultyId, mode = "standard") {
     afterRewardAction: null,
     stagesCleared: 0,
     hero: null,
-    map: endless ? [] : generateRunMap(themeId),
-    currentNodeId: endless ? null : "s1-start",
-    chosenNodeIds: endless ? [] : ["s1-start"],
+    buildTestSelections: buildTest ? { skills: {}, upgrades: {}, relics: {}, talents: {} } : null,
+    map: endless || buildTest ? [] : generateRunMap(themeId),
+    currentNodeId: endless || buildTest ? null : "s1-start",
+    chosenNodeIds: endless || buildTest ? [] : ["s1-start"],
     availableNodeIds: []
   };
 }
 
 function isEndlessRun() {
   return run && run.mode === "endless";
+}
+
+function isBuildTestRun() {
+  return run && run.mode === "buildTest";
 }
 
 function getRandomThemeForDifficulty(difficultyId) {
@@ -432,7 +458,7 @@ function validateDifficultyProgression() {
   }, {});
 
   const warnings = [];
-  Object.keys(DIFFICULTIES).filter(difficultyId => DIFFICULTIES[difficultyId].mode !== "endless").forEach(difficultyId => {
+  Object.keys(DIFFICULTIES).filter(difficultyId => !DIFFICULTIES[difficultyId].mode).forEach(difficultyId => {
     Object.keys(CLASSES).forEach(classId => {
       const hero = buildHero(classId);
       const boss = estimateBossThreat(difficultyId, hero);

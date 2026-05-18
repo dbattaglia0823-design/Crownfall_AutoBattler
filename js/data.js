@@ -3,7 +3,10 @@ const STAGE_COUNT = 30;
 const MAP_LAYER_SIZE = 10;
 const FINAL_BOSS_STAGE = STAGE_COUNT + 1;
 const BASE_BATTLE_SPEED = 1;
-const SANCTUARY_HP_GAIN = 75;
+const SANCTUARY_BASE_HP_GAIN = 100;
+const SANCTUARY_LAYER_HP_GAIN = 50;
+const SANCTUARY_BASE_REGEN_GAIN = 1;
+const SANCTUARY_LAYER_REGEN_GAIN = 1;
 
 const BATTLEFIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 430" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#40264f"/><stop offset=".45" stop-color="#a9553f"/><stop offset="1" stop-color="#3c2a25"/></linearGradient><linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8b6438"/><stop offset="1" stop-color="#3e2a1b"/></linearGradient><radialGradient id="glow" cx="50%" cy="42%" r="42%"><stop offset="0" stop-color="#ffe28a" stop-opacity=".95"/><stop offset=".25" stop-color="#f59e45" stop-opacity=".45"/><stop offset="1" stop-color="#1b1120" stop-opacity="0"/></radialGradient></defs><rect width="900" height="430" fill="url(#sky)"/><rect width="900" height="430" fill="url(#glow)"/><circle cx="450" cy="180" r="34" fill="#ffd874"/><path d="M0 188 L64 132 L118 187 L164 112 L229 190 L292 120 L349 188 L406 96 L480 190 L548 118 L618 190 L684 99 L758 190 L825 126 L900 187 L900 250 L0 250 Z" fill="#33294b"/><path d="M0 238 L80 199 L170 235 L258 196 L350 238 L450 203 L536 238 L637 194 L722 238 L812 201 L900 238 L900 288 L0 288 Z" fill="#4f3a37"/><path d="M318 201 V150 H332 V126 H346 V154 H358 V110 H374 V154 H388 V132 H402 V201 Z" fill="#2a2434"/><rect x="309" y="194" width="104" height="20" fill="#33283a"/><path d="M620 205 V150 H636 V118 H652 V158 H668 V136 H684 V205 Z" fill="#302337"/><rect x="606" y="198" width="96" height="20" fill="#3a2a34"/><path d="M92 215 V92 H132 V204 H152 V222 H68 V204 H92 Z" fill="#322d31"/><path d="M768 215 V96 H810 V204 H832 V222 H746 V204 H768 Z" fill="#322d31"/><rect x="99" y="118" width="24" height="72" fill="#273558"/><rect x="779" y="120" width="25" height="74" fill="#6d2020"/><rect y="250" width="900" height="180" fill="url(#ground)"/><path d="M110 310 C208 286 348 282 452 288 C572 295 690 288 804 310 C704 331 584 342 455 338 C318 334 202 330 110 310 Z" fill="#9a7142" opacity=".72"/><rect x="83" y="292" width="34" height="12" fill="#b09369"/><rect x="242" y="301" width="44" height="11" fill="#a4885e"/><rect x="510" y="302" width="42" height="10" fill="#b08c5c"/><rect x="734" y="294" width="38" height="11" fill="#a68961"/><rect x="18" y="392" width="132" height="38" fill="#201711"/><rect x="732" y="392" width="150" height="38" fill="#201711"/></svg>`;
 
@@ -19,9 +22,11 @@ const PLAYER_BASE_STAT_MULTIPLIER = 1.05;
 const ENEMY_BASE_STAT_MULTIPLIER = 1.3;
 const HERO_SKIN_ESSENCE_COST = 200;
 const ENEMY_SKIN_ESSENCE_COST = 150;
+// Change this path when you add a dedicated Eternal Crown sprite sheet.
+const ETERNAL_CROWN_SPRITE_SHEET = "assets/enemies/boss-sheet.png";
 
 const CLASSES = {
-  knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 220, damage: 16, attackSpeed: 0.71, armor: 5, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
+  knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 180, damage: 16, attackSpeed: 0.71, armor: 5, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
   rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed.", hp: 135, damage: 13, attackSpeed: 1.16, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Guaranteed bleed"] },
   wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 115, damage: 28, attackSpeed: 0.58, armor: 1, crit: 0.1, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
 };
@@ -29,12 +34,12 @@ const CLASSES = {
 const SPRITE_SHEETS = {
   heroes: {
     knight: "assets/heroes/knight-sheet.png",
-    rogue: "assets/heroes/rogue-sheet.svg",
-    wizard: "assets/heroes/wizard-sheet.svg"
+    rogue: "assets/heroes/rogue-sheet.png",
+    wizard: "assets/heroes/wizard-sheet.png"
   },
   enemies: {
     goblin: "assets/enemies/goblin-sheet.png",
-    skeleton: "assets/enemies/skeleton-sheet.svg",
+    skeleton: "assets/enemies/skeleton-sheet.png",
     orc: "assets/enemies/orc-sheet.svg",
     wolf: "assets/enemies/wolf-sheet.png",
     bandit: "assets/enemies/bandit-sheet.png",
@@ -44,10 +49,11 @@ const SPRITE_SHEETS = {
     armored_knight: "assets/enemies/armored-knight-sheet.png",
     fallen_knight: "assets/enemies/fallen-knight-sheet.svg",
     necromancer: "assets/enemies/necromancer-sheet.svg",
-    wraith: "assets/enemies/wraith-sheet.svg",
-    troll: "assets/enemies/troll-sheet.svg",
+    wraith: "assets/enemies/wraith-sheet.png",
+    troll: "assets/enemies/troll-sheet.png",
     raider: "assets/enemies/raider-sheet.svg",
-    boss: "assets/enemies/boss-sheet.png"
+    boss: "assets/enemies/boss-sheet.png",
+    eternalCrown: ETERNAL_CROWN_SPRITE_SHEET
   }
 };
 
@@ -73,92 +79,112 @@ const SKIN_SPRITE_SHEETS = {
     goblin: {
       crownmark: "assets/enemies/skins/goblin-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/goblin-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/goblin-goldbound-sheet.png"
+      golden: "assets/enemies/skins/goblin-golden-sheet.png"
     },
     wolf: {
       crownmark: "assets/enemies/skins/wolf-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/wolf-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/wolf-goldbound-sheet.png"
+      golden: "assets/enemies/skins/wolf-golden-sheet.png"
     },
     bandit: {
       crownmark: "assets/enemies/skins/bandit-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/bandit-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/bandit-goldbound-sheet.png"
+      golden: "assets/enemies/skins/bandit-golden-sheet.png"
     },
     plague_rat: {
       crownmark: "assets/enemies/skins/plague_rat-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/plague_rat-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/plague_rat-goldbound-sheet.png"
+      golden: "assets/enemies/skins/plague_rat-golden-sheet.png"
     },
     dark_archer: {
       crownmark: "assets/enemies/skins/dark_archer-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/dark_archer-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/dark_archer-goldbound-sheet.png"
+      golden: "assets/enemies/skins/dark_archer-golden-sheet.png"
     },
     skeleton: {
       crownmark: "assets/enemies/skins/skeleton-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/skeleton-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/skeleton-goldbound-sheet.png"
+      golden: "assets/enemies/skins/skeleton-golden-sheet.png"
     },
     wraith: {
       crownmark: "assets/enemies/skins/wraith-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/wraith-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/wraith-goldbound-sheet.png"
+      golden: "assets/enemies/skins/wraith-golden-sheet.png"
     },
     necromancer: {
       crownmark: "assets/enemies/skins/necromancer-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/necromancer-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/necromancer-goldbound-sheet.png"
+      golden: "assets/enemies/skins/necromancer-golden-sheet.png"
     },
     orc: {
       crownmark: "assets/enemies/skins/orc-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/orc-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/orc-goldbound-sheet.png"
+      golden: "assets/enemies/skins/orc-golden-sheet.png"
     },
     raider: {
       crownmark: "assets/enemies/skins/raider-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/raider-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/raider-goldbound-sheet.png"
+      golden: "assets/enemies/skins/raider-golden-sheet.png"
     },
     troll: {
       crownmark: "assets/enemies/skins/troll-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/troll-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/troll-goldbound-sheet.png"
+      golden: "assets/enemies/skins/troll-golden-sheet.png"
     },
     armored_knight: {
       crownmark: "assets/enemies/skins/armored_knight-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/armored_knight-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/armored_knight-goldbound-sheet.png"
+      golden: "assets/enemies/skins/armored_knight-golden-sheet.png"
     },
     fallen_knight: {
       crownmark: "assets/enemies/skins/fallen_knight-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/fallen_knight-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/fallen_knight-goldbound-sheet.png"
+      golden: "assets/enemies/skins/fallen_knight-golden-sheet.png"
     },
     cultist: {
       crownmark: "assets/enemies/skins/cultist-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/cultist-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/cultist-goldbound-sheet.png"
+      golden: "assets/enemies/skins/cultist-golden-sheet.png"
     },
     fallen_king_shade: {
       crownmark: "assets/enemies/skins/fallen_king_shade-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/fallen_king_shade-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/fallen_king_shade-goldbound-sheet.png"
+      golden: "assets/enemies/skins/fallen_king_shade-golden-sheet.png"
     },
     crown_hound: {
       crownmark: "assets/enemies/skins/crown_hound-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/crown_hound-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/crown_hound-goldbound-sheet.png"
+      golden: "assets/enemies/skins/crown_hound-golden-sheet.png"
     },
     oathbreaker: {
       crownmark: "assets/enemies/skins/oathbreaker-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/oathbreaker-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/oathbreaker-goldbound-sheet.png"
+      golden: "assets/enemies/skins/oathbreaker-golden-sheet.png"
     },
     blood_acolyte: {
       crownmark: "assets/enemies/skins/blood_acolyte-crownmark-sheet.png",
       nemesis: "assets/enemies/skins/blood_acolyte-nemesis-sheet.png",
-      goldbound: "assets/enemies/skins/blood_acolyte-goldbound-sheet.png"
+      golden: "assets/enemies/skins/blood_acolyte-golden-sheet.png"
+    },
+    fallenKing: {
+      crownmark: "assets/enemies/skins/fallenKing-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/fallenKing-nemesis-sheet.png",
+      golden: "assets/enemies/skins/fallenKing-golden-sheet.png"
+    },
+    ashenRegent: {
+      crownmark: "assets/enemies/skins/ashenRegent-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/ashenRegent-nemesis-sheet.png",
+      golden: "assets/enemies/skins/ashenRegent-golden-sheet.png"
+    },
+    crownfallTyrant: {
+      crownmark: "assets/enemies/skins/crownfallTyrant-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/crownfallTyrant-nemesis-sheet.png",
+      golden: "assets/enemies/skins/crownfallTyrant-golden-sheet.png"
+    },
+    eternalCrown: {
+      crownmark: "assets/enemies/skins/eternalCrown-crownmark-sheet.png",
+      nemesis: "assets/enemies/skins/eternalCrown-nemesis-sheet.png",
+      golden: "assets/enemies/skins/eternalCrown-golden-sheet.png"
     }
   }
 };
@@ -189,24 +215,24 @@ function getEnemySkinSet(enemyId, enemyName) {
     { id: "base", name: `${enemyName} Classic`, className: "", unlock: { type: "base" } },
     { id: "crownmark", name: `${enemyName} Crownmark`, className: "skin-tree", unlock: { type: "purchase", cost: ENEMY_SKIN_ESSENCE_COST } },
     { id: "nemesis", name: `${enemyName} Nemesis`, className: "skin-achievement", unlock: { type: "purchase", cost: ENEMY_SKIN_ESSENCE_COST } },
-    { id: "goldbound", name: `${enemyName} Goldbound`, className: "skin-gold", unlock: { type: "achievement", achievement: `slayer_${enemyId}` } }
+    { id: "golden", name: `Golden ${enemyName}`, className: "skin-gold", unlock: { type: "achievement", achievement: `slayer_${enemyId}` } }
   ];
 }
 
 const ENEMY_ARCHETYPES = {
   goblin: { id: "goblin", name: "Goblin", hp: 40, damage: 7, attackSpeed: 0.8, armor: 0, className: "goblin" },
-  wolf: { id: "wolf", name: "Wolf", hp: 46, damage: 8, attackSpeed: 0.98, armor: 0, className: "wolf" },
+  wolf: { id: "wolf", name: "Wolf", hp: 46, damage: 10, attackSpeed: 0.98, armor: 0, className: "wolf" },
   bandit: { id: "bandit", name: "Bandit", hp: 54, damage: 9, attackSpeed: 0.82, armor: 1, className: "bandit" },
-  plagueRat: { id: "plague_rat", name: "Plague Rat", hp: 36, damage: 7, attackSpeed: 1.09, armor: 0, className: "plague_rat" },
+  plagueRat: { id: "plague_rat", name: "Plague Rat", hp: 32, damage: 6, attackSpeed: 1.09, armor: 0, className: "plague_rat" },
   darkArcher: { id: "dark_archer", name: "Dark Archer", hp: 48, damage: 12, attackSpeed: 0.76, armor: 1, className: "dark_archer" },
 
-  skeleton: { id: "skeleton", name: "Skeleton", hp: 60, damage: 9, attackSpeed: 0.66, armor: 1, className: "skeleton" },
+  skeleton: { id: "skeleton", name: "Skeleton", hp: 46, damage: 11, attackSpeed: 0.66, armor: 1, className: "skeleton" },
   wraith: { id: "wraith", name: "Wraith", hp: 52, damage: 13, attackSpeed: 0.84, armor: 2, className: "wraith" },
-  necromancer: { id: "necromancer", name: "Necromancer", hp: 68, damage: 15, attackSpeed: 0.54, armor: 2, className: "necromancer" },
+  necromancer: { id: "necromancer", name: "Necromancer", hp: 58, damage: 17, attackSpeed: 0.54, armor: 2, className: "necromancer" },
 
-  orc: { id: "orc", name: "Orc", hp: 75, damage: 12, attackSpeed: 0.54, armor: 3, className: "orc" },
+  orc: { id: "orc", name: "Orc", hp: 76, damage: 11, attackSpeed: 0.54, armor: 3, className: "orc" },
   raider: { id: "raider", name: "Raider", hp: 66, damage: 13, attackSpeed: 0.72, armor: 2, className: "raider" },
-  troll: { id: "troll", name: "Troll", hp: 116, damage: 17, attackSpeed: 0.4, armor: 4, className: "troll" },
+  troll: { id: "troll", name: "Troll", hp: 112, damage: 17, attackSpeed: 0.28, armor: 4, className: "troll" },
   armoredKnight: { id: "armored_knight", name: "Armored Knight", hp: 98, damage: 14, attackSpeed: 0.5, armor: 7, className: "armored_knight" },
 
   fallenKnight: { id: "fallen_knight", name: "Fallen Knight", hp: 108, damage: 17, attackSpeed: 0.53, armor: 7, className: "fallen_knight" },
@@ -255,7 +281,6 @@ const ENEMY_AREAS = {
     enemies: [
       ENEMY_ARCHETYPES.fallenKnight,
       ENEMY_ARCHETYPES.cultist,
-      ENEMY_ARCHETYPES.fallenKing,
       ENEMY_ARCHETYPES.wraith,
       ENEMY_ARCHETYPES.necromancer,
       ENEMY_ARCHETYPES.oathbreaker,
@@ -275,10 +300,15 @@ function buildAreaEnemyPool(areaIds) {
   return areaIds
     .flatMap(areaId => (ENEMY_AREAS[areaId] ? ENEMY_AREAS[areaId].enemies : []))
     .filter(enemy => {
+      if (!isRegularEncounterEnemy(enemy)) return false;
       if (seen.has(enemy.id)) return false;
       seen.add(enemy.id);
       return true;
     });
+}
+
+function isRegularEncounterEnemy(enemy) {
+  return !!enemy && !enemy.boss && !enemy.finalBoss && enemy.id !== "fallen_king_shade";
 }
 
 const AREA_ENEMY_POOLS = {
@@ -437,7 +467,7 @@ const DIFFICULTIES = {
     enemyPool: AREA_ENEMY_POOLS.hard,
     themeIds: ["warCamp", "darkCastle"],
     layerEnemyMultipliers: [2.0, 2.5, 3.25],
-    layerDamageMultipliers: [1.5, 1.7, 2.0]
+    layerDamageMultipliers: [1.3, 1.7, 2.0]
   },
   endless: {
     name: "Endless Mode",
@@ -456,6 +486,21 @@ const DIFFICULTIES = {
     themeIds: ["darkCastle", "warCamp"],
     layerEnemyMultipliers: [1, 1, 1],
     layerDamageMultipliers: [1, 1, 1]
+  },
+  buildTest: {
+    name: "Build Test",
+    description: "Assemble any unlocked build, then test it in one fight against the Eternal Crown.",
+    mode: "buildTest",
+    enemyHealth: 1,
+    enemyDamage: 1,
+    stageHealthGrowth: 0,
+    stageDamageGrowth: 0,
+    armorGrowth: 5,
+    essenceMultiplier: 0,
+    enemyPool: [],
+    themeIds: ["darkCastle"],
+    layerEnemyMultipliers: [1, 1, 1],
+    layerDamageMultipliers: [1, 1, 1]
   }
 };
 
@@ -470,14 +515,20 @@ const FINAL_BOSS = {
   name: "The Eternal Crown",
   skillName: "Endless Decree",
   hp: 1000000,
-  damage: 500,
+  damage: 300,
   attackSpeed: 1.0,
-  armor: 20,
+  armor: 50,
   shield: 0,
   className: "boss",
   boss: true,
   finalBoss: true
 };
+
+const CHARACTER_ENEMIES = [
+  ...Object.values(ENEMY_ARCHETYPES),
+  ...BOSSES,
+  FINAL_BOSS
+];
 
 const BOSS = BOSSES[0];
 
@@ -499,7 +550,7 @@ const RUN_ABILITIES = {
   knight_holy_shield: { id: "knight_holy_shield", classId: "knight", name: "Holy Shield", icon: "⬟", cooldown: 5, duration: 0.9, color: "#facc15", description: "Every 5s, gain shield equal to 32 + 12% max HP." }
 };
 
-const ENEMY_KILL_ACHIEVEMENTS = Object.values(ENEMY_ARCHETYPES).map((enemy, index) => ({
+const ENEMY_KILL_ACHIEVEMENTS = CHARACTER_ENEMIES.map((enemy, index) => ({
   id: `slayer_${enemy.id}`,
   name: `${enemy.name} Slayer`,
   description: `Defeat ${enemy.name}s across your runs.`,
@@ -516,8 +567,8 @@ const ACHIEVEMENTS = [
   { id: "hundred_enemies", name: "Line Breaker", description: "Defeat 100 enemies.", goal: "Defeat 100 enemies", condition: save => save.stats.enemiesDefeated >= 100, bonus: { attackSpeedMultiplier: 0.01 } },
   { id: "elite_hunter", name: "Elite Hunter", description: "Defeat 10 elites.", goal: "Defeat 10 elites", condition: save => save.stats.elitesDefeated >= 10, bonus: { armor: 1 } },
   { id: "elite_reaper", name: "Elite Reaper", description: "Defeat 500 elites.", goal: "Defeat 500 elites", condition: save => save.stats.elitesDefeated >= 500, bonus: { armor: 1, damageMultiplier: 0.005 } },
-  { id: "boss_breaker", name: "Boss Breaker", description: "Defeat 3 bosses.", goal: "Defeat 3 bosses", condition: save => save.stats.bossesDefeated >= 3, bonus: { bossDamage: 0.015 } },
-  { id: "boss_conqueror", name: "Boss Conqueror", description: "Defeat 100 bosses.", goal: "Defeat 100 bosses", condition: save => save.stats.bossesDefeated >= 100, bonus: { bossDamage: 0.01, maxHp: 3 } },
+  { id: "boss_breaker", name: "Boss Breaker", description: "Defeat 3 bosses.", goal: "Defeat 3 bosses", condition: save => save.stats.bossesDefeated >= 3, bonus: { damageMultiplier: 0.015 } },
+  { id: "boss_conqueror", name: "Boss Conqueror", description: "Defeat 100 bosses.", goal: "Defeat 100 bosses", condition: save => save.stats.bossesDefeated >= 100, bonus: { damageMultiplier: 0.01, maxHp: 3 } },
   { id: "deep_delver", name: "Deep Delver", description: "Reach Stage 20.", goal: "Reach Stage 20", condition: save => save.highestClear >= 20, bonus: { maxHp: 5 } },
   { id: "third_map", name: "Third March", description: "Reach Stage 30.", goal: "Reach Stage 30", condition: save => save.highestClear >= 30, bonus: { essenceMultiplier: 0.01 } },
   { id: "essence_hoard", name: "Essence Hoard", description: "Bank 500 total Essence.", goal: "Earn 500 Essence", condition: save => save.stats.totalEssenceEarned >= 500, bonus: { luck: 1 } },
@@ -543,7 +594,7 @@ function getEnemySlayerBonus(index) {
     { damageMultiplier: 0.002 },
     { attackSpeedMultiplier: 0.002 },
     { luck: 1 },
-    { bossDamage: 0.002 }
+    { damageMultiplier: 0.002 }
   ];
   return bonuses[index % bonuses.length];
 }
@@ -590,7 +641,7 @@ const REWARDS = [
   { name: "Sharpened Blade", rarity: "Common", text: "+15% hero damage", apply: hero => hero.damage *= 1.15 },
   { name: "Battle Rhythm", rarity: "Common", text: "+15% attack speed", apply: hero => hero.attackSpeed *= 1.15 },
   { name: "Iron Skin", rarity: "Common", text: "+15% armor", apply: hero => multiplyArmor(hero, 1.15) },
-  { name: "Leeching Edge", rarity: "Rare", text: "+5% life steal", apply: hero => hero.lifeSteal = (hero.lifeSteal || 0) + 0.05 },
+  { name: "Leeching Edge", rarity: "Rare", text: "+3% life steal", apply: hero => hero.lifeSteal = (hero.lifeSteal || 0) + 0.03 },
   { name: "Balanced Blade", rarity: "Common", text: "+15% damage", apply: hero => hero.damage *= 1.15 },
   { name: "Hardy Bread", rarity: "Common", text: "+12% max HP", apply: hero => multiplyMaxHp(hero, 1.12) },
   { name: "Quick Buckle", rarity: "Common", text: "+12% attack speed", apply: hero => hero.attackSpeed *= 1.12 },
@@ -706,12 +757,12 @@ const RELICS = [
   { id: "clover_pin", name: "Clover Pin", description: "+2 Luck.", rarity: "Common", icon: "CP", effect: { type: "stat", stat: "luck", value: 2 } },
   { id: "glass_dagger", name: "Glass Dagger", description: "+25% damage, -10% max HP.", rarity: "Rare", icon: "GD", effect: { type: "glassDagger", damageMultiplier: 0.25, maxHpMultiplier: -0.1 } },
   { id: "guardian_seal", name: "Guardian Seal", description: "First enemy hit each battle deals 30% less damage.", rarity: "Rare", icon: "GS", effect: { type: "firstHitReduction", value: 0.3 } },
-  { id: "red_crown_splinter", requiresNode: "unlock_relics", name: "Red Crown Splinter", description: "Bosses take 18% more damage.", rarity: "Epic", icon: "RC", effect: { type: "eliteBossDamage", value: 0.18 } },
+  { id: "red_crown_splinter", requiresNode: "unlock_relics", name: "Red Crown Splinter", description: "+18% damage.", rarity: "Epic", icon: "RC", effect: { type: "stat", stat: "damageMultiplier", value: 0.18 } },
   { id: "merchant_seal", requiresNode: "unlock_relics", name: "Merchant Seal", description: "Gain +30 gold after each battle.", rarity: "Rare", icon: "MS", effect: { type: "afterBattleGold", value: 30 } },
   { id: "dawn_banner", requiresNode: "unlock_relics", name: "Dawn Banner", description: "Start each battle with +35 shield.", rarity: "Epic", icon: "DB", effect: { type: "stat", stat: "blockChance", value: 0, battleStartShield: 35 } },
   { id: "scholars_rune", name: "Scholar's Rune", description: "+10% Essence earned.", rarity: "Rare", icon: "SR", effect: { type: "essenceMultiplier", value: 0.1 } },
   { id: "oracle_lens", name: "Oracle Lens", description: "+4 Luck and +5% crit chance.", rarity: "Rare", icon: "OL", effect: { type: "stat", stat: "luck", value: 4, critChance: 0.05 } },
-  { id: "hunters_mark", name: "Hunter's Mark", description: "Deal +12% damage to elites and bosses.", rarity: "Epic", icon: "HM", effect: { type: "eliteBossDamage", value: 0.12 } },
+  { id: "hunters_mark", name: "Hunter's Mark", description: "+12% damage.", rarity: "Epic", icon: "HM", effect: { type: "stat", stat: "damageMultiplier", value: 0.12 } },
   { id: "executioners_file", name: "Executioner's File", description: "+32% damage.", rarity: "Epic", icon: "EF", effect: { type: "stat", stat: "damageMultiplier", value: 0.32 } },
   { id: "giant_knot", name: "Giant Knot", description: "+30% max HP.", rarity: "Epic", icon: "GK", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.3 } },
   { id: "storm_buckle", name: "Storm Buckle", description: "+28% attack speed.", rarity: "Epic", icon: "SB", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.28 } },
@@ -739,6 +790,128 @@ const RELICS = [
   { id: "campaign_plate", name: "Campaign Plate", description: "Gain +3% armor after each stage defeated.", rarity: "Legendary", icon: "CP", effect: { type: "stageGrowth", stat: "armorMultiplier", value: 0.03 } },
   { id: "moonlit_armor", name: "Moonlit Armor", description: "+65% armor and +14% max HP.", rarity: "Epic", icon: "MA", effect: { type: "stat", stat: "armorMultiplier", value: 0.65, maxHpMultiplier: 0.14 } }
 ];
+
+applyRunItemBalance();
+
+function applyRunItemBalance() {
+  const updateUpgrade = (name, text, apply) => {
+    const item = REWARDS.find(reward => reward.name === name);
+    if (item) { item.text = text; item.apply = apply; }
+  };
+  const updateRelic = (id, description, effect) => {
+    const relic = RELICS.find(item => item.id === id);
+    if (relic) { relic.description = description; relic.effect = effect; }
+  };
+
+  updateUpgrade("Sharpened Blade", "+10% hero damage", hero => hero.damage *= 1.1);
+  updateUpgrade("Battle Rhythm", "+10% attack speed", hero => hero.attackSpeed *= 1.1);
+  updateUpgrade("Iron Skin", "+10% armor", hero => multiplyArmor(hero, 1.1));
+  updateUpgrade("Leeching Edge", "+2% life steal", hero => hero.lifeSteal = (hero.lifeSteal || 0) + 0.02);
+  updateUpgrade("Balanced Blade", "+10% damage", hero => hero.damage *= 1.1);
+  updateUpgrade("Hardy Bread", "+8% max HP", hero => multiplyMaxHp(hero, 1.08));
+  updateUpgrade("Quick Buckle", "+8% attack speed", hero => hero.attackSpeed *= 1.08);
+  updateUpgrade("Scout's Dice", "+2 Luck", hero => hero.luck = (hero.luck || 0) + 2);
+  updateUpgrade("Prepared Camp", "Start future battles this run with +10 shield", hero => hero.runStartShield = (hero.runStartShield || 0) + 10);
+  updateUpgrade("Opening Gambit", "Gain +20 gold and +2 Luck", hero => { run.gold += 20; hero.luck = (hero.luck || 0) + 2; });
+  updateUpgrade("Triage Kit", "+8% max HP and +1 HP regen", hero => { multiplyMaxHp(hero, 1.08, false); hero.regen = (hero.regen || 0) + 1; });
+  updateUpgrade("Risky Footwork", "+15% attack speed, -15% armor", hero => { hero.attackSpeed *= 1.15; multiplyArmor(hero, 0.85); });
+  updateUpgrade("Vitality Draught", "+14% max HP", hero => multiplyMaxHp(hero, 1.14, false));
+  updateUpgrade("Lucky Charm", "+6% crit chance", hero => hero.crit += 0.06);
+  updateUpgrade("Knightly Edge", "+15% damage", hero => hero.damage *= 1.15);
+  updateUpgrade("Oakheart Tonic", "+16% max HP", hero => multiplyMaxHp(hero, 1.16));
+  updateUpgrade("Clockwork Grip", "+14% attack speed", hero => hero.attackSpeed *= 1.14);
+  updateUpgrade("Royal Purse", "+35 gold", () => run.gold += 35);
+  updateUpgrade("Field Medic", "+8% max HP and +10% armor", hero => { multiplyMaxHp(hero, 1.08, false); multiplyArmor(hero, 1.1); });
+  updateUpgrade("Gilded Compass", "+2 Luck and +20 gold", hero => { hero.luck = (hero.luck || 0) + 2; run.gold += 20; });
+  updateUpgrade("Barbed Buckler", "+15% armor and +5% crit chance", hero => { multiplyArmor(hero, 1.15); hero.crit += 0.05; });
+  updateUpgrade("Glass Canon", "+20% damage, -12% max HP", hero => { hero.damage *= 1.2; multiplyMaxHp(hero, 0.88, false); });
+  updateUpgrade("War Training", "+14% damage and +8% max HP", hero => { hero.damage *= 1.14; multiplyMaxHp(hero, 1.08, false); });
+  updateUpgrade("Runed Greatblade", "+24% damage", hero => hero.damage *= 1.24);
+  updateUpgrade("Giant's Supper", "+24% max HP", hero => multiplyMaxHp(hero, 1.24));
+  updateUpgrade("Silver Reflexes", "+20% attack speed", hero => hero.attackSpeed *= 1.2);
+  updateUpgrade("Fortune's Edge", "+14% damage, +5% crit chance, +1 Luck", hero => { hero.damage *= 1.14; hero.crit += 0.05; hero.luck = (hero.luck || 0) + 1; });
+  updateUpgrade("Iron Momentum", "+16% armor and +12% attack speed", hero => { multiplyArmor(hero, 1.16); hero.attackSpeed *= 1.12; });
+  updateUpgrade("Vampiric Training", "+15% damage and +1 HP regen", hero => { hero.damage *= 1.15; hero.regen = (hero.regen || 0) + 1; });
+  updateUpgrade("Storm Tempo", "+22% attack speed", hero => hero.attackSpeed *= 1.22);
+  updateUpgrade("Battle Renewal", "+3 HP regen while in battle", hero => hero.regen = (hero.regen || 0) + 3);
+  updateUpgrade("Kingslayer Edge", "Crown-forged: +35% damage and +6% crit chance", hero => { hero.damage *= 1.35; hero.crit += 0.06; });
+  updateUpgrade("Titan Plate", "Ancient royal plate: +35% armor and +16% max HP", hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.16, false); });
+  updateUpgrade("Eternal Edge", "A blade with a name of its own: +35% damage", hero => hero.damage *= 1.35);
+  updateUpgrade("Colossus Heart", "A thunderous second heartbeat: +35% max HP", hero => multiplyMaxHp(hero, 1.35));
+  updateUpgrade("Chrono Spurs", "Time buckles under each step: +32% attack speed", hero => hero.attackSpeed *= 1.32);
+  updateUpgrade("Sovereign Star", "A fate-lit royal charm: +4 Luck, +10% crit chance, +40 gold", hero => { hero.luck = (hero.luck || 0) + 4; hero.crit += 0.1; run.gold += 40; });
+  updateUpgrade("Living Aegis", "A shield that remembers kings: +35% armor, +12% max HP, +1 HP regen", hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.12, false); hero.regen = (hero.regen || 0) + 1; });
+
+  updateUpgrade("Shield Drill", "Knight only: start each battle with +12 shield", hero => hero.runStartShield = (hero.runStartShield || 0) + 12);
+  updateUpgrade("Plate Fitting", "Knight only: +12% armor and +6% max HP", hero => { multiplyArmor(hero, 1.12); multiplyMaxHp(hero, 1.06, false); });
+  updateUpgrade("Guard Stance", "Knight only: +5% block chance", hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.05);
+  updateUpgrade("Shield Timing", "Knight only: +3% block chance", hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.03);
+  updateUpgrade("Bulwark Drill", "Knight only: +6% block chance and +10 shield each battle", hero => { hero.runBlockChance = (hero.runBlockChance || 0) + 0.06; hero.runStartShield = (hero.runStartShield || 0) + 10; });
+  updateUpgrade("Spiked Shield", "Knight only: blocked damage retaliates for 12%", hero => hero.runRetaliateBlock = (hero.runRetaliateBlock || 0) + 0.12);
+  updateUpgrade("Unbroken Vow", "Knight only: +14% max HP and +15 shield each battle", hero => { multiplyMaxHp(hero, 1.14, false); hero.runStartShield = (hero.runStartShield || 0) + 15; });
+  updateUpgrade("Castle Guard", "Knight only: +10% block chance", hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.1);
+  updateUpgrade("Royal Bastion", "Knight only: +28% armor, +2 armor, and +16% max HP", hero => { multiplyArmor(hero, 1.28); hero.armor += 2; multiplyMaxHp(hero, 1.16, false); });
+  updateUpgrade("Serrated Oil", "Rogue only: +25% bleed damage", hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.25);
+  updateUpgrade("Quickstep", "Rogue only: +8% attack speed and +2% evasion", hero => { hero.attackSpeed *= 1.08; hero.runEvasion = (hero.runEvasion || 0) + 0.02; });
+  updateUpgrade("Rending Cuts", "Rogue only: +40% bleed damage", hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.4);
+  updateUpgrade("Assassin's Eye", "Rogue only: +8% crit chance and +10% execute damage", hero => { hero.crit += 0.08; hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.1; });
+  updateUpgrade("Blood Rush", "Rogue only: +35% bleed damage and +5% attack speed after bleeding a new target", hero => { hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.35; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.05; });
+  updateUpgrade("Deathblow Contract", "Rogue only: enemies below 40% HP take +30% execute damage", hero => { hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.3; hero.runExecuteThreshold = Math.max(hero.runExecuteThreshold || 0, 0.4); });
+  updateUpgrade("Kindling Rune", "Wizard only: +10% burn chance", hero => hero.runBurnChance = (hero.runBurnChance || 0) + 0.1);
+  updateUpgrade("Arcane Focus", "Wizard only: +10% damage and +5% splash damage", hero => { hero.damage *= 1.1; hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.05; });
+  updateUpgrade("Frost Thread", "Wizard only: attacks gain +10% chance to slow by 20% for 3.5s", hero => hero.runSlowChance = (hero.runSlowChance || 0) + 0.1);
+  updateUpgrade("Mana Ward", "Wizard only: splash grants +9 shield", hero => hero.runSplashShield = (hero.runSplashShield || 0) + 9);
+  updateUpgrade("Chain Spell", "Wizard only: +12% splash damage", hero => hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.12);
+  updateUpgrade("Inferno Thesis", "Wizard only: +5 burn damage per second and burning enemies take +16% damage", hero => { hero.runBurnDamage = (hero.runBurnDamage || 0) + 5; hero.runBurningEnemyDamage = (hero.runBurningEnemyDamage || 0) + 0.16; });
+
+  updateRelic("wolf_fang", "+15% damage.", { type: "stat", stat: "damageMultiplier", value: 0.15 });
+  updateRelic("plain_whetstone", "+15% damage.", { type: "stat", stat: "damageMultiplier", value: 0.15 });
+  updateRelic("traveler_brooch", "+12% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.12 });
+  updateRelic("quick_clasp", "+15% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.15 });
+  updateRelic("iron_crown", "+20% armor.", { type: "stat", stat: "armorMultiplier", value: 0.2 });
+  updateRelic("blood_chalice", "+5 HP regen while in battle.", { type: "stat", stat: "regen", value: 5 });
+  updateRelic("duelist_charm", "+25% damage.", { type: "stat", stat: "damageMultiplier", value: 0.25 });
+  updateRelic("lion_cloak", "+24% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.24 });
+  updateRelic("silver_gear", "+22% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.22 });
+  updateRelic("ember_ring", "Critical hits deal +75% damage.", { type: "critBonus", value: 0.75 });
+  updateRelic("war_drum", "+15% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.15 });
+  updateRelic("old_coin", "Gain +30 gold after each battle.", { type: "afterBattleGold", value: 30 });
+  updateRelic("clover_pin", "+3 Luck.", { type: "stat", stat: "luck", value: 3 });
+  updateRelic("glass_dagger", "+32% damage, -10% max HP.", { type: "glassDagger", damageMultiplier: 0.32, maxHpMultiplier: -0.1 });
+  updateRelic("guardian_seal", "First enemy hit each battle deals 40% less damage.", { type: "firstHitReduction", value: 0.4 });
+  updateRelic("red_crown_splinter", "+35% damage.", { type: "stat", stat: "damageMultiplier", value: 0.35 });
+  updateRelic("merchant_seal", "Gain +50 gold after each battle.", { type: "afterBattleGold", value: 50 });
+  updateRelic("dawn_banner", "Start each battle with +50 shield.", { type: "stat", stat: "blockChance", value: 0, battleStartShield: 50 });
+  updateRelic("scholars_rune", "+15% Essence earned.", { type: "essenceMultiplier", value: 0.15 });
+  updateRelic("oracle_lens", "+6 Luck and +8% crit chance.", { type: "stat", stat: "luck", value: 6, critChance: 0.08 });
+  updateRelic("hunters_mark", "+30% damage.", { type: "stat", stat: "damageMultiplier", value: 0.3 });
+  updateRelic("executioners_file", "+40% damage.", { type: "stat", stat: "damageMultiplier", value: 0.4 });
+  updateRelic("giant_knot", "+35% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.35 });
+  updateRelic("storm_buckle", "+32% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.32 });
+  updateRelic("silver_spur", "+100 gold immediately.", { type: "gold", value: 100 });
+  updateRelic("sun_amulet", "+35% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.35 });
+  updateRelic("fate_deck", "+8 Luck.", { type: "stat", stat: "luck", value: 8 });
+  updateRelic("dragon_heart", "A living ember beats in your chest. +45% max HP and +3 HP regen.", { type: "stat", stat: "maxHpMultiplier", value: 0.45, regen: 3 });
+  updateRelic("sunforged_edge", "A royal killing edge. +60% damage.", { type: "stat", stat: "damageMultiplier", value: 0.6 });
+  updateRelic("titan_heart", "A mountain's pulse. +65% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.65 });
+  updateRelic("hourglass_chain", "The second hand snaps forward. +55% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.55 });
+  updateRelic("starforged_blade", "A weapon bright enough to cut fate. +55% damage.", { type: "stat", stat: "damageMultiplier", value: 0.55 });
+  updateRelic("crown_of_chance", "The crown smiles on impossible odds. +9 Luck and +15% Essence earned.", { type: "stat", stat: "luck", value: 9, essenceMultiplier: 0.15 });
+  updateRelic("phoenix_ember", "A reborn flame drives your strikes. +40% attack speed and +12% crit chance.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.4, critChance: 0.12 });
+  updateRelic("blood_grail", "+8% life steal.", { type: "stat", stat: "lifeSteal", value: 0.08 });
+  updateRelic("tower_shield", "+10% block chance.", { type: "stat", stat: "blockChance", value: 0.1 });
+  updateRelic("oathguard_emblem", "+16% block chance and +15% max HP.", { type: "stat", stat: "blockChance", value: 0.16, maxHpMultiplier: 0.15 });
+  updateRelic("kingwall_sigil", "A royal ward for standing firm. +22% block chance.", { type: "stat", stat: "blockChance", value: 0.22 });
+  updateRelic("storm_capacitor", "Lightning special deals +35% damage.", { type: "abilityStat", stat: "runLightningDamage", value: 0.35 });
+  updateRelic("frost_core", "Iceball special slows enemies by an extra 12%.", { type: "abilityStat", stat: "runIceballSlow", value: 0.12 });
+  updateRelic("trapwire_spool", "Trap special lasts +2.5s longer.", { type: "abilityStat", stat: "runTrapDuration", value: 2.5 });
+  updateRelic("holy_reliquary", "Holy Sword and Holy Shield cooldowns are 20% shorter.", { type: "abilityStat", stat: "runHolyCooldownReduction", value: 0.2 });
+  updateRelic("campaign_heart", "Gain +5% max HP after each stage defeated.", { type: "stageGrowth", stat: "maxHpMultiplier", value: 0.05 });
+  updateRelic("campaign_blade", "Gain +5% damage after each stage defeated.", { type: "stageGrowth", stat: "damageMultiplier", value: 0.05 });
+  updateRelic("campaign_spurs", "Gain +3% attack speed after each stage defeated.", { type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.03 });
+  updateRelic("campaign_plate", "Gain +5% armor after each stage defeated.", { type: "stageGrowth", stat: "armorMultiplier", value: 0.05 });
+  updateRelic("moonlit_armor", "+70% armor and +22% max HP.", { type: "stat", stat: "armorMultiplier", value: 0.7, maxHpMultiplier: 0.22 });
+}
 
 const CLASS_TALENT_STAGES = [3, 6, 9];
 
@@ -822,8 +995,8 @@ const TREE_NODES = [
 
   { id: "knight_hold_line", classId: "knight", branch: "Crown Guard", name: "Hold the Line", description: "+1 starting armor per level.", cost: 65, maxLevel: 4, effect: { armor: 1 }, x: 780, y: 1320, prerequisites: ["knight_root"], type: "stat" },
   { id: "knight_crown_guard_meta", classId: "knight", branch: "Crown Guard", name: "Crown Guard", description: "+2 starting armor per level.", cost: 115, maxLevel: 3, effect: { armor: 2 }, x: 580, y: 1380, prerequisites: ["knight_hold_line"], type: "notable" },
-  { id: "knight_banner", classId: "knight", branch: "Crown Guard", name: "Boss Banner", description: "+8% boss damage and +5% elite rewards per level.", cost: 155, maxLevel: 3, effect: { bossDamage: 0.08, eliteRewardMultiplier: 0.05 }, x: 380, y: 1440, prerequisites: ["knight_crown_guard_meta"], type: "notable" },
-  { id: "knight_warlord_oath", classId: "knight", branch: "Crown Guard", name: "Warlord's Oath", description: "Capstone: +35% boss damage and +8 starting armor.", cost: 300, maxLevel: 1, effect: { bossDamage: 0.35, armor: 8 }, x: 180, y: 1500, prerequisites: ["knight_banner"], type: "capstone" },
+  { id: "knight_banner", classId: "knight", branch: "Crown Guard", name: "Battle Banner", description: "+8% damage and +5% elite rewards per level.", cost: 155, maxLevel: 3, effect: { damageMultiplier: 0.08, eliteRewardMultiplier: 0.05 }, x: 380, y: 1440, prerequisites: ["knight_crown_guard_meta"], type: "notable" },
+  { id: "knight_warlord_oath", classId: "knight", branch: "Crown Guard", name: "Warlord's Oath", description: "Capstone: +35% damage and +8 starting armor.", cost: 300, maxLevel: 1, effect: { damageMultiplier: 0.35, armor: 8 }, x: 180, y: 1500, prerequisites: ["knight_banner"], type: "capstone" },
 
   { id: "knight_heavy_attack_unlock", classId: "knight", branch: "Ability Unlock", name: "Heavy Attack", description: "Unlocks Heavy Attack: every 3s, strike one enemy for 225% damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_heavy_attack" }, x: 0, y: 880, prerequisites: ["knight_iron_bastion"], type: "ability" },
   { id: "knight_holy_sword_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Sword", description: "Unlocks Holy Sword: every 5s, attacks add 32% damage for 4.5s.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_sword" }, x: 0, y: 1050, prerequisites: ["knight_retribution"], type: "ability" },
@@ -927,7 +1100,7 @@ const TREE = TREE_NODES.reduce((nodes, node) => {
 const MAP_TYPES = {
   Battle: { label: "Combat", icon: "&#9876;", className: "map-battle", description: "Standard battle" },
   Elite: { label: "Elite", icon: "&#9760;", className: "map-elite", description: "Elite fight: 35 base gold, +20% Essence, and a relic reward" },
-  Heal: { label: "Sanctuary", icon: "&#10010;", className: "map-heal", description: "Gain +65 max HP" },
+  Heal: { label: "Sanctuary", icon: "&#10010;", className: "map-heal", description: "Gain max HP and HP regen. Scales each layer" },
   Merchant: { label: "Merchant", icon: "$", className: "map-merchant", description: "Spend gold on run upgrades" },
   Treasure: { label: "Treasure", icon: "&#10022;", className: "map-treasure", description: "Gain 35 + 3 per stage gold; 35% relic chance plus Luck" },
   Boss: { label: "Boss", icon: "&#9819;", className: "map-boss", description: "Final boss" }

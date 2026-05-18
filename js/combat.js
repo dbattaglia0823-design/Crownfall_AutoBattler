@@ -8,12 +8,25 @@ const ROGUE_BASE_EXECUTE_THRESHOLD = 0.32;
 const ROGUE_VENOM_BLADE_STAGE_SCALING = 0.28;
 const ROGUE_TRAP_SLOW_VALUE = 0.28;
 const ROGUE_TRAP_SLOWED_DAMAGE = 0.08;
+const BUILD_TEST_MAX_HERO_ATTACK_SPEED = 30;
+const BUILD_TEST_MAX_HERO_ATTACKS_PER_FRAME = 16;
+const BUILD_TEST_MAX_ENEMY_ATTACKS_PER_FRAME = 4;
+const BUILD_TEST_MAX_FLOATING_TEXTS = 36;
+const BUILD_TEST_MAX_PARTICLES = 48;
+const BUILD_TEST_FLOAT_TEXTS_PER_SECOND = 35;
 
 function startRun(classId) {
   battleLog.innerHTML = "";
   run.classId = classId;
   run.gold = 20 + getPermanentEffectTotal("startingGold", classId) + getAchievementBonusTotal("startingGold", classId);
   run.hero = buildHero(classId);
+  if (isBuildTestRun()) {
+    run.gold = 0;
+    run.essenceEarned = 0;
+    run.buildTestSelections = { skills: {}, upgrades: {}, relics: {}, talents: {} };
+    renderBuildTest();
+    return showScreen("buildTestScreen");
+  }
   addAccountStat("runsStarted", 1);
   addAccountStat(`${classId}Runs`, 1);
   saveGame();
@@ -25,6 +38,7 @@ function beginStage(nodeType) {
   applyRunTheme();
   showScreen("battleScreen");
   setupBattle(nodeType);
+  setBattleLogVisible(!isBuildTestRun());
   updateRunHud();
   renderBattle();
   if (!battle.enemies.some(enemy => enemy.boss)) {
@@ -46,7 +60,17 @@ function setupBattle(nodeType) {
   run.hero.attackCount = 0;
 
   const enemies = [];
-  if (isFinalBossStage(run.stage) || nodeType === "FinalBoss") {
+  if (nodeType === "BuildTest") {
+    const crown = makeEnemy(FINAL_BOSS, 640, 215, true, "FinalBoss");
+    crown.hp = 1000000000000000;
+    crown.maxHp = crown.hp;
+    crown.damage = 100;
+    crown.attackSpeed = 0.5;
+    crown.attackCooldown = 1 / crown.attackSpeed;
+    crown.crownDamageRamp = 0.5;
+    crown.buildTestBoss = true;
+    enemies.push(crown);
+  } else if (isFinalBossStage(run.stage) || nodeType === "FinalBoss") {
     enemies.push(makeEnemy(FINAL_BOSS, 640, 215, true, "FinalBoss"));
   } else if (isBossStage(run.stage) || nodeType === "Boss") {
     enemies.push(makeEnemy(getBossForStage(run.stage), 640, 215, true, nodeType));
@@ -131,7 +155,7 @@ function getAreaEnemyPool() {
 }
 
 function filterUnlockedEnemies(enemyPool) {
-  const unlocked = enemyPool.filter(enemy => !enemy.requiresNode || hasPermanentUnlock(enemy.requiresNode));
+  const unlocked = enemyPool.filter(enemy => isRegularEncounterEnemy(enemy) && (!enemy.requiresNode || hasPermanentUnlock(enemy.requiresNode)));
   return unlocked.length ? unlocked : ENEMIES;
 }
 
@@ -251,6 +275,12 @@ function battleLoop(now) {
 
   const realDt = Math.min(0.05, (now - lastFrameTime) / 1000 || 0);
   lastFrameTime = now;
+  if (battle.paused) {
+    updateRunHud();
+    renderBattle();
+    battleFrame = requestAnimationFrame(battleLoop);
+    return;
+  }
   battle.elapsed += realDt;
   battle.speedMultiplier = getBattleSpeedMultiplier(battle.elapsed);
   const dt = realDt * battle.speedMultiplier;
@@ -302,18 +332,26 @@ function updateBattle(dt) {
   updateRunAbilities(hero, target, dt);
 
   hero.attackCooldown -= dt;
-  while (hero.attackCooldown <= 0 && target.hp > 0) {
+  let heroAttacksThisFrame = 0;
+  const maxHeroAttacks = getFrameAttackLimit("hero");
+  while (hero.attackCooldown <= 0 && target.hp > 0 && heroAttacksThisFrame < maxHeroAttacks) {
     heroAttack(hero, target);
-    hero.attackCooldown += 1 / getHeroAttackSpeed(hero);
+    hero.attackCooldown += 1 / getCombatHeroAttackSpeed(hero);
+    heroAttacksThisFrame += 1;
   }
+  if (heroAttacksThisFrame >= maxHeroAttacks && hero.attackCooldown <= 0) hero.attackCooldown = 1 / getCombatHeroAttackSpeed(hero);
 
   aliveEnemies.forEach(enemy => {
     if (enemy.hp <= 0 || hero.hp <= 0) return;
     enemy.attackCooldown -= dt;
-    while (enemy.attackCooldown <= 0 && hero.hp > 0) {
+    let enemyAttacksThisFrame = 0;
+    const maxEnemyAttacks = getFrameAttackLimit("enemy");
+    while (enemy.attackCooldown <= 0 && hero.hp > 0 && enemyAttacksThisFrame < maxEnemyAttacks) {
       enemyAttack(enemy, hero);
       enemy.attackCooldown += 1 / getEnemyAttackSpeed(enemy);
+      enemyAttacksThisFrame += 1;
     }
+    if (enemyAttacksThisFrame >= maxEnemyAttacks && enemy.attackCooldown <= 0) enemy.attackCooldown = 1 / getEnemyAttackSpeed(enemy);
   });
 }
 
@@ -329,6 +367,9 @@ function updateVisualTimers(dt) {
   battle.particles = battle.particles
     .map(particle => ({ ...particle, age: particle.age + dt }))
     .filter(particle => particle.age < particle.life);
+  if (isBuildTestRun() && battle.particles.length > BUILD_TEST_MAX_PARTICLES) {
+    battle.particles = battle.particles.slice(-BUILD_TEST_MAX_PARTICLES);
+  }
   battle.pendingHits = (battle.pendingHits || []).filter(hit => {
     hit.delay -= dt;
     if (hit.delay > 0) return true;
@@ -393,13 +434,6 @@ function heroAttack(hero, enemy) {
     }
     triggerScreenShake("light");
   }
-
-  if ((battle.nodeType === "Elite" || enemy.boss) && hasRelic("hunters_mark")) {
-    damage *= 1 + getRelicEffectTotal("eliteBossDamage");
-  }
-  const bossDamageBonus = getPermanentEffectTotal("bossDamage", hero.id) + getAchievementBonusTotal("bossDamage", hero.id);
-  if (enemy.boss) damage *= 1 + bossDamageBonus;
-  if (enemy.boss && bossDamageBonus) triggerSkillVfx(hero.x, hero.y, "Boss Bane", hero.id);
 
   if (hasTalent("knight_last_stand") && hero.hp / hero.maxHp < getTalent("knight_last_stand").effect.threshold) {
     damage *= 1 + getTalent("knight_last_stand").effect.value;
@@ -518,6 +552,7 @@ function heroAttack(hero, enemy) {
 
 function queuePendingHit(hit, delay) {
   if (!battle) return applyPendingHit(hit);
+  if (isBuildTestRun()) return applyPendingHit(hit);
   battle.pendingHits.push({ ...hit, delay });
 }
 
@@ -537,7 +572,15 @@ function enemyAttack(enemy, hero) {
   startUnitSpriteAnimation(enemy, "attack", 0.38);
   if (enemy.boss) spawnBossSlashEffect(hero);
   else spawnSlashEffect(hero, "sword");
+  const crownAttackCount = enemy.finalBoss ? (enemy.crownAttackCount || 0) : 0;
+  const crownDamageMultiplier = enemy.finalBoss ? 1 + crownAttackCount * (enemy.crownDamageRamp || 0.2) : 1;
+  if (enemy.finalBoss) enemy.crownAttackCount = crownAttackCount + 1;
   let damage = Math.max(1, enemy.damage);
+  damage *= crownDamageMultiplier;
+  if (enemy.finalBoss && crownAttackCount > 0) {
+    addFloat(enemy.x, enemy.y - 78, `+${Math.round((crownDamageMultiplier - 1) * 100)}%`, "#fca5a5", { variant: "heavy" });
+    log(`${enemy.name}'s decree grows stronger. Next blow: ${Math.round(crownDamageMultiplier * 100)}% damage.`, "danger");
+  }
   let blockedByGuard = false;
   let blockPrevented = 0;
   const blockChance = getHeroBlockChance(hero);
@@ -620,10 +663,10 @@ function prepareBattleResult(victory) {
   battle.recentAbilities = {};
   battle.result = {
     victory,
-    title: victory ? "Victory" : "Defeat",
+    title: victory ? "Victory" : (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") ? "The Crown Endures" : "Defeat",
     gold: 0,
     essence: 0,
-    nextLabel: victory ? getVictoryContinueLabel() : "Continue"
+    nextLabel: victory ? getVictoryContinueLabel() : (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") ? "Complete Run" : "Continue"
   };
 
   if (!victory) {
@@ -635,7 +678,7 @@ function prepareBattleResult(victory) {
     return;
   }
 
-  run.stagesCleared = Math.max(run.stagesCleared, run.stage);
+  run.stagesCleared = Math.max(run.stagesCleared, isFinalBossStage(run.stage) ? STAGE_COUNT : run.stage);
   save.highestClear = Math.max(save.highestClear, run.stagesCleared);
 
   const baseEssence = BASE_STAGE_ESSENCE;
@@ -733,7 +776,11 @@ function continueBattleResult() {
   const victory = battle.result.victory;
   battle.state = "done";
 
-  if (!victory) return endRun(false);
+  if (!victory) {
+    if (isBuildTestRun()) return endBuildTest(false);
+    if (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") return endEternalCrownEnding();
+    return endRun(false);
+  }
   if (isEndlessRun()) {
     if (isBossStage(run.stage)) {
       run.afterRelicAction = "reward";
@@ -745,12 +792,13 @@ function continueBattleResult() {
     }
     return showRewards();
   }
-  if (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") return endRun(true);
+  if (isBuildTestRun()) return endBuildTest(true);
+  if (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") return endEternalCrownEnding(true);
   if (isBossStage(run.stage)) {
     run.afterRelicAction = "reward";
-    if (run.stage === STAGE_COUNT) run.afterRewardAction = "completeRun";
+    if (run.stage === STAGE_COUNT) run.afterRewardAction = "finalBoss";
     return showRelicRewards(run.stage === STAGE_COUNT
-      ? "Layer 3 cleared. Claim one relic and choose a final reward before completing the run."
+      ? "Layer 3 cleared. Claim one relic and choose a final reward before the Eternal Crown descends."
       : "Boss defeated. Claim one relic before pushing into the next map layer.");
   }
   if (battle.nodeType === "Elite") {
@@ -763,13 +811,7 @@ function continueBattleResult() {
 function endRun(victory) {
   stopBattleLoop();
   const essence = Math.max(1, Math.round(run.essenceEarned));
-  save.essence += essence;
-  save.highestClear = Math.max(save.highestClear, run.stagesCleared);
-  addAccountStat("runsEnded", 1);
-  addAccountStat(victory ? "victories" : "defeats", 1);
-  if (victory && !isEndlessRun() && run.stagesCleared >= STAGE_COUNT) addAccountStat(`${run.classId}Layer3Clears`, 1);
-  addAccountStat("totalEssenceEarned", essence);
-  if (victory) save.firstBossDefeated = true;
+  recordRunEndStats(victory, essence);
   checkAchievements();
   saveGame();
   showScreen("runEndScreen");
@@ -780,7 +822,62 @@ function endRun(victory) {
   battle = null;
 }
 
-function renderRunSummary(victory, routeName, essence) {
+function endBuildTest(victory) {
+  stopBattleLoop();
+  showScreen("runEndScreen");
+  runEndTitle.textContent = victory ? "Build Test Complete" : "Build Test Ended";
+  const summary = run.summary || {};
+  runEndText.innerHTML = `
+    <span class="run-end-message">${victory ? "The test build somehow broke the Eternal Crown." : "The Eternal Crown erased the test build. That is useful data."}</span>
+    <span class="run-summary-grid">
+      <span><small>Class</small><strong>${CLASSES[run.classId].name}</strong></span>
+      <span><small>Difficulty</small><strong>Build Test</strong></span>
+      <span><small>Damage dealt</small><strong>${Math.round(summary.damageDealt || 0).toLocaleString()}</strong></span>
+      <span><small>Damage taken</small><strong>${Math.round(summary.damageTaken || 0).toLocaleString()}</strong></span>
+    </span>
+  `;
+  saveGame();
+  battle = null;
+}
+
+function recordRunEndStats(victory, essence) {
+  if (run.runEndStatsRecorded) return;
+  run.runEndStatsRecorded = true;
+  save.essence += essence;
+  save.highestClear = Math.max(save.highestClear, run.stagesCleared);
+  addAccountStat("runsEnded", 1);
+  addAccountStat(victory ? "victories" : "defeats", 1);
+  if (victory && !isEndlessRun() && run.stagesCleared >= STAGE_COUNT) addAccountStat(`${run.classId}Layer3Clears`, 1);
+  addAccountStat("totalEssenceEarned", essence);
+  if (victory) save.firstBossDefeated = true;
+}
+
+function recordLayer3VictoryBeforeEternalCrown() {
+  if (!run || run.layer3VictoryRecorded) return;
+  run.layer3VictoryRecorded = true;
+  const essence = Math.max(1, Math.round(run.essenceEarned));
+  recordRunEndStats(true, essence);
+  checkAchievements();
+  saveGame();
+}
+
+function endEternalCrownEnding(crownDefeated = false) {
+  stopBattleLoop();
+  const essence = Math.max(1, Math.round(run.essenceEarned));
+  if (!run.layer3VictoryRecorded && !run.runEndStatsRecorded) recordRunEndStats(crownDefeated, essence);
+  checkAchievements();
+  saveGame();
+  showScreen("runEndScreen");
+  runEndTitle.textContent = crownDefeated ? "The Impossible Crown Falls" : "The Eternal Crown Endures";
+  const theme = BIOME_THEMES[run.themeId];
+  const routeName = theme ? `${DIFFICULTIES[run.difficultyId].name} / ${theme.name}` : DIFFICULTIES[run.difficultyId].name;
+  runEndText.innerHTML = renderRunSummary(true, routeName, essence, crownDefeated
+    ? "Against all odds, the Eternal Crown has fallen. Your Layer 3 victory was already sealed."
+    : "Layer 3 was conquered and your victory stands. The Eternal Crown wipes out the champion as the crown's last cruel joke.");
+  battle = null;
+}
+
+function renderRunSummary(victory, routeName, essence, message) {
   const summary = run.summary || {};
   const rows = [
     ["Class", CLASSES[run.classId].name],
@@ -796,7 +893,7 @@ function renderRunSummary(victory, routeName, essence) {
     ["Damage taken", Math.round(summary.damageTaken || 0).toLocaleString()]
   ];
   return `
-    <span class="run-end-message">${victory ? "The Eternal Crown has fallen. Crownfall is secure." : "Your champion falls, but the Essence returns to the crown vault."}</span>
+    <span class="run-end-message">${message || (victory ? "Layer 3 has fallen. Crownfall is broken, even if the crown still hungers." : "Your champion falls, but the Essence returns to the crown vault.")}</span>
     <span class="run-summary-grid">
       ${rows.map(([label, value]) => `<span><small>${label}</small><strong>${value}</strong></span>`).join("")}
     </span>
@@ -806,7 +903,27 @@ function renderRunSummary(victory, routeName, essence) {
 function addFloat(x, y, text, color, options = {}) {
   if (save.settings.damageNumbers === false) return;
   if (save.settings.reduceAnimations) return;
-  if (battle) battle.floatingTexts.push({ x, y, text, color, variant: options.variant || "" });
+  if (battle) {
+    if (isBuildTestRun()) {
+      if (!canAddBuildTestFloat(text)) return;
+      if (battle.floatingTexts.length >= BUILD_TEST_MAX_FLOATING_TEXTS) return;
+    }
+    battle.floatingTexts.push({ x, y, text, color, variant: options.variant || "" });
+  }
+}
+
+function canAddBuildTestFloat(text) {
+  if (!battle) return false;
+  const currentSecond = Math.floor(battle.elapsed || 0);
+  if (battle.buildTestFloatSecond !== currentSecond) {
+    battle.buildTestFloatSecond = currentSecond;
+    battle.buildTestFloatCount = 0;
+  }
+  const isDamageNumber = /^-?\+?\d/.test(String(text));
+  if (!isDamageNumber) return true;
+  if ((battle.buildTestFloatCount || 0) >= BUILD_TEST_FLOAT_TEXTS_PER_SECOND) return false;
+  battle.buildTestFloatCount = (battle.buildTestFloatCount || 0) + 1;
+  return true;
 }
 
 function triggerSkillVfx(x, y, label, theme) {
@@ -814,6 +931,7 @@ function triggerSkillVfx(x, y, label, theme) {
   battle.skillsUsed[label] = (battle.skillsUsed[label] || 0) + 1;
   battle.activeSkills[label] = 3;
   if (save.settings.reduceAnimations) return;
+  if (isBuildTestRun() && battle.particles.filter(particle => particle.type === "skill").length >= 10) return;
   const colors = {
     knight: "#f8e7bb",
     rogue: "#bbf7d0",
@@ -1217,6 +1335,16 @@ function getHeroBlockChance(hero) {
 
 function getHeroAttackSpeed(hero) {
   return hero.attackSpeed * (1 + (hero.battleAttackSpeedBonus || 0));
+}
+
+function getCombatHeroAttackSpeed(hero) {
+  const attackSpeed = getHeroAttackSpeed(hero);
+  return isBuildTestRun() ? Math.min(attackSpeed, BUILD_TEST_MAX_HERO_ATTACK_SPEED) : attackSpeed;
+}
+
+function getFrameAttackLimit(source) {
+  if (!isBuildTestRun()) return Infinity;
+  return source === "enemy" ? BUILD_TEST_MAX_ENEMY_ATTACKS_PER_FRAME : BUILD_TEST_MAX_HERO_ATTACKS_PER_FRAME;
 }
 
 function getEnemyAttackSpeed(enemy) {
