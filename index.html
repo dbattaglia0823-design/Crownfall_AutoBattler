@@ -36,6 +36,7 @@
           <button onclick="startRunFlow()">Start Run</button>
           <button onclick="showScreen('charactersScreen')">Characters</button>
           <button onclick="showScreen('upgradeScreen')">Skill Tree</button>
+          <button onclick="showScreen('leaderboardScreen')">Leaderboard</button>
           <button onclick="showScreen('statsScreen')">Account Stats</button>
           <button onclick="showScreen('achievementScreen')">Achievements</button>
           <button onclick="showSettings('menuScreen')">Settings</button>
@@ -76,6 +77,17 @@
         <h2 class="screen-title">Account Stats</h2>
         <p class="screen-text">Your permanent record across runs on this save.</p>
         <div id="accountStatsGrid" class="account-stats-grid"></div>
+        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+      </div>
+    </section>
+
+    <section id="leaderboardScreen" class="screen">
+      <div class="panel center-card flow-panel leaderboard-panel">
+        <div class="screen-ornament">&#9819; &#9670; &#9819;</div>
+        <h2 class="screen-title">Endless Leaderboard</h2>
+        <p class="screen-text">Top 10 Endless runs saved locally on this device.</p>
+        <p id="leaderboardEmpty" class="screen-text leaderboard-empty">No Endless scores yet. Start an Endless run to set the first mark.</p>
+        <div id="leaderboardGrid" class="leaderboard-grid"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
     </section>
@@ -295,6 +307,12 @@
         <div class="screen-ornament">♛ ✦ ♛</div>
         <h2 class="screen-title">Skill Tree</h2>
         <p class="screen-text">Spend Essence to improve future runs. These upgrades are saved in your browser.</p>
+        <div id="treeTabs" class="tree-tabs">
+          <button data-tree-tab="global" class="tree-tab-active" onclick="setTreeTab('global')">General</button>
+          <button data-tree-tab="knight" onclick="setTreeTab('knight')">Knight</button>
+          <button data-tree-tab="rogue" onclick="setTreeTab('rogue')">Rogue</button>
+          <button data-tree-tab="wizard" onclick="setTreeTab('wizard')">Wizard</button>
+        </div>
         <div class="tree-toolbar">
           <div>Essence: <strong id="treeEssence">0</strong></div>
           <button onclick="resetTreeView()">Reset View</button>
@@ -311,6 +329,7 @@
   </div>
 
   <script src="js/data.js"></script>
+  <script src="js/leaderboard.js"></script>
   <script src="js/state.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/combat.js"></script>

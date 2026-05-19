@@ -15,6 +15,10 @@ function createBiomeBattlefieldSvg(theme) {
 }
 
 const BASE_STAGE_ESSENCE = 15;
+const ENDLESS_BASE_ESSENCE = 2;
+const ENDLESS_ESSENCE_PER_STAGE = 1.15;
+const ENDLESS_ESSENCE_CAP = 50;
+const ROGUE_BASE_BLEED_MAX_HP_PERCENT = 0.03;
 const TREE_COST_GROWTH = 1.75;
 const GLOBAL_TREE_COST_MULTIPLIER = 0.75;
 const GLOBAL_TREE_COST_GROWTH = 1.5;
@@ -27,9 +31,123 @@ const ETERNAL_CROWN_SPRITE_SHEET = "assets/enemies/boss-sheet.png";
 
 const CLASSES = {
   knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 180, damage: 16, attackSpeed: 0.71, armor: 5, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
-  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed.", hp: 135, damage: 13, attackSpeed: 1.16, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Guaranteed bleed"] },
+  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed based on max HP.", hp: 135, damage: 13, attackSpeed: 1.16, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Max HP bleed"] },
   wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 115, damage: 28, attackSpeed: 0.58, armor: 1, crit: 0.1, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
 };
+
+const EQUIPMENT_SLOTS = [
+  { id: "head", name: "Head" },
+  { id: "body", name: "Body" },
+  { id: "mainHand", name: "Main Hand" },
+  { id: "offHand", name: "Off Hand" },
+  { id: "legs", name: "Legs" },
+  { id: "feet", name: "Feet" }
+];
+
+const EQUIPMENT_RARITIES = [
+  { id: "Common", weight: 58, statMultiplier: 1, qualityBonus: 0 },
+  { id: "Uncommon", weight: 26, statMultiplier: 1.18, qualityBonus: 0.04 },
+  { id: "Rare", weight: 12, statMultiplier: 1.42, qualityBonus: 0.09 },
+  { id: "Epic", weight: 3.4, statMultiplier: 1.78, qualityBonus: 0.15 },
+  { id: "Legendary", weight: 0.6, statMultiplier: 2.25, qualityBonus: 0.24 }
+];
+
+const EQUIPMENT_STAT_RANGES = {
+  maxHp: { min: 8, max: 46, decimals: 0 },
+  damage: { min: 1, max: 9, decimals: 1 },
+  armor: { min: 1, max: 7, decimals: 0 },
+  attackSpeed: { min: 0.01, max: 0.09, decimals: 2 },
+  critChance: { min: 0.01, max: 0.08, decimals: 2 },
+  regen: { min: 0.2, max: 2.2, decimals: 1 },
+  luck: { min: 1, max: 4, decimals: 0 }
+};
+
+const EQUIPMENT_TEMPLATES = {
+  head: [
+    { id: "soldiers_helm", name: "Soldier's Helm", stats: ["maxHp", "armor"] },
+    { id: "crownguard_sallet", name: "Crownguard Sallet", stats: ["armor", "maxHp"] },
+    { id: "duelist_mask", name: "Duelist Mask", stats: ["critChance", "attackSpeed"] },
+    { id: "oracle_cowl", name: "Oracle Cowl", stats: ["damage", "critChance"] },
+    { id: "wolfhide_cap", name: "Wolfhide Cap", stats: ["attackSpeed", "maxHp"] },
+    { id: "iron_visor", name: "Iron Visor", stats: ["armor", "regen"] },
+    { id: "ember_hood", name: "Ember Hood", stats: ["damage", "regen"] },
+    { id: "gravewatch_helm", name: "Gravewatch Helm", stats: ["maxHp", "luck"] },
+    { id: "kingsfall_circlet", name: "Kingsfall Circlet", stats: ["critChance", "luck"] },
+    { id: "ashen_crownlet", name: "Ashen Crownlet", stats: ["damage", "armor"] }
+  ],
+  body: [
+    { id: "chainmail_vest", name: "Chainmail Vest", stats: ["armor", "maxHp"] },
+    { id: "oathbound_plate", name: "Oathbound Plate", stats: ["maxHp", "armor"] },
+    { id: "shadow_jacket", name: "Shadow Jacket", stats: ["attackSpeed", "critChance"] },
+    { id: "runed_robes", name: "Runed Robes", stats: ["damage", "regen"] },
+    { id: "raider_harness", name: "Raider Harness", stats: ["damage", "maxHp"] },
+    { id: "sanctuary_mail", name: "Sanctuary Mail", stats: ["regen", "armor"] },
+    { id: "wyvern_hide", name: "Wyvern Hide", stats: ["maxHp", "attackSpeed"] },
+    { id: "battle_surcoat", name: "Battle Surcoat", stats: ["damage", "armor"] },
+    { id: "moonstitched_garb", name: "Moonstitched Garb", stats: ["critChance", "regen"] },
+    { id: "crownforged_cuirass", name: "Crownforged Cuirass", stats: ["armor", "luck"] }
+  ],
+  mainHand: [
+    { id: "tempered_blade", name: "Tempered Blade", stats: ["damage", "critChance"] },
+    { id: "heavy_mace", name: "Heavy Mace", stats: ["damage", "armor"] },
+    { id: "quick_daggers", name: "Quick Daggers", stats: ["attackSpeed", "critChance"] },
+    { id: "war_axe", name: "War Axe", stats: ["damage", "maxHp"] },
+    { id: "dueling_rapier", name: "Dueling Rapier", stats: ["critChance", "damage"] },
+    { id: "apprentice_wand", name: "Apprentice Wand", stats: ["damage", "attackSpeed"] },
+    { id: "storm_staff", name: "Storm Staff", stats: ["damage", "luck"] },
+    { id: "bone_scepter", name: "Bone Scepter", stats: ["damage", "regen"] },
+    { id: "crownsplitter", name: "Crownsplitter", stats: ["damage", "armor"] },
+    { id: "gilded_halberd", name: "Gilded Halberd", stats: ["damage", "maxHp"] }
+  ],
+  offHand: [
+    { id: "round_shield", name: "Round Shield", stats: ["armor", "maxHp"] },
+    { id: "tower_guard", name: "Tower Guard", stats: ["armor", "regen"] },
+    { id: "parrying_dagger", name: "Parrying Dagger", stats: ["critChance", "attackSpeed"] },
+    { id: "focus_orb", name: "Focus Orb", stats: ["damage", "critChance"] },
+    { id: "lucky_charm", name: "Lucky Charm", stats: ["luck", "critChance"] },
+    { id: "iron_lantern", name: "Iron Lantern", stats: ["regen", "maxHp"] },
+    { id: "ember_tome", name: "Ember Tome", stats: ["damage", "regen"] },
+    { id: "duelist_buckler", name: "Duelist Buckler", stats: ["attackSpeed", "armor"] },
+    { id: "saints_reliquary", name: "Saint's Reliquary", stats: ["maxHp", "luck"] },
+    { id: "crown_mirror", name: "Crown Mirror", stats: ["critChance", "luck"] }
+  ],
+  legs: [
+    { id: "marching_greaves", name: "Marching Greaves", stats: ["maxHp", "armor"] },
+    { id: "plated_leggings", name: "Plated Leggings", stats: ["armor", "maxHp"] },
+    { id: "rogues_trousers", name: "Rogue's Trousers", stats: ["attackSpeed", "critChance"] },
+    { id: "runewoven_leggings", name: "Runewoven Leggings", stats: ["damage", "regen"] },
+    { id: "wolfstep_chaps", name: "Wolfstep Chaps", stats: ["attackSpeed", "maxHp"] },
+    { id: "grave_ward_greaves", name: "Grave Ward Greaves", stats: ["armor", "regen"] },
+    { id: "campaign_tassets", name: "Campaign Tassets", stats: ["maxHp", "luck"] },
+    { id: "emberstride_leggings", name: "Emberstride Leggings", stats: ["damage", "attackSpeed"] },
+    { id: "duelist_legwraps", name: "Duelist Legwraps", stats: ["critChance", "damage"] },
+    { id: "crownforged_greaves", name: "Crownforged Greaves", stats: ["armor", "luck"] }
+  ],
+  feet: [
+    { id: "travelers_boots", name: "Traveler's Boots", stats: ["attackSpeed", "maxHp"] },
+    { id: "iron_sabatons", name: "Iron Sabatons", stats: ["armor", "maxHp"] },
+    { id: "silent_slippers", name: "Silent Slippers", stats: ["critChance", "attackSpeed"] },
+    { id: "runecaster_sandals", name: "Runecaster Sandals", stats: ["damage", "regen"] },
+    { id: "spurred_boots", name: "Spurred Boots", stats: ["attackSpeed", "damage"] },
+    { id: "sanctuary_treads", name: "Sanctuary Treads", stats: ["regen", "maxHp"] },
+    { id: "fortune_boots", name: "Fortune Boots", stats: ["luck", "attackSpeed"] },
+    { id: "grave_marchers", name: "Grave Marchers", stats: ["armor", "regen"] },
+    { id: "emberstep_boots", name: "Emberstep Boots", stats: ["damage", "critChance"] },
+    { id: "kingroad_sabatons", name: "Kingroad Sabatons", stats: ["maxHp", "luck"] }
+  ]
+};
+
+const STARTER_INVENTORY_ITEMS = [
+  { itemId: "training_helm", instanceId: "starter_training_helm", name: "Training Helm", slot: "head", rarity: "Common", allowedClassIds: ["knight", "rogue", "wizard"], stats: { maxHp: 5 }, description: "A simple padded helm for early campaigns." },
+  { itemId: "padded_vest", instanceId: "starter_padded_vest", name: "Padded Vest", slot: "body", rarity: "Common", allowedClassIds: ["knight", "rogue", "wizard"], stats: { armor: 1 }, description: "Light body armor with room for future upgrades." },
+  { itemId: "iron_longsword", instanceId: "starter_iron_longsword", name: "Iron Longsword", slot: "mainHand", rarity: "Common", allowedClassIds: ["knight"], stats: { damage: 2 }, description: "A reliable knight weapon." },
+  { itemId: "buckler", instanceId: "starter_buckler", name: "Buckler", slot: "offHand", rarity: "Common", allowedClassIds: ["knight", "rogue"], stats: { armor: 1 }, description: "A compact shield for close fights." },
+  { itemId: "paired_greaves", instanceId: "starter_paired_greaves", name: "Paired Greaves", slot: "legs", rarity: "Common", allowedClassIds: ["knight", "rogue", "wizard"], stats: { maxHp: 4 }, description: "Combined leg armor, stored as one slot." },
+  { itemId: "travel_boots", instanceId: "starter_travel_boots", name: "Travel Boots", slot: "feet", rarity: "Common", allowedClassIds: ["knight", "rogue", "wizard"], stats: { attackSpeed: 0.01 }, description: "Combined footwear, stored as one slot." },
+  { itemId: "twin_daggers", instanceId: "starter_twin_daggers", name: "Twin Daggers", slot: "mainHand", rarity: "Common", allowedClassIds: ["rogue"], stats: { critChance: 0.02 }, description: "A quick rogue main-hand set." },
+  { itemId: "apprentice_staff", instanceId: "starter_apprentice_staff", name: "Apprentice Staff", slot: "mainHand", rarity: "Common", allowedClassIds: ["wizard"], stats: { damage: 2 }, description: "A focus for basic spellwork." },
+  { itemId: "spellbook", instanceId: "starter_spellbook", name: "Spellbook", slot: "offHand", rarity: "Common", allowedClassIds: ["wizard"], stats: { critChance: 0.01 }, description: "A wizard off-hand focus." }
+];
 
 const SPRITE_SHEETS = {
   heroes: {
@@ -47,8 +165,8 @@ const SPRITE_SHEETS = {
     dark_archer: "assets/enemies/dark-archer-sheet.png",
     plague_rat: "assets/enemies/plague-rat-sheet.png",
     armored_knight: "assets/enemies/armored-knight-sheet.png",
-    fallen_knight: "assets/enemies/fallen-knight-sheet.svg",
-    necromancer: "assets/enemies/necromancer-sheet.svg",
+    fallen_knight: "assets/enemies/fallen-knight-sheet.png",
+    necromancer: "assets/enemies/necromancer-sheet.png",
     wraith: "assets/enemies/wraith-sheet.png",
     troll: "assets/enemies/troll-sheet.png",
     raider: "assets/enemies/raider-sheet.svg",
@@ -187,6 +305,24 @@ const SKIN_SPRITE_SHEETS = {
       golden: "assets/enemies/skins/eternalCrown-golden-sheet.png"
     }
   }
+};
+
+const SKILL_SPRITE_SHEETS = {
+  // Add custom skill sprites here. Skin-specific sprites override base sprites.
+  // Example:
+  // knight_heavy_attack: {
+  //   base: "assets/skills/knight_heavy_attack.png",
+  //   skins: { crimson_champion: "assets/skills/knight_heavy_attack_crimson_champion.png" }
+  // }
+  wizard_curse: { base: "" },
+  wizard_iceball: { base: "" },
+  wizard_lightning: { base: "" },
+  rogue_poison: { base: "" },
+  rogue_bleed: { base: "" },
+  rogue_burn: { base: "" },
+  knight_heavy_attack: { base: "" },
+  knight_holy_sword: { base: "" },
+  knight_holy_shield: { base: "" }
 };
 
 const HERO_SKINS = {
@@ -545,9 +681,9 @@ const RUN_ABILITIES = {
   rogue_poison: { id: "rogue_poison", classId: "rogue", name: "Poison", icon: "✹", cooldown: 2.8, duration: 4.5, color: "#86efac", description: "Every 2.8s, poison one enemy for 4.5s. Poison deals 9 + 0.75 per stage damage each second." },
   rogue_bleed: { id: "rogue_bleed", classId: "rogue", name: "Trap", icon: "✧", cooldown: 2.5, duration: 4, color: "#fca5a5", description: "Every 2.5s, slow all living enemies by 28% for 4s. Rogue deals +8% damage to slowed enemies." },
   rogue_burn: { id: "rogue_burn", classId: "rogue", name: "Burn", icon: "♨", cooldown: 2.2, duration: 3.5, color: "#fb923c", description: "Every 2.2s, burn one enemy for 3.5s. Burn deals 7 + 0.55 per stage damage each second." },
-  knight_heavy_attack: { id: "knight_heavy_attack", classId: "knight", name: "Heavy Attack", icon: "⚔", cooldown: 3, duration: 0.8, color: "#f8e7bb", description: "Every 3s, strike one enemy for 225% damage." },
-  knight_holy_sword: { id: "knight_holy_sword", classId: "knight", name: "Holy Sword", icon: "✦", cooldown: 5, duration: 4.5, color: "#fde68a", description: "Every 5s, empower attacks for 4.5s. Holy Sword attacks add 32% damage, minimum 4." },
-  knight_holy_shield: { id: "knight_holy_shield", classId: "knight", name: "Holy Shield", icon: "⬟", cooldown: 5, duration: 0.9, color: "#facc15", description: "Every 5s, gain shield equal to 32 + 12% max HP." }
+  knight_heavy_attack: { id: "knight_heavy_attack", classId: "knight", name: "Heavy Attack", icon: "⚔", cooldown: 3, duration: 0.8, color: "#f8e7bb", maxHpDamage: 0.15, description: "Every 3s, strike one enemy for 15% of Knight max HP as damage." },
+  knight_holy_sword: { id: "knight_holy_sword", classId: "knight", name: "Holy Sword", icon: "✦", cooldown: 4, duration: 3, color: "#fde68a", hitDamageBonus: 0.5, hitCount: 3, description: "Every 4s, the next 3 player hits deal +50% damage." },
+  knight_holy_shield: { id: "knight_holy_shield", classId: "knight", name: "Holy Shield", icon: "⬟", cooldown: 5, duration: 2, color: "#facc15", armorMultiplier: 0.5, hitCount: 2, description: "Every 5s, gain +50% armor against the next 2 enemy hits." }
 };
 
 const ENEMY_KILL_ACHIEVEMENTS = CHARACTER_ENEMIES.map((enemy, index) => ({
@@ -556,35 +692,36 @@ const ENEMY_KILL_ACHIEVEMENTS = CHARACTER_ENEMIES.map((enemy, index) => ({
   description: `Defeat ${enemy.name}s across your runs.`,
   goal: `Defeat 75 ${enemy.name}s`,
   condition: save => ((save.stats.enemyKills && save.stats.enemyKills[enemy.id]) || 0) >= 75,
+  essenceReward: 5,
   bonus: getEnemySlayerBonus(index)
 }));
 
 const ACHIEVEMENTS = [
-  { id: "first_steps", name: "First Steps", description: "Start your first run.", goal: "Start 1 run", condition: save => save.stats.runsStarted >= 1, bonus: { maxHp: 2 } },
-  { id: "first_victory", name: "First Victory", description: "Win your first battle.", goal: "Win 1 battle", condition: save => save.stats.battlesWon >= 1, bonus: { damageMultiplier: 0.005 } },
-  { id: "ten_battles", name: "Battle Tested", description: "Win 10 battles.", goal: "Win 10 battles", condition: save => save.stats.battlesWon >= 10, bonus: { maxHp: 4 } },
-  { id: "fifty_battles", name: "Veteran Blade", description: "Win 50 battles.", goal: "Win 50 battles", condition: save => save.stats.battlesWon >= 50, bonus: { damageMultiplier: 0.01 } },
-  { id: "hundred_enemies", name: "Line Breaker", description: "Defeat 100 enemies.", goal: "Defeat 100 enemies", condition: save => save.stats.enemiesDefeated >= 100, bonus: { attackSpeedMultiplier: 0.01 } },
-  { id: "elite_hunter", name: "Elite Hunter", description: "Defeat 10 elites.", goal: "Defeat 10 elites", condition: save => save.stats.elitesDefeated >= 10, bonus: { armor: 1 } },
-  { id: "elite_reaper", name: "Elite Reaper", description: "Defeat 500 elites.", goal: "Defeat 500 elites", condition: save => save.stats.elitesDefeated >= 500, bonus: { armor: 1, damageMultiplier: 0.005 } },
-  { id: "boss_breaker", name: "Boss Breaker", description: "Defeat 3 bosses.", goal: "Defeat 3 bosses", condition: save => save.stats.bossesDefeated >= 3, bonus: { damageMultiplier: 0.015 } },
-  { id: "boss_conqueror", name: "Boss Conqueror", description: "Defeat 100 bosses.", goal: "Defeat 100 bosses", condition: save => save.stats.bossesDefeated >= 100, bonus: { damageMultiplier: 0.01, maxHp: 3 } },
-  { id: "deep_delver", name: "Deep Delver", description: "Reach Stage 20.", goal: "Reach Stage 20", condition: save => save.highestClear >= 20, bonus: { maxHp: 5 } },
-  { id: "third_map", name: "Third March", description: "Reach Stage 30.", goal: "Reach Stage 30", condition: save => save.highestClear >= 30, bonus: { essenceMultiplier: 0.01 } },
-  { id: "essence_hoard", name: "Essence Hoard", description: "Bank 500 total Essence.", goal: "Earn 500 Essence", condition: save => save.stats.totalEssenceEarned >= 500, bonus: { luck: 1 } },
-  { id: "gold_hand", name: "Gold Hand", description: "Earn 500 total gold.", goal: "Earn 500 gold", condition: save => save.stats.totalGoldEarned >= 500, bonus: { startingGold: 5 } },
-  { id: "skill_spark", name: "Skill Spark", description: "Trigger 25 skills.", goal: "Trigger 25 skills", condition: save => save.stats.skillsTriggered >= 25, bonus: { attackSpeedMultiplier: 0.005 } },
-  { id: "skill_storm", name: "Skill Storm", description: "Trigger 150 skills.", goal: "Trigger 150 skills", condition: save => save.stats.skillsTriggered >= 150, bonus: { damageMultiplier: 0.01 } },
-  { id: "hard_path", name: "Crownfall Trial", description: "Clear at least 15 stages on hard.", goal: "Clear 15 hard stages", condition: save => save.stats.hardStagesCleared >= 15, bonus: { armor: 1 } },
-  { id: "merchant_friend", name: "Merchant Friend", description: "Visit 10 shops.", goal: "Visit 10 shops", condition: save => save.stats.shopsVisited >= 10, bonus: { startingGold: 8 } },
-  { id: "relic_keeper", name: "Relic Keeper", description: "Claim 15 relics.", goal: "Claim 15 relics", condition: save => save.stats.relicsClaimed >= 15, bonus: { luck: 1 } },
-  { id: "reward_seeker", name: "Reward Seeker", description: "Choose 30 run upgrades.", goal: "Choose 30 upgrades", condition: save => save.stats.rewardsClaimed >= 30, bonus: { maxHp: 3 } },
-  { id: "knight_oath", name: "Knight Oath", description: "Start 5 Knight runs.", goal: "Start 5 Knight runs", condition: save => save.stats.knightRuns >= 5, bonus: { knightArmor: 1 } },
-  { id: "rogue_contract", name: "Rogue Contract", description: "Start 5 Rogue runs.", goal: "Start 5 Rogue runs", condition: save => save.stats.rogueRuns >= 5, bonus: { rogueCritChance: 0.01 } },
-  { id: "knight_layer3_clear", name: "Golden Oath", description: "Win a run with the Knight by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Knight", condition: save => save.stats.knightLayer3Clears >= 1, bonus: { skin: "Knight Golden Oath" } },
-  { id: "rogue_layer3_clear", name: "Gilded Contract", description: "Win a run with the Rogue by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Rogue", condition: save => save.stats.rogueLayer3Clears >= 1, bonus: { skin: "Rogue Gilded Contract" } },
-  { id: "wizard_layer3_clear", name: "Auric Arcana", description: "Win a run with the Wizard by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Wizard", condition: save => save.stats.wizardLayer3Clears >= 1, bonus: { skin: "Wizard Auric Arcana" } },
-  { id: "eternal_crown", name: "Eternal Crownbreaker", description: "Kill the final boss with 1,000,000 HP.", goal: "Defeat The Eternal Crown", condition: save => save.stats.finalBossKills >= 1, bonus: { unlock: "Endless Mode", damageMultiplier: 0.08, maxHp: 40, armor: 3, luck: 3, essenceMultiplier: 0.05 } },
+  { id: "first_steps", name: "First Steps", description: "Start your first run.", goal: "Start 1 run", condition: save => save.stats.runsStarted >= 1, essenceReward: 3, bonus: { maxHp: 2 } },
+  { id: "first_victory", name: "First Victory", description: "Win your first battle.", goal: "Win 1 battle", condition: save => save.stats.battlesWon >= 1, essenceReward: 3, bonus: { damageMultiplier: 0.005 } },
+  { id: "ten_battles", name: "Battle Tested", description: "Win 10 battles.", goal: "Win 10 battles", condition: save => save.stats.battlesWon >= 10, essenceReward: 5, bonus: { maxHp: 4 } },
+  { id: "fifty_battles", name: "Veteran Blade", description: "Win 50 battles.", goal: "Win 50 battles", condition: save => save.stats.battlesWon >= 50, essenceReward: 10, bonus: { damageMultiplier: 0.01 } },
+  { id: "hundred_enemies", name: "Line Breaker", description: "Defeat 100 enemies.", goal: "Defeat 100 enemies", condition: save => save.stats.enemiesDefeated >= 100, essenceReward: 10, bonus: { attackSpeedMultiplier: 0.01 } },
+  { id: "elite_hunter", name: "Elite Hunter", description: "Defeat 10 elites.", goal: "Defeat 10 elites", condition: save => save.stats.elitesDefeated >= 10, essenceReward: 10, bonus: { armor: 1 } },
+  { id: "elite_reaper", name: "Elite Reaper", description: "Defeat 500 elites.", goal: "Defeat 500 elites", condition: save => save.stats.elitesDefeated >= 500, essenceReward: 20, bonus: { armor: 1, damageMultiplier: 0.005 } },
+  { id: "boss_breaker", name: "Boss Breaker", description: "Defeat 3 bosses.", goal: "Defeat 3 bosses", condition: save => save.stats.bossesDefeated >= 3, essenceReward: 10, bonus: { damageMultiplier: 0.015 } },
+  { id: "boss_conqueror", name: "Boss Conqueror", description: "Defeat 100 bosses.", goal: "Defeat 100 bosses", condition: save => save.stats.bossesDefeated >= 100, essenceReward: 20, bonus: { damageMultiplier: 0.01, maxHp: 3 } },
+  { id: "deep_delver", name: "Deep Delver", description: "Reach Stage 20.", goal: "Reach Stage 20", condition: save => save.highestClear >= 20, essenceReward: 10, bonus: { maxHp: 5 } },
+  { id: "third_map", name: "Third March", description: "Reach Stage 30.", goal: "Reach Stage 30", condition: save => save.highestClear >= 30, essenceReward: 20, bonus: { essenceMultiplier: 0.01 } },
+  { id: "essence_hoard", name: "Essence Hoard", description: "Bank 500 total Essence.", goal: "Earn 500 Essence", condition: save => save.stats.totalEssenceEarned >= 500, essenceReward: 10, bonus: { luck: 1 } },
+  { id: "gold_hand", name: "Gold Hand", description: "Earn 500 total gold.", goal: "Earn 500 gold", condition: save => save.stats.totalGoldEarned >= 500, essenceReward: 5, bonus: { startingGold: 5 } },
+  { id: "skill_spark", name: "Skill Spark", description: "Trigger 25 skills.", goal: "Trigger 25 skills", condition: save => save.stats.skillsTriggered >= 25, essenceReward: 5, bonus: { attackSpeedMultiplier: 0.005 } },
+  { id: "skill_storm", name: "Skill Storm", description: "Trigger 150 skills.", goal: "Trigger 150 skills", condition: save => save.stats.skillsTriggered >= 150, essenceReward: 10, bonus: { damageMultiplier: 0.01 } },
+  { id: "hard_path", name: "Crownfall Trial", description: "Clear at least 15 stages on hard.", goal: "Clear 15 hard stages", condition: save => save.stats.hardStagesCleared >= 15, essenceReward: 20, bonus: { armor: 1 } },
+  { id: "merchant_friend", name: "Merchant Friend", description: "Visit 10 shops.", goal: "Visit 10 shops", condition: save => save.stats.shopsVisited >= 10, essenceReward: 5, bonus: { startingGold: 8 } },
+  { id: "relic_keeper", name: "Relic Keeper", description: "Claim 15 relics.", goal: "Claim 15 relics", condition: save => save.stats.relicsClaimed >= 15, essenceReward: 10, bonus: { luck: 1 } },
+  { id: "reward_seeker", name: "Reward Seeker", description: "Choose 30 run upgrades.", goal: "Choose 30 upgrades", condition: save => save.stats.rewardsClaimed >= 30, essenceReward: 10, bonus: { maxHp: 3 } },
+  { id: "knight_oath", name: "Knight Oath", description: "Start 5 Knight runs.", goal: "Start 5 Knight runs", condition: save => save.stats.knightRuns >= 5, essenceReward: 5, bonus: { knightArmor: 1 } },
+  { id: "rogue_contract", name: "Rogue Contract", description: "Start 5 Rogue runs.", goal: "Start 5 Rogue runs", condition: save => save.stats.rogueRuns >= 5, essenceReward: 5, bonus: { rogueCritChance: 0.01 } },
+  { id: "knight_layer3_clear", name: "Golden Oath", description: "Win a run with the Knight by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Knight", condition: save => save.stats.knightLayer3Clears >= 1, essenceReward: 20, bonus: { skin: "Knight Golden Oath", knightArmor: 1 } },
+  { id: "rogue_layer3_clear", name: "Gilded Contract", description: "Win a run with the Rogue by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Rogue", condition: save => save.stats.rogueLayer3Clears >= 1, essenceReward: 20, bonus: { skin: "Rogue Gilded Contract", rogueCritChance: 0.01 } },
+  { id: "wizard_layer3_clear", name: "Auric Arcana", description: "Win a run with the Wizard by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Wizard", condition: save => save.stats.wizardLayer3Clears >= 1, essenceReward: 20, bonus: { skin: "Wizard Auric Arcana", damageMultiplier: 0.01 } },
+  { id: "eternal_crown", name: "Eternal Crownbreaker", description: "Kill the final boss with 1,000,000 HP.", goal: "Defeat The Eternal Crown", condition: save => save.stats.finalBossKills >= 1, essenceReward: 100, bonus: { unlock: "Endless Mode", damageMultiplier: 0.08, maxHp: 40, armor: 3, luck: 3, essenceMultiplier: 0.05 } },
   ...ENEMY_KILL_ACHIEVEMENTS
 ];
 
@@ -687,11 +824,11 @@ const REWARDS = [
   { classId: "knight", name: "Castle Guard", rarity: "Epic", text: "Knight only: +16% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.16 },
   { classId: "knight", name: "Royal Bastion", rarity: "Legendary", text: "Knight only: a king's last wall. +45% armor, +4 armor, and +25% max HP", apply: hero => { multiplyArmor(hero, 1.45); hero.armor += 4; multiplyMaxHp(hero, 1.25, false); } },
 
-  { classId: "rogue", name: "Serrated Oil", rarity: "Common", text: "Rogue only: +40% bleed damage", apply: hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.4 },
+  { classId: "rogue", name: "Serrated Oil", rarity: "Common", text: "Rogue only: +40% max HP bleed damage", apply: hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.4 },
   { classId: "rogue", name: "Quickstep", rarity: "Common", text: "Rogue only: +12% attack speed and +3% evasion", apply: hero => { hero.attackSpeed *= 1.12; hero.runEvasion = (hero.runEvasion || 0) + 0.03; } },
-  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", text: "Rogue only: +60% bleed damage", apply: hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.6 },
+  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", text: "Rogue only: +60% max HP bleed damage", apply: hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.6 },
   { classId: "rogue", name: "Assassin's Eye", rarity: "Rare", text: "Rogue only: +12% crit chance and +15% execute damage", apply: hero => { hero.crit += 0.12; hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.15; } },
-  { classId: "rogue", name: "Blood Rush", rarity: "Epic", text: "Rogue only: +50% bleed damage and +8% attack speed after bleeding a new target", apply: hero => { hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.5; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.08; } },
+  { classId: "rogue", name: "Blood Rush", rarity: "Epic", text: "Rogue only: +50% max HP bleed damage and +8% attack speed after bleeding a new target", apply: hero => { hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.5; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.08; } },
   { classId: "rogue", name: "Deathblow Contract", rarity: "Legendary", text: "Rogue only: enemies below 40% HP take +45% execute damage", apply: hero => { hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.45; hero.runExecuteThreshold = Math.max(hero.runExecuteThreshold || 0, 0.4); } },
 
   { classId: "wizard", name: "Kindling Rune", rarity: "Common", text: "Wizard only: +15% burn chance", apply: hero => hero.runBurnChance = (hero.runBurnChance || 0) + 0.15 },
@@ -707,9 +844,9 @@ const REWARDS = [
   { requiresAbility: "rogue_poison", name: "Toxic Reservoir", rarity: "Rare", text: "Poison special deals +6 damage per second.", apply: hero => hero.runPoisonAbilityDamage = (hero.runPoisonAbilityDamage || 0) + 6 },
   { requiresAbility: "rogue_bleed", name: "Barbed Trap", rarity: "Rare", text: "Trap slow increases from 28% to 36%.", apply: hero => hero.runTrapSlow = (hero.runTrapSlow || 0) + 0.08 },
   { requiresAbility: "rogue_burn", name: "Pitch Powder", rarity: "Rare", text: "Burn special lasts +1.5s longer.", apply: hero => hero.runBurnAbilityDuration = (hero.runBurnAbilityDuration || 0) + 1.5 },
-  { requiresAbility: "knight_heavy_attack", name: "Crushing Windup", rarity: "Rare", text: "Heavy Attack deals +35% damage.", apply: hero => hero.runHeavyAttackDamage = (hero.runHeavyAttackDamage || 0) + 0.35 },
-  { requiresAbility: "knight_holy_sword", name: "Long Benediction", rarity: "Epic", text: "Holy Sword lasts +1.5s longer.", apply: hero => hero.runHolySwordDuration = (hero.runHolySwordDuration || 0) + 1.5 },
-  { requiresAbility: "knight_holy_shield", name: "Consecrated Guard", rarity: "Rare", text: "Holy Shield grants +8% max HP as extra shield.", apply: hero => hero.runHolyShieldPower = (hero.runHolyShieldPower || 0) + 0.08 },
+  { requiresAbility: "knight_heavy_attack", name: "Crushing Windup", rarity: "Rare", text: "Heavy Attack deals +6% max HP damage.", apply: hero => hero.runHeavyAttackMaxHpDamage = (hero.runHeavyAttackMaxHpDamage || 0) + 0.06 },
+  { requiresAbility: "knight_holy_sword", name: "Long Benediction", rarity: "Epic", text: "Holy Sword empowers +1 additional hit.", apply: hero => hero.runHolySwordHits = (hero.runHolySwordHits || 0) + 1 },
+  { requiresAbility: "knight_holy_shield", name: "Consecrated Guard", rarity: "Rare", text: "Holy Shield protects against +1 additional enemy hit.", apply: hero => hero.runHolyShieldHits = (hero.runHolyShieldHits || 0) + 1 },
 
   { classId: "wizard", requiresNode: "wizard_curse_unlock", abilityId: "wizard_curse", name: "Forbidden Curse", rarity: "Mythic", text: "Unlock Curse: 2.5s cooldown, 4s duration, cursed enemy takes +22% damage", apply: hero => grantRunAbility(hero, "wizard_curse") },
   { classId: "wizard", requiresNode: "wizard_iceball_unlock", abilityId: "wizard_iceball", name: "Frozen Orb", rarity: "Mythic", text: "Unlock Iceball: 2.5s cooldown, 75% damage, 38% slow for 3.5s", apply: hero => grantRunAbility(hero, "wizard_iceball") },
@@ -717,9 +854,9 @@ const REWARDS = [
   { classId: "rogue", requiresNode: "rogue_poison_unlock", abilityId: "rogue_poison", name: "Poison Vials", rarity: "Mythic", text: "Unlock Poison: 2.8s cooldown, 4.5s duration, 9 + 0.75 per stage DPS", apply: hero => grantRunAbility(hero, "rogue_poison") },
   { classId: "rogue", requiresNode: "rogue_bleed_unlock", abilityId: "rogue_bleed", name: "Snare Kit", rarity: "Mythic", text: "Unlock Trap: 2.5s cooldown, slows all enemies by 28% for 4s and makes Rogue deal +8% damage to slowed enemies", apply: hero => grantRunAbility(hero, "rogue_bleed") },
   { classId: "rogue", requiresNode: "rogue_burn_unlock", abilityId: "rogue_burn", name: "Fire Powder", rarity: "Mythic", text: "Unlock Burn: 2.2s cooldown, 3.5s duration, 7 + 0.55 per stage DPS", apply: hero => grantRunAbility(hero, "rogue_burn") },
-  { classId: "knight", requiresNode: "knight_heavy_attack_unlock", abilityId: "knight_heavy_attack", name: "Weighted Pommel", rarity: "Mythic", text: "Unlock Heavy Attack: 3s cooldown, strikes one enemy for 225% damage", apply: hero => grantRunAbility(hero, "knight_heavy_attack") },
-  { classId: "knight", requiresNode: "knight_holy_sword_unlock", abilityId: "knight_holy_sword", name: "Blessed Oil", rarity: "Mythic", text: "Unlock Holy Sword: 5s cooldown, attacks add 32% damage for 4.5s", apply: hero => grantRunAbility(hero, "knight_holy_sword") },
-  { classId: "knight", requiresNode: "knight_holy_shield_unlock", abilityId: "knight_holy_shield", name: "Sunlit Bulwark", rarity: "Mythic", text: "Unlock Holy Shield: 5s cooldown, grants 32 shield plus 12% max HP", apply: hero => grantRunAbility(hero, "knight_holy_shield") }
+  { classId: "knight", requiresNode: "knight_heavy_attack_unlock", abilityId: "knight_heavy_attack", name: "Weighted Pommel", rarity: "Mythic", text: "Unlock Heavy Attack: 3s cooldown, deals 25% max HP damage", apply: hero => grantRunAbility(hero, "knight_heavy_attack") },
+  { classId: "knight", requiresNode: "knight_holy_sword_unlock", abilityId: "knight_holy_sword", name: "Blessed Oil", rarity: "Mythic", text: "Unlock Holy Sword: 4s cooldown, next 3 hits deal +50% damage", apply: hero => grantRunAbility(hero, "knight_holy_sword") },
+  { classId: "knight", requiresNode: "knight_holy_shield_unlock", abilityId: "knight_holy_shield", name: "Sunlit Bulwark", rarity: "Mythic", text: "Unlock Holy Shield: 5s cooldown, +50% armor for next 2 enemy hits", apply: hero => grantRunAbility(hero, "knight_holy_shield") }
 ];
 
 const SHOP_ITEMS = [
@@ -851,11 +988,11 @@ function applyRunItemBalance() {
   updateUpgrade("Unbroken Vow", "Knight only: +14% max HP and +15 shield each battle", hero => { multiplyMaxHp(hero, 1.14, false); hero.runStartShield = (hero.runStartShield || 0) + 15; });
   updateUpgrade("Castle Guard", "Knight only: +10% block chance", hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.1);
   updateUpgrade("Royal Bastion", "Knight only: +28% armor, +2 armor, and +16% max HP", hero => { multiplyArmor(hero, 1.28); hero.armor += 2; multiplyMaxHp(hero, 1.16, false); });
-  updateUpgrade("Serrated Oil", "Rogue only: +25% bleed damage", hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.25);
+  updateUpgrade("Serrated Oil", "Rogue only: +25% max HP bleed damage", hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.25);
   updateUpgrade("Quickstep", "Rogue only: +8% attack speed and +2% evasion", hero => { hero.attackSpeed *= 1.08; hero.runEvasion = (hero.runEvasion || 0) + 0.02; });
-  updateUpgrade("Rending Cuts", "Rogue only: +40% bleed damage", hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.4);
+  updateUpgrade("Rending Cuts", "Rogue only: +40% max HP bleed damage", hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.4);
   updateUpgrade("Assassin's Eye", "Rogue only: +8% crit chance and +10% execute damage", hero => { hero.crit += 0.08; hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.1; });
-  updateUpgrade("Blood Rush", "Rogue only: +35% bleed damage and +5% attack speed after bleeding a new target", hero => { hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.35; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.05; });
+  updateUpgrade("Blood Rush", "Rogue only: +35% max HP bleed damage and +5% attack speed after bleeding a new target", hero => { hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.35; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.05; });
   updateUpgrade("Deathblow Contract", "Rogue only: enemies below 40% HP take +30% execute damage", hero => { hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.3; hero.runExecuteThreshold = Math.max(hero.runExecuteThreshold || 0, 0.4); });
   updateUpgrade("Kindling Rune", "Wizard only: +10% burn chance", hero => hero.runBurnChance = (hero.runBurnChance || 0) + 0.1);
   updateUpgrade("Arcane Focus", "Wizard only: +10% damage and +5% splash damage", hero => { hero.damage *= 1.1; hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.05; });
@@ -925,7 +1062,7 @@ const CLASS_TALENTS = {
     { id: "knight_last_stand", classId: "knight", name: "Last Stand", description: "Deal 30% more damage while below 35% HP.", icon: "LS", tier: 3, effect: { type: "lowHpDamage", threshold: 0.35, value: 0.3 } }
   ],
   rogue: [
-    { id: "rogue_deep_cuts", classId: "rogue", name: "Deep Cuts", description: "Rogue bleed deals +6 damage per second.", icon: "DC", tier: 1, effect: { type: "bleedDamage", value: 6 } },
+  { id: "rogue_deep_cuts", classId: "rogue", name: "Deep Cuts", description: "Rogue bleed deals +1% of max HP per second.", icon: "DC", tier: 1, effect: { type: "bleedMaxHpPercent", value: 0.01 } },
     { id: "rogue_venom_blade", classId: "rogue", name: "Venom Blade", description: "Attacks have a 22% chance to poison for 4 seconds. Poison scales with stage.", icon: "VB", tier: 1, effect: { type: "poisonChance", chance: 0.22, damage: 4, duration: 4 } },
     { id: "rogue_backstab", classId: "rogue", name: "Shadow Backstab", description: "Critical hits deal 35% more damage.", icon: "SB", tier: 2, effect: { type: "critDamage", value: 0.35 } },
     { id: "rogue_evasion", classId: "rogue", name: "Evasion", description: "Gain a 14% chance to avoid enemy attacks.", icon: "EV", tier: 2, effect: { type: "evasion", chance: 0.14 } },
@@ -965,7 +1102,9 @@ const TREE_NODES = [
   { id: "castle_stores", classId: "global", branch: "Crown", name: "Castle Stores", description: "+25 starting HP and +8 starting gold per level.", cost: 130, maxLevel: 3, effect: { maxHp: 25, startingGold: 8 }, x: 420, y: 360, prerequisites: ["old_campaigns"], type: "notable" },
   { id: "crown_doctrine", classId: "global", branch: "Crown", name: "Crown Doctrine", description: "A costly general mastery node for all classes: +3 damage, +35 HP, and +2% Essence earned.", cost: 240, maxLevel: 2, effect: { damage: 3, maxHp: 35, essenceMultiplier: 0.02 }, x: 980, y: 430, prerequisites: ["essence"], type: "capstone" },
   { id: "royal_mender", classId: "global", branch: "Crown", name: "Royal Mender", description: "+1 HP regen while in battle per level.", cost: 150, maxLevel: 5, effect: { regen: 1 }, x: 300, y: 220, prerequisites: ["castle_stores"], type: "notable" },
+  { id: "sanctuary_blessing", classId: "global", branch: "Crown", name: "Sanctuary Blessing", description: "Sanctuaries grant +50 max HP and +1 HP regen per level.", costs: [100, 200, 300], maxLevel: 3, effect: { sanctuaryMaxHp: 50, sanctuaryRegen: 1 }, x: 520, y: 80, prerequisites: ["royal_mender"], type: "notable" },
   { id: "battle_trance", classId: "global", branch: "Crown", name: "Battle Trance", description: "+3 damage and +0.05 attack speed per level.", cost: 155, maxLevel: 3, effect: { damage: 3, attackSpeed: 0.05 }, x: 2300, y: 220, prerequisites: ["veteran_bounty"], type: "notable" },
+  { id: "crown_dice", classId: "global", branch: "Crown", name: "Crown Dice", description: "+1 reroll per reward, relic, and shop offer per level.", costs: [100, 200], maxLevel: 2, effect: { rerolls: 1 }, x: 2480, y: 220, prerequisites: ["battle_trance"], type: "notable" },
   { id: "ancient_charter", classId: "global", branch: "Crown", name: "Ancient Charter", description: "+5% Essence earned per level.", cost: 50, maxLevel: 5, effect: { essenceMultiplier: 0.05 }, x: 820, y: 270, prerequisites: ["crown_doctrine"], type: "capstone" },
   { id: "unlock_relics", classId: "global", branch: "Unlocks", name: "Sealed Reliquary", description: "Unlocks new relics in future runs.", cost: 180, maxLevel: 1, effect: {}, x: 560, y: 160, prerequisites: ["royal_mender"], type: "unlock" },
   { id: "unlock_events", classId: "global", branch: "Unlocks", name: "Hidden Roads", description: "Unlocks treasure route events on the map.", cost: 160, maxLevel: 1, effect: {}, x: 1040, y: 160, prerequisites: ["ancient_charter"], type: "unlock" },
@@ -998,14 +1137,14 @@ const TREE_NODES = [
   { id: "knight_banner", classId: "knight", branch: "Crown Guard", name: "Battle Banner", description: "+8% damage and +5% elite rewards per level.", cost: 155, maxLevel: 3, effect: { damageMultiplier: 0.08, eliteRewardMultiplier: 0.05 }, x: 380, y: 1440, prerequisites: ["knight_crown_guard_meta"], type: "notable" },
   { id: "knight_warlord_oath", classId: "knight", branch: "Crown Guard", name: "Warlord's Oath", description: "Capstone: +35% damage and +8 starting armor.", cost: 300, maxLevel: 1, effect: { damageMultiplier: 0.35, armor: 8 }, x: 180, y: 1500, prerequisites: ["knight_banner"], type: "capstone" },
 
-  { id: "knight_heavy_attack_unlock", classId: "knight", branch: "Ability Unlock", name: "Heavy Attack", description: "Unlocks Heavy Attack: every 3s, strike one enemy for 225% damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_heavy_attack" }, x: 0, y: 880, prerequisites: ["knight_iron_bastion"], type: "ability" },
-  { id: "knight_holy_sword_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Sword", description: "Unlocks Holy Sword: every 5s, attacks add 32% damage for 4.5s.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_sword" }, x: 0, y: 1050, prerequisites: ["knight_retribution"], type: "ability" },
-  { id: "knight_holy_shield_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Shield", description: "Unlocks Holy Shield: every 5s, gain 32 shield plus 12% max HP.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_shield" }, x: 0, y: 1230, prerequisites: ["knight_aegis_eternal"], type: "ability" },
+  { id: "knight_heavy_attack_unlock", classId: "knight", branch: "Ability Unlock", name: "Heavy Attack", description: "Unlocks Heavy Attack: every 3s, strike one enemy for 25% of Knight max HP as damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_heavy_attack" }, x: 0, y: 880, prerequisites: ["knight_iron_bastion"], type: "ability" },
+  { id: "knight_holy_sword_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Sword", description: "Unlocks Holy Sword: every 4s, the next 3 player hits deal +50% damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_sword" }, x: 0, y: 1050, prerequisites: ["knight_retribution"], type: "ability" },
+  { id: "knight_holy_shield_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Shield", description: "Unlocks Holy Shield: every 5s, gain +50% armor against the next 2 enemy hits.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_shield" }, x: 0, y: 1230, prerequisites: ["knight_aegis_eternal"], type: "ability" },
 
-  { id: "rogue_serrated", classId: "rogue", branch: "Bleed", name: "Serrated Edge", description: "+3 bleed damage per second per level.", cost: 55, maxLevel: 4, effect: { bleedDamage: 3 }, x: 760, y: 1540, prerequisites: ["rogue_root"], type: "stat" },
-  { id: "rogue_open_wounds", classId: "rogue", branch: "Bleed", name: "Open Wounds", description: "+5 bleed damage per second per level.", cost: 100, maxLevel: 3, effect: { bleedDamage: 5 }, x: 760, y: 1680, prerequisites: ["rogue_serrated"], type: "notable" },
+  { id: "rogue_serrated", classId: "rogue", branch: "Bleed", name: "Serrated Edge", description: "+0.5% max HP bleed damage per second per level.", cost: 55, maxLevel: 4, effect: { bleedMaxHpPercent: 0.005 }, x: 760, y: 1540, prerequisites: ["rogue_root"], type: "stat" },
+  { id: "rogue_open_wounds", classId: "rogue", branch: "Bleed", name: "Open Wounds", description: "+0.8% max HP bleed damage per second per level.", cost: 100, maxLevel: 3, effect: { bleedMaxHpPercent: 0.008 }, x: 760, y: 1680, prerequisites: ["rogue_serrated"], type: "notable" },
   { id: "rogue_blood_scent", classId: "rogue", branch: "Bleed", name: "Blood Scent", description: "Bleeding a new target grants +5% attack speed per level.", cost: 145, maxLevel: 3, effect: { bleedAttackSpeed: 0.05 }, x: 760, y: 1820, prerequisites: ["rogue_open_wounds"], type: "notable" },
-  { id: "rogue_crimson_execution", classId: "rogue", branch: "Bleed", name: "Crimson Execution", description: "Capstone: +16 bleed damage per second and +18% execute damage.", cost: 285, maxLevel: 1, effect: { executeDamage: 0.18, bleedDamage: 16 }, x: 760, y: 2020, prerequisites: ["rogue_blood_scent"], type: "capstone" },
+  { id: "rogue_crimson_execution", classId: "rogue", branch: "Bleed", name: "Crimson Execution", description: "Capstone: +2.5% max HP bleed damage per second and +18% execute damage.", cost: 285, maxLevel: 1, effect: { executeDamage: 0.18, bleedMaxHpPercent: 0.025 }, x: 760, y: 2020, prerequisites: ["rogue_blood_scent"], type: "capstone" },
 
   { id: "rogue_precision", classId: "rogue", branch: "Critical", name: "Keen Eye", description: "+3% crit chance per level.", cost: 60, maxLevel: 4, effect: { critChance: 0.03 }, x: 1120, y: 1540, prerequisites: ["rogue_root"], type: "stat" },
   { id: "rogue_backstab_meta", classId: "rogue", branch: "Critical", name: "Backstab", description: "Critical hits deal +12% damage per level.", cost: 105, maxLevel: 3, effect: { critDamage: 0.12 }, x: 1120, y: 1680, prerequisites: ["rogue_precision"], type: "notable" },
@@ -1057,7 +1196,7 @@ function applyUniformTreeLayout() {
   const positions = {
     crown_legacy: [1600, 1180],
 
-    endurance: [1280, 1000], armor: [1060, 820], old_campaigns: [840, 640], castle_stores: [620, 460], royal_mender: [460, 280],
+    endurance: [1280, 1000], armor: [1060, 820], old_campaigns: [840, 640], castle_stores: [620, 460], royal_mender: [460, 280], sanctuary_blessing: [520, 120],
     unlock_starting_bonuses: [260, 120], unlock_relics: [660, 120],
 
     field_drills: [1600, 960], haste: [1380, 780], essence: [1200, 600], crown_doctrine: [1160, 420], ancient_charter: [1160, 240],
@@ -1065,7 +1204,7 @@ function applyUniformTreeLayout() {
     marching_songs: [1560, 760], life_siphon: [1600, 600], duelist_lessons: [1780, 760],
 
     might: [1920, 1000], fortune: [2160, 820], lucky_omens: [2060, 640], crown_purse: [2340, 660], royal_tithe: [2520, 500],
-    veteran_bounty: [2680, 340], battle_trance: [2680, 180], unlock_merchants: [2480, 80], unlock_enemies: [2880, 80],
+    veteran_bounty: [2680, 340], battle_trance: [2680, 180], crown_dice: [2480, 160], unlock_merchants: [2480, 80], unlock_enemies: [2880, 80],
 
     knight_root: [520, 1500], rogue_root: [1600, 1760], wizard_root: [2680, 1500],
 

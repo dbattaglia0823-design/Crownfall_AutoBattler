@@ -17,7 +17,7 @@ const types = {
 };
 
 function send(res, status, body, type = "text/plain; charset=utf-8") {
-  res.writeHead(status, { "Content-Type": type });
+  res.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store, max-age=0" });
   res.end(body);
 }
 
@@ -49,7 +49,10 @@ const server = http.createServer((req, res) => {
         return;
       }
 
-      res.writeHead(200, { "Content-Type": types[path.extname(target).toLowerCase()] || "application/octet-stream" });
+      res.writeHead(200, {
+        "Content-Type": types[path.extname(target).toLowerCase()] || "application/octet-stream",
+        "Cache-Control": "no-store, max-age=0"
+      });
       if (req.method === "HEAD") res.end();
       else res.end(data);
     });

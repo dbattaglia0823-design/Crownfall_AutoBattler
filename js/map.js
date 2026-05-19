@@ -91,8 +91,8 @@ function handleMapChoice(node) {
 
   if (node.type === "Heal") {
     const layer = Math.max(1, Math.ceil(run.stage / MAP_LAYER_SIZE));
-    const maxHpGain = SANCTUARY_BASE_HP_GAIN + ((layer - 1) * SANCTUARY_LAYER_HP_GAIN);
-    const regenGain = SANCTUARY_BASE_REGEN_GAIN + ((layer - 1) * SANCTUARY_LAYER_REGEN_GAIN);
+    const maxHpGain = SANCTUARY_BASE_HP_GAIN + ((layer - 1) * SANCTUARY_LAYER_HP_GAIN) + getPermanentEffectTotal("sanctuaryMaxHp", run.classId);
+    const regenGain = SANCTUARY_BASE_REGEN_GAIN + ((layer - 1) * SANCTUARY_LAYER_REGEN_GAIN) + getPermanentEffectTotal("sanctuaryRegen", run.classId);
     run.hero.maxHp += maxHpGain;
     run.hero.hp = Math.min(run.hero.maxHp, (run.hero.hp || 0) + maxHpGain);
     run.hero.regen = (run.hero.regen || 0) + regenGain;

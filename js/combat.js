@@ -473,7 +473,7 @@ function heroAttack(hero, enemy) {
     });
     const bleedAttackSpeed = getPermanentEffectTotal("bleedAttackSpeed", hero.id) + (hero.runBleedAttackSpeed || 0);
     if (bleedApplied && bleedAttackSpeed) hero.battleAttackSpeedBonus = Math.min(0.35, (hero.battleAttackSpeedBonus || 0) + bleedAttackSpeed);
-    if (bleedApplied && (getPermanentEffectTotal("bleedDamage", hero.id) || bleedAttackSpeed || hero.runBleedDamage || hero.runBleedDamageMultiplier)) triggerSkillVfx(enemy.x, enemy.y, "Bleed", "rogue");
+    if (bleedApplied && (getPermanentEffectTotal("bleedMaxHpPercent", hero.id) || bleedAttackSpeed || hero.runBleedMaxHpPercent || hero.runBleedDamageMultiplier)) triggerSkillVfx(enemy.x, enemy.y, "Bleed", "rogue");
   }
 
   if (hero.id === "wizard" && Math.random() < WIZARD_BASE_SPLASH_CHANCE) {
@@ -532,8 +532,9 @@ function heroAttack(hero, enemy) {
   if (enemy.statusEffects && enemy.statusEffects.burn) damage *= 1 + getPermanentEffectTotal("burningEnemyDamage", hero.id) + (hero.runBurningEnemyDamage || 0);
   if (enemy.statusEffects && enemy.statusEffects.curse) damage *= 1 + enemy.statusEffects.curse.value;
   if (enemy.statusEffects && enemy.statusEffects.slow) damage *= 1 + getPermanentEffectTotal("slowedEnemyDamage", hero.id) + (hero.runSlowedEnemyDamage || 0) + (hero.id === "rogue" ? ROGUE_TRAP_SLOWED_DAMAGE : 0);
-  if (battle.activeAbilityEffects && battle.activeAbilityEffects.knight_holy_sword) {
-    damage += Math.max(4, hero.damage * 0.32);
+  if ((hero.holySwordHitsRemaining || 0) > 0) {
+    hero.holySwordHitsRemaining -= 1;
+    damage *= 1 + (hero.holySwordDamageBonus || 0.5);
     triggerSkillVfx(enemy.x, enemy.y, "Holy", "knight");
   }
   const heavyHit = damage >= enemy.maxHp * 0.22 || damage >= 85;
@@ -562,6 +563,7 @@ function applyPendingHit(hit) {
   damageEnemy(enemy, hit.damage, hit.color, { heavy: hit.heavy });
   if (!hit.variant || hit.variant === "heavy") playSound("swordHit");
   addFloat(enemy.x, enemy.y - 38, hit.text, hit.color, { variant: hit.variant });
+  if (hit.variant === "crit" || hit.variant === "mega") addFloat(enemy.x, enemy.y - 72, "+Crit", "#fde68a", { variant: "crit" });
   if (hit.variant === "mega") log(`Mega crit: ${Math.round(hit.damage)} damage to ${enemy.name}.`, "hero");
   else if (hit.variant === "crit") log(`Critical hit: ${Math.round(hit.damage)} damage to ${enemy.name}.`, "hero");
   else if (hit.variant === "heavy") log(`Heavy hit: ${Math.round(hit.damage)} damage to ${enemy.name}.`, "hero");
@@ -614,12 +616,18 @@ function enemyAttack(enemy, hero) {
     damage *= 1 - getRelicEffectTotal("firstHitReduction");
     battle.guardianSealUsed = true;
   }
-  const blocked = absorbHeroShield(damage, hero.armor * 0.5);
+  const holyShieldActive = (hero.holyShieldHitsRemaining || 0) > 0;
+  const effectiveArmor = holyShieldActive ? hero.armor * (1 + (hero.holyShieldArmorBonus || 0.5)) : hero.armor;
+  if (holyShieldActive) {
+    hero.holyShieldHitsRemaining -= 1;
+    addFloat(hero.x, hero.y - 76, "Holy Guard", "#fde68a", { variant: "block" });
+  }
+  const blocked = absorbHeroShield(damage, effectiveArmor * 0.5);
   const totalBlocked = blocked + blockPrevented;
   const damageAfterShield = Math.max(0, damage - blocked);
   const damageTaken = blocked > 0
     ? damageAfterShield
-    : Math.max(1, damageAfterShield - hero.armor);
+    : Math.max(1, damageAfterShield - effectiveArmor);
   if (totalBlocked > 0 || blockedByGuard) {
     playSound("shieldBlock");
     startUnitSpriteAnimation(hero, "block", 0.28);
@@ -681,12 +689,13 @@ function prepareBattleResult(victory) {
   run.stagesCleared = Math.max(run.stagesCleared, isFinalBossStage(run.stage) ? STAGE_COUNT : run.stage);
   save.highestClear = Math.max(save.highestClear, run.stagesCleared);
 
-  const baseEssence = BASE_STAGE_ESSENCE;
+  const baseEssence = getBaseEssenceForCurrentBattle();
   const eliteBonus = battle.nodeType === "Elite" ? getPermanentEffectTotal("eliteRewardMultiplier", run.classId) : 0;
   const encounterEssenceBonus = battle.nodeType === "Elite" || isBossStage(run.stage) || isFinalBossStage(run.stage) ? 0.2 : 0;
   if (eliteBonus) triggerSkillVfx(run.hero.x, run.hero.y, "Elite Bounty", run.classId);
   const layerRewardMultiplier = getLayerRewardMultiplier();
-  const earned = Math.round(baseEssence * layerRewardMultiplier * DIFFICULTIES[run.difficultyId].essenceMultiplier * (1 + encounterEssenceBonus + getPermanentEffectTotal("essenceMultiplier", run.classId) + getAchievementBonusTotal("essenceMultiplier", run.classId) + eliteBonus + getRelicEffectTotal("essenceMultiplier") + (run.hero.runEssenceMultiplier || 0)));
+  const rawEssence = Math.round(baseEssence * layerRewardMultiplier * DIFFICULTIES[run.difficultyId].essenceMultiplier * (1 + encounterEssenceBonus + getPermanentEffectTotal("essenceMultiplier", run.classId) + getAchievementBonusTotal("essenceMultiplier", run.classId) + eliteBonus + getRelicEffectTotal("essenceMultiplier") + (run.hero.runEssenceMultiplier || 0)));
+  const earned = isEndlessRun() ? Math.min(ENDLESS_ESSENCE_CAP, rawEssence) : rawEssence;
   const goldBefore = run.gold;
   run.essenceEarned += earned;
   const baseGoldReward = battle.nodeType === "Elite" ? 35 : 20 + run.stage * 1.4;
@@ -699,6 +708,17 @@ function prepareBattleResult(victory) {
     run.summary.goldEarned += battle.result.gold;
     run.summary.essenceEarned += earned;
   }
+  if (shouldDropBossEquipment()) {
+    const defeatedBoss = battle.enemies.find(enemy => enemy.boss || enemy.finalBoss);
+    const drop = addInventoryItem(generateEquipmentDrop({
+      classId: run.classId,
+      stage: run.stage,
+      sourceName: defeatedBoss?.name || "Boss",
+      rarityBonus: isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss" ? 0.45 : isEndlessRun() ? Math.min(0.65, run.stage * 0.015) : 0
+    }));
+    battle.result.equipmentDrop = drop;
+    log(`Equipment found: ${drop.rarity} ${drop.name} (${formatEquipmentItemSummary(drop)}).`, "reward");
+  }
   log(`Battle stats: ${Math.round(battle.damageDone)} damage dealt, ${Math.round(battle.damageTaken)} damage taken.`);
   const skillSummary = Object.entries(battle.skillsUsed).map(([name, count]) => `${name} x${count}`).join(", ");
   if (skillSummary) log(`Skills used: ${skillSummary}.`);
@@ -706,6 +726,11 @@ function prepareBattleResult(victory) {
   saveGame();
   updateRunHud();
   renderBattle();
+}
+
+function shouldDropBossEquipment() {
+  if (!battle || !run || isBuildTestRun()) return false;
+  return battle.nodeType === "Boss" || battle.nodeType === "FinalBoss" || isBossStage(run.stage) || isFinalBossStage(run.stage);
 }
 
 function applyStageGrowthRelics() {
@@ -767,8 +792,13 @@ function getVictoryContinueLabel() {
 
 function getHeroBleedDamage(hero) {
   if (!hero || hero.id !== "rogue") return 0;
-  const baseBleed = 4 + run.stage * 0.5 + getTalentEffectValue("bleedDamage") + getPermanentEffectTotal("bleedDamage", hero.id) + (hero.runBleedDamage || 0);
-  return Math.max(1, baseBleed * (1 + (hero.runBleedDamageMultiplier || 0)));
+  const percent = getHeroBleedMaxHpPercent(hero);
+  return Math.max(1, hero.maxHp * percent * (1 + (hero.runBleedDamageMultiplier || 0)));
+}
+
+function getHeroBleedMaxHpPercent(hero) {
+  if (!hero || hero.id !== "rogue") return 0;
+  return ROGUE_BASE_BLEED_MAX_HP_PERCENT + getPermanentEffectTotal("bleedMaxHpPercent", hero.id) + (hero.runBleedMaxHpPercent || 0);
 }
 
 function continueBattleResult() {
@@ -813,13 +843,19 @@ function endRun(victory) {
   const essence = Math.max(1, Math.round(run.essenceEarned));
   recordRunEndStats(victory, essence);
   checkAchievements();
+  const endlessResult = isEndlessRun() ? submit_endless_score(run) : null;
   saveGame();
   showScreen("runEndScreen");
   runEndTitle.textContent = victory ? "Crownfall Broken" : isEndlessRun() ? "Endless Run Ended" : "Run Failed";
   const theme = BIOME_THEMES[run.themeId];
   const routeName = isEndlessRun() ? DIFFICULTIES[run.difficultyId].name : theme ? `${DIFFICULTIES[run.difficultyId].name} / ${theme.name}` : DIFFICULTIES[run.difficultyId].name;
-  runEndText.innerHTML = renderRunSummary(victory, routeName, essence);
+  runEndText.innerHTML = renderRunSummary(victory, routeName, essence, getRunEndMessage(victory, endlessResult), getRunEndExtraRows(endlessResult));
   battle = null;
+}
+
+function getBaseEssenceForCurrentBattle() {
+  if (!isEndlessRun()) return BASE_STAGE_ESSENCE;
+  return ENDLESS_BASE_ESSENCE + Math.max(0, run.stage - 1) * ENDLESS_ESSENCE_PER_STAGE;
 }
 
 function endBuildTest(victory) {
@@ -877,9 +913,28 @@ function endEternalCrownEnding(crownDefeated = false) {
   battle = null;
 }
 
-function renderRunSummary(victory, routeName, essence, message) {
+function getRunEndMessage(victory, endlessResult) {
+  if (endlessResult && endlessResult.entry) {
+    return [
+      endlessResult.newBest ? "New Best!" : "",
+      `Stage Reached: ${endlessResult.entry.stageReached}`,
+      endlessResult.rank ? `Leaderboard Rank: #${endlessResult.rank}` : ""
+    ].filter(Boolean).join("<br>");
+  }
+  return victory ? "Layer 3 has fallen. Crownfall is broken, even if the crown still hungers." : "Your champion falls, but the Essence returns to the crown vault.";
+}
+
+function getRunEndExtraRows(endlessResult) {
+  if (!endlessResult || !endlessResult.entry) return [];
+  const rows = [["Stage Reached", endlessResult.entry.stageReached]];
+  if (endlessResult.rank) rows.push(["Leaderboard Rank", `#${endlessResult.rank}`]);
+  return rows;
+}
+
+function renderRunSummary(victory, routeName, essence, message, extraRows = []) {
   const summary = run.summary || {};
   const rows = [
+    ...extraRows,
     ["Class", CLASSES[run.classId].name],
     ["Difficulty", DIFFICULTIES[run.difficultyId].name],
     ["Route", routeName],
@@ -926,7 +981,7 @@ function canAddBuildTestFloat(text) {
   return true;
 }
 
-function triggerSkillVfx(x, y, label, theme) {
+function triggerSkillVfx(x, y, label, theme, options = {}) {
   if (!battle) return;
   battle.skillsUsed[label] = (battle.skillsUsed[label] || 0) + 1;
   battle.activeSkills[label] = 3;
@@ -944,6 +999,7 @@ function triggerSkillVfx(x, y, label, theme) {
     y,
     label,
     theme,
+    sprite: options.sprite || (options.abilityId && typeof getSkillSpriteSheet === "function" ? getSkillSpriteSheet(options.abilityId, options.hero || run?.hero) : ""),
     color: colors[theme] || colors.global,
     age: 0,
     life: 0.85
@@ -976,7 +1032,7 @@ function updateRunAbilities(hero, target, dt) {
 }
 
 function useRunAbility(ability, hero, target) {
-  triggerSkillVfx(hero.x, hero.y - 6, ability.name, ability.classId);
+  triggerSkillVfx(hero.x, hero.y - 6, ability.name, ability.classId, { abilityId: ability.id, hero });
   delete battle.activeSkills[ability.name];
   battle.recentAbilities[ability.id] = 0.55;
 
@@ -1041,14 +1097,16 @@ function useRunAbility(ability, hero, target) {
   if (ability.id === "knight_heavy_attack") {
     startUnitSpriteAnimation(hero, "attack", 0.45);
     spawnSlashEffect(target, "heavy");
-    damageEnemy(target, hero.damage * (2.25 + (hero.runHeavyAttackDamage || 0)), "#f8e7bb", { heavy: true });
+    const percent = (ability.maxHpDamage || 0.25) + (hero.runHeavyAttackMaxHpDamage || 0);
+    damageEnemy(target, hero.maxHp * percent, "#f8e7bb", { heavy: true });
     addFloat(target.x, target.y - 70, "HEAVY", "#f8e7bb", { variant: "heavy" });
     return;
   }
 
   if (ability.id === "knight_holy_sword") {
     playSound("magicCast");
-    battle.activeAbilityEffects.knight_holy_sword = ability.duration + (hero.runHolySwordDuration || 0);
+    hero.holySwordHitsRemaining = Math.max(hero.holySwordHitsRemaining || 0, (ability.hitCount || 3) + (hero.runHolySwordHits || 0));
+    hero.holySwordDamageBonus = ability.hitDamageBonus || 0.5;
     startUnitSpriteAnimation(hero, "attack", 0.3);
     spawnSlashEffect(target, "sword");
     spawnAbilityIndicator(hero, "holy-sword");
@@ -1057,10 +1115,11 @@ function useRunAbility(ability, hero, target) {
   }
 
   if (ability.id === "knight_holy_shield") {
-    battle.activeAbilityEffects.knight_holy_shield = ability.duration;
+    hero.holyShieldHitsRemaining = Math.max(hero.holyShieldHitsRemaining || 0, (ability.hitCount || 2) + (hero.runHolyShieldHits || 0));
+    hero.holyShieldArmorBonus = ability.armorMultiplier || 0.5;
     startUnitSpriteAnimation(hero, "block", 0.3);
-    addHeroShield(Math.round(32 + hero.maxHp * (0.12 + (hero.runHolyShieldPower || 0))), "Holy Shield");
     spawnAbilityIndicator(hero, "holy-shield");
+    addFloat(hero.x, hero.y - 72, "Holy Shield", ability.color);
   }
 }
 

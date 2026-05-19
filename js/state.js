@@ -11,10 +11,13 @@ function defaultSave() {
     firstBossDefeated: false,
     stats: defaultAccountStats(),
     achievements: {},
+    achievementEssenceClaims: {},
     tree: getDefaultTreeLevels(),
     skins: defaultSkins(),
     skinPurchases: defaultSkinPurchases(),
-    settings: defaultSettings()
+    inventory: defaultInventory(),
+    settings: defaultSettings(),
+    leaderboards: defaultLeaderboards()
   };
 }
 
@@ -30,6 +33,23 @@ function defaultSkinPurchases() {
     heroes: Object.keys(CLASSES).reduce((purchases, id) => ({ ...purchases, [id]: { base: true } }), {}),
     enemies: getAllCharacterEnemies().reduce((purchases, enemy) => ({ ...purchases, [enemy.id]: { base: true } }), {})
   };
+}
+
+function defaultInventory() {
+  return {
+    items: STARTER_INVENTORY_ITEMS.map(item => normalizeInventoryItem(item)),
+    equipment: Object.keys(CLASSES).reduce((equipment, classId) => {
+      equipment[classId] = defaultHeroEquipment();
+      return equipment;
+    }, {})
+  };
+}
+
+function defaultHeroEquipment() {
+  return EQUIPMENT_SLOTS.reduce((slots, slot) => {
+    slots[slot.id] = null;
+    return slots;
+  }, {});
 }
 
 function defaultAccountStats() {
@@ -101,14 +121,19 @@ function loadSave() {
     }
     const skinPurchases = normalizeSkinPurchases(parsed && parsed.skinPurchases, fallback.skinPurchases);
     const skins = normalizeSkins(parsed && parsed.skins, fallback.skins, skinPurchases);
+    const leaderboards = normalizeLeaderboards(parsed && parsed.leaderboards, fallback.leaderboards);
+    const inventory = normalizeInventory(parsed && parsed.inventory, fallback.inventory);
     return {
       ...fallback,
       ...storedSave,
       tree,
       stats: { ...fallback.stats, ...((parsed && parsed.stats) || {}) },
       achievements: { ...fallback.achievements, ...((parsed && parsed.achievements) || {}) },
+      achievementEssenceClaims: { ...fallback.achievementEssenceClaims, ...((parsed && parsed.achievementEssenceClaims) || {}) },
       skins,
       skinPurchases,
+      inventory,
+      leaderboards,
       settings
     };
   } catch {
@@ -155,6 +180,203 @@ function normalizeSkinPurchases(storedPurchases, fallback) {
     next.enemies[id].base = true;
   });
   return next;
+}
+
+function normalizeInventory(storedInventory, fallback = defaultInventory()) {
+  const storedItems = Array.isArray(storedInventory?.items) ? storedInventory.items : [];
+  const itemsByInstance = new Map();
+  [...fallback.items, ...storedItems].forEach(item => {
+    const normalized = normalizeInventoryItem(item);
+    if (normalized.instanceId) itemsByInstance.set(normalized.instanceId, normalized);
+  });
+  const items = [...itemsByInstance.values()];
+  const itemIds = new Set(items.map(item => item.instanceId));
+  const equipment = {};
+  Object.keys(CLASSES).forEach(classId => {
+    const storedHeroEquipment = storedInventory?.equipment?.[classId] || {};
+    equipment[classId] = defaultHeroEquipment();
+    EQUIPMENT_SLOTS.forEach(slot => {
+      const instanceId = storedHeroEquipment[slot.id];
+      const item = itemIds.has(instanceId) ? itemsByInstance.get(instanceId) : null;
+      equipment[classId][slot.id] = item && item.slot === slot.id && canHeroEquipItem(classId, item) ? item.instanceId : null;
+    });
+  });
+  return { items, equipment };
+}
+
+function normalizeInventoryItem(item) {
+  const slotIds = new Set(EQUIPMENT_SLOTS.map(slot => slot.id));
+  const slot = slotIds.has(item?.slot) ? item.slot : "mainHand";
+  const itemId = String(item?.itemId || item?.id || `item_${slot}`);
+  const instanceId = String(item?.instanceId || `${itemId}_${Math.random().toString(36).slice(2, 10)}`);
+  const rarity = String(item?.rarity || "Common");
+  const quality = Math.max(0, Math.min(1, Number(item?.quality) || 0));
+  return {
+    itemId,
+    instanceId,
+    name: String(item?.name || "Unknown Equipment"),
+    slot,
+    rarity,
+    quality,
+    power: Math.max(1, Number(item?.power) || getEquipmentPower(rarity, quality)),
+    allowedClassIds: Array.isArray(item?.allowedClassIds) ? item.allowedClassIds.filter(id => CLASSES[id]) : [],
+    stats: item?.stats && typeof item.stats === "object" ? { ...item.stats } : {},
+    description: String(item?.description || ""),
+    source: String(item?.source || "")
+  };
+}
+
+function canHeroEquipItem(classId, item) {
+  return !!CLASSES[classId] && !!item && (!item.allowedClassIds?.length || item.allowedClassIds.includes(classId));
+}
+
+function getHeroEquipment(classId) {
+  if (!save.inventory) save.inventory = defaultInventory();
+  save.inventory = normalizeInventory(save.inventory);
+  return save.inventory.equipment[classId] || defaultHeroEquipment();
+}
+
+function getInventoryItemsForHero(classId, slotId = null) {
+  if (!save.inventory) save.inventory = defaultInventory();
+  save.inventory = normalizeInventory(save.inventory);
+  return save.inventory.items.filter(item => canHeroEquipItem(classId, item) && (!slotId || item.slot === slotId));
+}
+
+function getInventoryItem(instanceId) {
+  if (!save.inventory) save.inventory = defaultInventory();
+  return (save.inventory.items || []).find(item => item.instanceId === instanceId) || null;
+}
+
+function getEquippedItem(classId, slotId) {
+  const instanceId = getHeroEquipment(classId)[slotId];
+  return instanceId ? getInventoryItem(instanceId) : null;
+}
+
+function equipInventoryItem(classId, instanceId) {
+  const item = getInventoryItem(instanceId);
+  if (!canHeroEquipItem(classId, item)) return false;
+  if (!save.inventory) save.inventory = defaultInventory();
+  save.inventory = normalizeInventory(save.inventory);
+  Object.keys(save.inventory.equipment).forEach(heroId => {
+    EQUIPMENT_SLOTS.forEach(slot => {
+      if (save.inventory.equipment[heroId][slot.id] === instanceId) save.inventory.equipment[heroId][slot.id] = null;
+    });
+  });
+  save.inventory.equipment[classId][item.slot] = item.instanceId;
+  saveGame();
+  return true;
+}
+
+function unequipHeroSlot(classId, slotId) {
+  if (!save.inventory) save.inventory = defaultInventory();
+  save.inventory = normalizeInventory(save.inventory);
+  if (!save.inventory.equipment[classId] || !(slotId in save.inventory.equipment[classId])) return false;
+  save.inventory.equipment[classId][slotId] = null;
+  saveGame();
+  return true;
+}
+
+function addInventoryItem(item) {
+  if (!save.inventory) save.inventory = defaultInventory();
+  save.inventory = normalizeInventory(save.inventory);
+  const normalized = normalizeInventoryItem(item);
+  save.inventory.items.push(normalized);
+  saveGame();
+  return normalized;
+}
+
+function generateEquipmentDrop(options = {}) {
+  const classId = options.classId || run?.classId || "knight";
+  const slot = options.slot || randomChoice(EQUIPMENT_SLOTS).id;
+  const templates = EQUIPMENT_TEMPLATES[slot] || [];
+  const template = randomChoice(templates);
+  const rarityConfig = rollEquipmentRarity(options.rarityBonus || 0);
+  const quality = rollEquipmentQuality(rarityConfig.qualityBonus);
+  const stats = rollEquipmentStats(template.stats || ["maxHp"], rarityConfig, quality, options.stage || run?.stage || 1);
+  return normalizeInventoryItem({
+    itemId: template.id,
+    instanceId: `${template.id}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    name: template.name,
+    slot,
+    rarity: rarityConfig.id,
+    quality,
+    power: getEquipmentPower(rarityConfig.id, quality),
+    allowedClassIds: [],
+    stats,
+    description: `Dropped from ${options.sourceName || "a boss"}.`,
+    source: options.sourceName || "Boss"
+  });
+}
+
+function rollEquipmentRarity(bonus = 0) {
+  const weighted = EQUIPMENT_RARITIES.map(rarity => ({
+    ...rarity,
+    weight: rarity.weight * (rarity.id === "Common" ? 1 : 1 + bonus)
+  }));
+  const total = weighted.reduce((sum, rarity) => sum + rarity.weight, 0);
+  let roll = Math.random() * total;
+  for (const rarity of weighted) {
+    roll -= rarity.weight;
+    if (roll <= 0) return rarity;
+  }
+  return weighted[0];
+}
+
+function rollEquipmentQuality(qualityBonus = 0) {
+  const roll = Math.pow(Math.random(), 2.65);
+  return Math.max(0, Math.min(1, roll + qualityBonus));
+}
+
+function rollEquipmentStats(statKeys, rarityConfig, quality, stage) {
+  const stageMultiplier = 1 + Math.max(0, Number(stage) || 1) * 0.012;
+  return statKeys.reduce((stats, key, index) => {
+    const range = EQUIPMENT_STAT_RANGES[key] || EQUIPMENT_STAT_RANGES.maxHp;
+    const slotWeight = index === 0 ? 1 : 0.58;
+    const raw = (range.min + (range.max - range.min) * quality) * rarityConfig.statMultiplier * stageMultiplier * slotWeight;
+    stats[key] = roundEquipmentStat(raw, range.decimals);
+    return stats;
+  }, {});
+}
+
+function roundEquipmentStat(value, decimals = 0) {
+  const factor = Math.pow(10, decimals);
+  return Math.max(decimals ? 0.01 : 1, Math.round(value * factor) / factor);
+}
+
+function getEquipmentPower(rarity, quality) {
+  const rarityRank = Math.max(1, getEquipmentRarityRank(rarity || "Common"));
+  return Math.round(rarityRank * 100 + Math.max(0, Math.min(1, Number(quality) || 0)) * 100);
+}
+
+function getEquipmentRarityRank(rarity) {
+  return ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"].indexOf(rarity) + 1 || 1;
+}
+
+function randomChoice(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function applyEquipmentStatsToHero(hero) {
+  if (!hero) return;
+  EQUIPMENT_SLOTS.forEach(slot => {
+    const item = getEquippedItem(hero.id, slot.id);
+    if (!item) return;
+    Object.entries(item.stats || {}).forEach(([stat, value]) => applyEquipmentStat(hero, stat, Number(value) || 0));
+  });
+  hero.hp = Math.min(hero.hp, hero.maxHp);
+}
+
+function applyEquipmentStat(hero, stat, value) {
+  if (stat === "maxHp") {
+    hero.maxHp += value;
+    hero.hp += value;
+  }
+  else if (stat === "damage") hero.damage += value;
+  else if (stat === "armor") hero.armor += value;
+  else if (stat === "attackSpeed") hero.attackSpeed += value;
+  else if (stat === "critChance") hero.crit += value;
+  else if (stat === "regen") hero.regen += value;
+  else if (stat === "luck") hero.luck += value;
 }
 
 function getHeroSkin(classId, skinId) {
@@ -288,18 +510,38 @@ function addEnemyKillStat(enemyId, amount = 1) {
 
 function checkAchievements() {
   if (!save.achievements) save.achievements = {};
+  if (!save.achievementEssenceClaims) save.achievementEssenceClaims = {};
   if (typeof ACHIEVEMENTS === "undefined") return [];
   const unlocked = [];
+  let essenceClaimed = 0;
   ACHIEVEMENTS.forEach(achievement => {
-    if (save.achievements[achievement.id]) return;
-    if (!achievement.condition(save)) return;
-    save.achievements[achievement.id] = true;
-    unlocked.push(achievement);
+    if (save.achievements[achievement.id]) {
+      essenceClaimed += claimAchievementEssence(achievement);
+      return;
+    }
+    if (achievement.condition(save)) {
+      save.achievements[achievement.id] = true;
+      essenceClaimed += claimAchievementEssence(achievement);
+      unlocked.push(achievement);
+    }
   });
   if (unlocked.length && typeof showAchievementPopup === "function") {
     unlocked.forEach(achievement => showAchievementPopup(achievement));
   }
+  if (essenceClaimed && typeof saveGame === "function") saveGame();
   return unlocked;
+}
+
+function claimAchievementEssence(achievement) {
+  const amount = getAchievementEssenceReward(achievement);
+  if (!amount || save.achievementEssenceClaims[achievement.id]) return 0;
+  save.achievementEssenceClaims[achievement.id] = true;
+  save.essence = Math.max(0, Math.round((Number(save.essence) || 0) + amount));
+  return amount;
+}
+
+function getAchievementEssenceReward(achievement) {
+  return Math.max(0, Math.round(Number(achievement?.essenceReward) || 0));
 }
 
 function resetSave() {
@@ -325,10 +567,13 @@ function createRun(difficultyId, mode = "standard") {
   const buildTest = mode === "buildTest";
   return {
     mode: buildTest ? "buildTest" : endless ? "endless" : "standard",
+    runId: `local-run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    runSeed: Math.floor(Math.random() * 1000000000),
     difficultyId,
     themeId,
     classId: null,
     stage: 1,
+    startedAt: Date.now(),
     maxStage: STAGE_COUNT,
     gold: 0,
     essenceEarned: 0,
@@ -414,6 +659,7 @@ function buildHero(classId) {
   hero.luck += getAchievementBonusTotal("luck", classId);
   if (classId === "knight") hero.armor += getAchievementBonusTotal("knightArmor", classId);
   if (classId === "rogue") hero.crit += getAchievementBonusTotal("rogueCritChance", classId);
+  applyEquipmentStatsToHero(hero);
   return hero;
 }
 

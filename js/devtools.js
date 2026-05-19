@@ -43,6 +43,20 @@ function installDevTools() {
       battleLog.innerHTML = "";
       showScreen("menuScreen");
       return devResult("Current run reset. Save data was not reset.");
+    },
+
+    seedEndlessLeaderboard() {
+      if (!save.leaderboards) save.leaderboards = defaultLeaderboards();
+      const now = Date.now();
+      save.leaderboards.endless = sortEndlessScores([
+        normalizeEndlessScore({ runId: "debug-endless-1", playerId: "local-player", playerName: "Player", stageReached: 18, characterId: "knight", characterName: "Knight", createdAt: new Date(now - 86400000).toISOString(), runDuration: 820000, finalStats: { maxHp: 540, damage: 48, attackSpeed: 1.3, armor: 18 }, finalEquipment: [], finalPerks: [], summary: { enemiesDefeated: 18 } }),
+        normalizeEndlessScore({ runId: "debug-endless-2", playerId: "local-player", playerName: "Player", stageReached: 14, characterId: "rogue", characterName: "Rogue", createdAt: new Date(now - 3600000).toISOString(), runDuration: 610000, finalStats: { maxHp: 390, damage: 56, attackSpeed: 2.4, armor: 8 }, finalEquipment: [], finalPerks: [], summary: { enemiesDefeated: 14 } }),
+        normalizeEndlessScore({ runId: "debug-endless-3", playerId: "local-player", playerName: "Player", stageReached: 11, characterId: "wizard", characterName: "Wizard", createdAt: new Date(now - 1800000).toISOString(), runDuration: 540000, finalStats: { maxHp: 360, damage: 64, attackSpeed: 1.1, armor: 6 }, finalEquipment: [], finalPerks: [], summary: { enemiesDefeated: 11 } }),
+        ...(save.leaderboards.endless || [])
+      ].filter(Boolean)).slice(0, LEADERBOARD_LIMIT);
+      save_leaderboard();
+      if (leaderboardGrid && leaderboardGrid.closest(".screen").classList.contains("active")) renderLeaderboard();
+      return devResult("Seeded local Endless leaderboard test data.");
     }
   };
 
