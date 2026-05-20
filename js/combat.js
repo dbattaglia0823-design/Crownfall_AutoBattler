@@ -70,6 +70,8 @@ function setupBattle(nodeType) {
     crown.crownDamageRamp = 0.5;
     crown.buildTestBoss = true;
     enemies.push(crown);
+  } else if (isGauntletRun()) {
+    enemies.push(makeGauntletEnemy(run.gauntlet?.opponent));
   } else if (isFinalBossStage(run.stage) || nodeType === "FinalBoss") {
     enemies.push(makeEnemy(FINAL_BOSS, 640, 215, true, "FinalBoss"));
   } else if (isBossStage(run.stage) || nodeType === "Boss") {
@@ -473,7 +475,7 @@ function heroAttack(hero, enemy) {
     });
     const bleedAttackSpeed = getPermanentEffectTotal("bleedAttackSpeed", hero.id) + (hero.runBleedAttackSpeed || 0);
     if (bleedApplied && bleedAttackSpeed) hero.battleAttackSpeedBonus = Math.min(0.35, (hero.battleAttackSpeedBonus || 0) + bleedAttackSpeed);
-    if (bleedApplied && (getPermanentEffectTotal("bleedMaxHpPercent", hero.id) || bleedAttackSpeed || hero.runBleedMaxHpPercent || hero.runBleedDamageMultiplier)) triggerSkillVfx(enemy.x, enemy.y, "Bleed", "rogue");
+    if (bleedApplied && (getPermanentEffectTotal("bleedMaxHpPercent", hero.id) || bleedAttackSpeed || hero.runBleedMaxHpPercent)) triggerSkillVfx(enemy.x, enemy.y, "Bleed", "rogue");
   }
 
   if (hero.id === "wizard" && Math.random() < WIZARD_BASE_SPLASH_CHANCE) {
@@ -513,11 +515,11 @@ function heroAttack(hero, enemy) {
     triggerSkillVfx(enemy.x, enemy.y, "Time Thread", "wizard");
   }
   if (hero.id === "wizard" && Math.random() < getWizardBurnChance(hero)) {
-    applyEnemyStatus(enemy, "burn", { damage: getWizardBurnDamage(hero), duration: WIZARD_BASE_BURN_DURATION });
+    applyEnemyStatus(enemy, "burn", { damage: getWizardBurnDamage(hero, enemy), duration: WIZARD_BASE_BURN_DURATION });
   }
   if (getPermanentEffectTotal("firstSpellBurnAll", hero.id) && !battle.infernoCrownUsed) {
     battle.infernoCrownUsed = true;
-    battle.enemies.filter(other => other.hp > 0).forEach(other => applyEnemyStatus(other, "burn", { damage: getWizardBurnDamage(hero), duration: WIZARD_BASE_BURN_DURATION }));
+    battle.enemies.filter(other => other.hp > 0).forEach(other => applyEnemyStatus(other, "burn", { damage: getWizardBurnDamage(hero, other), duration: WIZARD_BASE_BURN_DURATION }));
     addFloat(hero.x, hero.y - 65, "Inferno Crown", "#fb923c");
     triggerSkillVfx(hero.x, hero.y, "Inferno Crown", "wizard");
   }
@@ -671,16 +673,25 @@ function prepareBattleResult(victory) {
   battle.recentAbilities = {};
   battle.result = {
     victory,
-    title: victory ? "Victory" : (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") ? "The Crown Endures" : "Defeat",
+    title: isGauntletRun() ? (victory ? "Gauntlet Victory" : "Gauntlet Defeat") : victory ? "Victory" : (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") ? "The Crown Endures" : "Defeat",
     gold: 0,
     essence: 0,
-    nextLabel: victory ? getVictoryContinueLabel() : (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") ? "Complete Run" : "Continue"
+    nextLabel: isGauntletRun() ? "Return to Gauntlet" : victory ? getVictoryContinueLabel() : (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") ? "Complete Run" : "Continue"
   };
 
   if (!victory) {
     run.hero.hp = Math.max(0, run.hero.hp);
     startUnitSpriteAnimation(run.hero, "downed", 999);
-    recordBattleAccountStats(false, 0, 0);
+    if (isGauntletRun()) recordGauntletBattleResult(false);
+    else recordBattleAccountStats(false, 0, 0);
+    updateRunHud();
+    renderBattle();
+    return;
+  }
+
+  if (isGauntletRun()) {
+    recordGauntletBattleResult(true);
+    saveGame();
     updateRunHud();
     renderBattle();
     return;
@@ -755,6 +766,12 @@ function applyStageGrowthRelics() {
 function recordBattleAccountStats(victory, gold, essence) {
   if (!battle || battle.statsRecorded) return;
   battle.statsRecorded = true;
+  if (run.summary) {
+    run.summary.enemiesDefeated += battle.enemiesKilled || 0;
+    run.summary.damageDealt += battle.damageDone || 0;
+    run.summary.damageTaken += battle.damageTaken || 0;
+  }
+  if (isBuildTestRun() || isGauntletRun()) return;
   addAccountStat(victory ? "battlesWon" : "battlesLost", 1);
   addAccountStat("totalDamageDealt", battle.damageDone || 0);
   addAccountStat("totalDamageTaken", battle.damageTaken || 0);
@@ -763,11 +780,6 @@ function recordBattleAccountStats(victory, gold, essence) {
   const skillCount = Object.values(battle.skillsUsed || {}).reduce((total, count) => total + count, 0);
   addAccountStat("skillsTriggered", skillCount);
   save.stats.highestBattleDamage = Math.max(Number(save.stats.highestBattleDamage) || 0, battle.damageDone || 0);
-  if (run.summary) {
-    run.summary.enemiesDefeated += battle.enemiesKilled || 0;
-    run.summary.damageDealt += battle.damageDone || 0;
-    run.summary.damageTaken += battle.damageTaken || 0;
-  }
   if (victory) {
     addAccountStat("stagesCleared", 1);
     battle.enemies.forEach(enemy => addEnemyKillStat(enemy.id, 1));
@@ -793,7 +805,7 @@ function getVictoryContinueLabel() {
 function getHeroBleedDamage(hero) {
   if (!hero || hero.id !== "rogue") return 0;
   const percent = getHeroBleedMaxHpPercent(hero);
-  return Math.max(1, hero.maxHp * percent * (1 + (hero.runBleedDamageMultiplier || 0)));
+  return Math.max(1, hero.maxHp * percent);
 }
 
 function getHeroBleedMaxHpPercent(hero) {
@@ -805,6 +817,8 @@ function continueBattleResult() {
   if (!battle || battle.state !== "result") return;
   const victory = battle.result.victory;
   battle.state = "done";
+
+  if (isGauntletRun()) return finishGauntletBattle(victory);
 
   if (!victory) {
     if (isBuildTestRun()) return endBuildTest(false);
@@ -1089,7 +1103,7 @@ function useRunAbility(ability, hero, target) {
   if (ability.id === "rogue_burn") {
     startUnitSpriteAnimation(hero, "attack", 0.24);
     spawnSlashEffect(target, "rogue");
-    applyEnemyStatus(target, "burn", { damage: 7 + run.stage * 0.55, duration: ability.duration + (hero.runBurnAbilityDuration || 0) });
+    applyEnemyStatus(target, "burn", { damage: getRogueBurnAbilityDamage(hero, target), duration: ability.duration + (hero.runBurnAbilityDuration || 0) });
     spawnAbilityIndicator(target, "burn");
     return;
   }
@@ -1193,7 +1207,8 @@ function applyEnemyStatus(enemy, type, effect) {
     duration,
     damage: (effect.damage || 0) * damageMultiplier,
     value: type === "slow" ? Math.min(STATUS_SLOW_VALUE_CAP, effect.value || 0) : effect.value || 0,
-    tickTimer: type === "bleed" ? 1 : undefined
+    tickTimer: type === "bleed" ? 1 : undefined,
+    stacks: type === "burn" ? 1 : undefined
   };
   if (type === "bleed" && enemy.statusEffects.bleed) {
     enemy.statusEffects.bleed.damage = status.damage;
@@ -1206,7 +1221,8 @@ function applyEnemyStatus(enemy, type, effect) {
     enemy.statusEffects.poison.duration = Math.max(enemy.statusEffects.poison.duration || 0, status.duration);
     addFloat(enemy.x, enemy.y - 58, getStatusFloatText(type, enemy.statusEffects.poison), getStatusColor(type));
   } else if (type === "burn" && enemy.statusEffects.burn) {
-    enemy.statusEffects.burn.damage = Math.max(enemy.statusEffects.burn.damage || 0, status.damage);
+    enemy.statusEffects.burn.damage = (enemy.statusEffects.burn.damage || 0) + status.damage;
+    enemy.statusEffects.burn.stacks = (enemy.statusEffects.burn.stacks || 1) + 1;
     enemy.statusEffects.burn.duration = Math.max(enemy.statusEffects.burn.duration || 0, status.duration);
     addFloat(enemy.x, enemy.y - 58, getStatusFloatText(type, enemy.statusEffects.burn), getStatusColor(type));
   } else if (type === "slow" && enemy.statusEffects.slow) {
@@ -1226,7 +1242,7 @@ function applyEnemyStatus(enemy, type, effect) {
   if (type === "burn" && wildfireChance && Math.random() < wildfireChance) {
     const spreadTarget = battle.enemies.find(other => other !== enemy && other.hp > 0 && !other.statusEffects.burn);
     if (spreadTarget) {
-      spreadTarget.statusEffects.burn = { duration: effect.duration, damage: (effect.damage || 0) * damageMultiplier, value: 0 };
+      spreadTarget.statusEffects.burn = { duration: status.duration, damage: status.damage, value: 0, stacks: 1 };
       addFloat(spreadTarget.x, spreadTarget.y - 58, "Wildfire", "#fb923c");
       log(`Wildfire spread to ${spreadTarget.name}.`, "skill");
     }
@@ -1245,7 +1261,7 @@ function getStatusColor(type) {
 
 function getStatusFloatText(type, status) {
   if (type === "poison") return `POISON ${Math.round(status.damage)}/s`;
-  if (type === "burn") return `BURN ${Math.round(status.damage)}/s`;
+  if (type === "burn") return `BURN ${Math.round(status.damage)}/s${status.stacks > 1 ? ` x${status.stacks}` : ""}`;
   if (type === "bleed") return `BLEED ${Math.round(status.damage)}/s`;
   if (type === "curse") return `CURSE +${Math.round(status.value * 100)}%`;
   if (type === "slow") return `SLOW ${Math.round(status.value * 100)}%`;
@@ -1261,8 +1277,21 @@ function getWizardBurnChance(hero) {
   return Math.min(0.75, WIZARD_BASE_BURN_CHANCE + (hero.runBurnChance || 0) + (wildfireTalent?.effect.igniteChance || 0));
 }
 
-function getWizardBurnDamage(hero) {
-  return 4 + run.stage * 0.45 + (hero.runBurnDamage || 0);
+function getWizardBurnDamage(hero, enemy) {
+  return getBurnStatusDamage(hero, enemy, 4 + run.stage * 0.45);
+}
+
+function getRogueBurnAbilityDamage(hero, enemy) {
+  return getBurnStatusDamage(hero, enemy, 7 + run.stage * 0.55);
+}
+
+function getBurnStatusDamage(hero, enemy, baseDamage) {
+  return baseDamage + (hero.runBurnDamage || 0) + (enemy?.maxHp || 0) * getHeroBurnMaxHpPercent(hero);
+}
+
+function getHeroBurnMaxHpPercent(hero) {
+  if (!hero) return 0;
+  return getPermanentEffectTotal("burnMaxHpPercent", hero.id) + (hero.runBurnMaxHpPercent || 0);
 }
 
 function getWizardAttackSlowValue(hero) {

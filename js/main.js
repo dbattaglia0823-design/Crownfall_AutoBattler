@@ -10,8 +10,6 @@ function initGame() {
   setupGlobalSoundHandlers();
   setupTreeCameraControls();
   installDevTools();
-  validateSkillTreeLines();
-  validateDifficultyProgression();
   registerServiceWorker();
 
   window.addEventListener("resize", () => {

@@ -4,6 +4,41 @@ let battle = null;
 let battleFrame = null;
 let lastFrameTime = 0;
 
+function defaultGauntletData() {
+  return {
+    points: 0,
+    coins: 0,
+    upgrades: {},
+    heroLeaders: [],
+    enemyLeaders: [],
+    stats: { battles: 0, wins: 0, losses: 0, rankedWins: 0 },
+    history: []
+  };
+}
+
+function normalizeGauntletData(storedGauntlet, fallback = defaultGauntletData()) {
+  const data = storedGauntlet && typeof storedGauntlet === "object" ? storedGauntlet : {};
+  const storedVersion = Math.max(0, Math.floor(Number(data.version) || 0));
+  const pointScale = storedVersion < 2 ? 5 : 1;
+  return {
+    version: 2,
+    points: Math.max(0, Math.floor(Number(data.points) || 0)),
+    coins: Math.max(0, Math.floor(Number(data.coins) || 0)),
+    upgrades: data.upgrades && typeof data.upgrades === "object" ? data.upgrades : {},
+    heroLeaders: normalizeGauntletLeaders(Array.isArray(data.heroLeaders) ? data.heroLeaders : fallback.heroLeaders, pointScale),
+    enemyLeaders: normalizeGauntletLeaders(Array.isArray(data.enemyLeaders) ? data.enemyLeaders : fallback.enemyLeaders, pointScale),
+    stats: { ...fallback.stats, ...((data.stats && typeof data.stats === "object") ? data.stats : {}) },
+    history: Array.isArray(data.history) ? data.history.slice(-20) : []
+  };
+}
+
+function normalizeGauntletLeaders(leaders, pointScale = 1) {
+  return (leaders || []).map(leader => ({
+    ...leader,
+    points: Math.max(0, Math.floor((Number(leader?.points) || 0) * pointScale))
+  }));
+}
+
 function defaultSave() {
   return {
     essence: 0,
@@ -17,7 +52,8 @@ function defaultSave() {
     skinPurchases: defaultSkinPurchases(),
     inventory: defaultInventory(),
     settings: defaultSettings(),
-    leaderboards: defaultLeaderboards()
+    leaderboards: defaultLeaderboards(),
+    gauntlet: defaultGauntletData()
   };
 }
 
@@ -122,6 +158,7 @@ function loadSave() {
     const skinPurchases = normalizeSkinPurchases(parsed && parsed.skinPurchases, fallback.skinPurchases);
     const skins = normalizeSkins(parsed && parsed.skins, fallback.skins, skinPurchases);
     const leaderboards = normalizeLeaderboards(parsed && parsed.leaderboards, fallback.leaderboards);
+    const gauntlet = normalizeGauntletData(parsed && parsed.gauntlet, fallback.gauntlet);
     const inventory = normalizeInventory(parsed && parsed.inventory, fallback.inventory);
     return {
       ...fallback,
@@ -134,6 +171,7 @@ function loadSave() {
       skinPurchases,
       inventory,
       leaderboards,
+      gauntlet,
       settings
     };
   } catch {
@@ -283,6 +321,21 @@ function addInventoryItem(item) {
   save.inventory.items.push(normalized);
   saveGame();
   return normalized;
+}
+
+function removeInventoryItem(instanceId) {
+  if (!save.inventory) save.inventory = defaultInventory();
+  save.inventory = normalizeInventory(save.inventory);
+  const index = save.inventory.items.findIndex(item => item.instanceId === instanceId);
+  if (index < 0) return null;
+  const [removed] = save.inventory.items.splice(index, 1);
+  Object.keys(save.inventory.equipment).forEach(classId => {
+    EQUIPMENT_SLOTS.forEach(slot => {
+      if (save.inventory.equipment[classId][slot.id] === instanceId) save.inventory.equipment[classId][slot.id] = null;
+    });
+  });
+  saveGame();
+  return removed;
 }
 
 function generateEquipmentDrop(options = {}) {
@@ -495,6 +548,7 @@ function saveGame() {
 }
 
 function addAccountStat(id, amount) {
+  if (typeof isBuildTestRun === "function" && isBuildTestRun()) return;
   if (!save.stats) save.stats = defaultAccountStats();
   save.stats[id] = (Number(save.stats[id]) || 0) + amount;
   checkAchievements();
@@ -502,6 +556,7 @@ function addAccountStat(id, amount) {
 
 function addEnemyKillStat(enemyId, amount = 1) {
   if (!enemyId) return;
+  if (typeof isBuildTestRun === "function" && isBuildTestRun()) return;
   if (!save.stats) save.stats = defaultAccountStats();
   if (!save.stats.enemyKills) save.stats.enemyKills = {};
   save.stats.enemyKills[enemyId] = (Number(save.stats.enemyKills[enemyId]) || 0) + amount;
@@ -565,8 +620,9 @@ function createRun(difficultyId, mode = "standard") {
   const themeId = getRandomThemeForDifficulty(difficultyId);
   const endless = mode === "endless";
   const buildTest = mode === "buildTest";
+  const gauntlet = mode === "gauntlet";
   return {
-    mode: buildTest ? "buildTest" : endless ? "endless" : "standard",
+    mode: gauntlet ? "gauntlet" : buildTest ? "buildTest" : endless ? "endless" : "standard",
     runId: `local-run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     runSeed: Math.floor(Math.random() * 1000000000),
     difficultyId,
@@ -597,9 +653,10 @@ function createRun(difficultyId, mode = "standard") {
     stagesCleared: 0,
     hero: null,
     buildTestSelections: buildTest ? { skills: {}, upgrades: {}, relics: {}, talents: {} } : null,
-    map: endless || buildTest ? [] : generateRunMap(themeId),
-    currentNodeId: endless || buildTest ? null : "s1-start",
-    chosenNodeIds: endless || buildTest ? [] : ["s1-start"],
+    gauntlet: gauntlet ? { opponent: null, challengeRank: null, pointsAwarded: 0, coinsAwarded: 0 } : null,
+    map: endless || buildTest || gauntlet ? [] : generateRunMap(themeId),
+    currentNodeId: endless || buildTest || gauntlet ? null : "s1-start",
+    chosenNodeIds: endless || buildTest || gauntlet ? [] : ["s1-start"],
     availableNodeIds: []
   };
 }
@@ -610,6 +667,10 @@ function isEndlessRun() {
 
 function isBuildTestRun() {
   return run && run.mode === "buildTest";
+}
+
+function isGauntletRun() {
+  return run && run.mode === "gauntlet";
 }
 
 function getRandomThemeForDifficulty(difficultyId) {

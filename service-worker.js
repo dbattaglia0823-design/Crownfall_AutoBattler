@@ -1,4 +1,4 @@
-const CACHE_VERSION = "crownfall-v15";
+const CACHE_VERSION = "crownfall-v19";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -9,6 +9,7 @@ const CORE_ASSETS = [
   "./js/state.js",
   "./js/ui.js",
   "./js/combat.js",
+  "./js/gauntlet.js",
   "./js/map.js",
   "./js/devtools.js",
   "./js/main.js",

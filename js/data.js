@@ -29,6 +29,21 @@ const ENEMY_SKIN_ESSENCE_COST = 150;
 // Change this path when you add a dedicated Eternal Crown sprite sheet.
 const ETERNAL_CROWN_SPRITE_SHEET = "assets/enemies/boss-sheet.png";
 
+const GAUNTLET_OPPONENT_DIFFICULTIES = [
+  { id: "sparring", name: "Sparring", statMultiplier: 0.82, points: 18, coins: 6 },
+  { id: "contender", name: "Contender", statMultiplier: 1, points: 28, coins: 9 },
+  { id: "veteran", name: "Veteran", statMultiplier: 1.22, points: 42, coins: 13 },
+  { id: "champion", name: "Champion", statMultiplier: 1.5, points: 62, coins: 18 }
+];
+
+const GAUNTLET_SHOP_UPGRADES = [
+  { id: "maxHp", name: "Tournament Vigor", description: "+18 max HP in Gauntlet battles.", cost: 18, maxLevel: 10, effect: { maxHp: 18 } },
+  { id: "damage", name: "Arena Edge", description: "+3 damage in Gauntlet battles.", cost: 20, maxLevel: 10, effect: { damage: 3 } },
+  { id: "armor", name: "Duel Plate", description: "+1 armor in Gauntlet battles.", cost: 16, maxLevel: 8, effect: { armor: 1 } },
+  { id: "attackSpeed", name: "Quick Bell", description: "+0.04 attack speed in Gauntlet battles.", cost: 22, maxLevel: 8, effect: { attackSpeed: 0.04 } },
+  { id: "crit", name: "Crowd Favorite", description: "+2% crit chance in Gauntlet battles.", cost: 24, maxLevel: 6, effect: { crit: 0.02 } }
+];
+
 const CLASSES = {
   knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 180, damage: 16, attackSpeed: 0.71, armor: 5, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
   rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed based on max HP.", hp: 135, damage: 13, attackSpeed: 1.16, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Max HP bleed"] },
@@ -637,6 +652,21 @@ const DIFFICULTIES = {
     themeIds: ["darkCastle"],
     layerEnemyMultipliers: [1, 1, 1],
     layerDamageMultipliers: [1, 1, 1]
+  },
+  gauntlet: {
+    name: "Gauntlet",
+    description: "A ranked 1v1 tournament ladder with its own coins, points, and shop upgrades.",
+    mode: "gauntlet",
+    enemyHealth: 1,
+    enemyDamage: 1,
+    stageHealthGrowth: 0,
+    stageDamageGrowth: 0,
+    armorGrowth: 5,
+    essenceMultiplier: 0,
+    enemyPool: ENEMIES,
+    themeIds: ["ruinedKeep", "warCamp", "darkCastle"],
+    layerEnemyMultipliers: [1, 1, 1],
+    layerDamageMultipliers: [1, 1, 1]
   }
 };
 
@@ -775,68 +805,69 @@ function multiplyArmor(hero, multiplier) {
 }
 
 const REWARDS = [
-  { name: "Sharpened Blade", rarity: "Common", text: "+10% hero damage", apply: hero => hero.damage *= 1.10 },
-  { name: "Battle Rhythm", rarity: "Common", text: "+10% attack speed", apply: hero => hero.attackSpeed *= 1.10 },
-  { name: "Iron Skin", rarity: "Common", text: "+10% armor", apply: hero => multiplyArmor(hero, 1.10) },
-  { name: "Leeching Edge", rarity: "Rare", text: "+3% life steal", apply: hero => hero.lifeSteal = (hero.lifeSteal || 0) + 0.03 },
-  { name: "Balanced Blade", rarity: "Common", text: "+10% damage", apply: hero => hero.damage *= 1.10 },
-  { name: "Hardy Bread", rarity: "Common", text: "+10% max HP", apply: hero => multiplyMaxHp(hero, 1.10) },
-  { name: "Quick Buckle", rarity: "Common", text: "+10% attack speed", apply: hero => hero.attackSpeed *= 1.10 },
+  { name: "Sharpened Blade", rarity: "Common", text: "+10% hero damage", apply: hero => hero.damage *= 1.1 },
+  { name: "Battle Rhythm", rarity: "Common", text: "+10% attack speed", apply: hero => hero.attackSpeed *= 1.1 },
+  { name: "Iron Skin", rarity: "Common", text: "+10% armor", apply: hero => multiplyArmor(hero, 1.1) },
+  { name: "Leeching Edge", rarity: "Rare", text: "+2% life steal", apply: hero => hero.lifeSteal = (hero.lifeSteal || 0) + 0.02 },
+  { name: "Balanced Blade", rarity: "Common", text: "+10% damage", apply: hero => hero.damage *= 1.1 },
+  { name: "Hardy Bread", rarity: "Common", text: "+8% max HP", apply: hero => multiplyMaxHp(hero, 1.08) },
+  { name: "Quick Buckle", rarity: "Common", text: "+8% attack speed", apply: hero => hero.attackSpeed *= 1.08 },
   { name: "Scout's Dice", rarity: "Common", text: "+2 Luck", apply: hero => hero.luck = (hero.luck || 0) + 2 },
-  { requiresNode: "unlock_starting_bonuses", name: "Prepared Camp", rarity: "Common", text: "Start future battles this run with +15 shield", apply: hero => hero.runStartShield = (hero.runStartShield || 0) + 15 },
-  { requiresNode: "unlock_starting_bonuses", name: "Opening Gambit", rarity: "Rare", text: "Gain +30 gold and +3 Luck", apply: hero => { run.gold += 30; hero.luck = (hero.luck || 0) + 3; } },
-  { name: "Triage Kit", rarity: "Common", text: "+10% max HP and +1 HP regen", apply: hero => { multiplyMaxHp(hero, 1.1, false); hero.regen = (hero.regen || 0) + 1; } },
+  { requiresNode: "unlock_starting_bonuses", name: "Prepared Camp", rarity: "Common", text: "Start future battles this run with +10 shield", apply: hero => hero.runStartShield = (hero.runStartShield || 0) + 10 },
+  { requiresNode: "unlock_starting_bonuses", name: "Opening Gambit", rarity: "Rare", text: "Gain +20 gold and +2 Luck", apply: hero => { run.gold += 20; hero.luck = (hero.luck || 0) + 2; } },
+  { name: "Triage Kit", rarity: "Common", text: "+8% max HP and +1 HP regen", apply: hero => { multiplyMaxHp(hero, 1.08, false); hero.regen = (hero.regen || 0) + 1; } },
   { name: "Risky Footwork", rarity: "Common", text: "+15% attack speed, -15% armor", apply: hero => { hero.attackSpeed *= 1.15; multiplyArmor(hero, 0.85); } },
-  { name: "Vitality Draught", rarity: "Rare", text: "+20% max HP", apply: hero => multiplyMaxHp(hero, 1.20, false) },
-  { name: "Lucky Charm", rarity: "Rare", text: "+10% crit chance", apply: hero => hero.crit += 0.1 },
-  { name: "Knightly Edge", rarity: "Rare", text: "+18% damage", apply: hero => hero.damage *= 1.18 },
-  { name: "Oakheart Tonic", rarity: "Rare", text: "+18% max HP", apply: hero => multiplyMaxHp(hero, 1.18) },
-  { name: "Clockwork Grip", rarity: "Rare", text: "+18% attack speed", apply: hero => hero.attackSpeed *= 1.18 },
-  { name: "Royal Purse", rarity: "Common", text: "+50 gold", apply: () => run.gold += 50 },
-  { name: "Field Medic", rarity: "Rare", text: "+12% max HP and +10% armor", apply: hero => { multiplyMaxHp(hero, 1.12, false); multiplyArmor(hero, 1.10); } },
-  { name: "Gilded Compass", rarity: "Rare", text: "+3 Luck and +30 gold", apply: hero => { hero.luck = (hero.luck || 0) + 3; run.gold += 30; } },
-  { name: "Barbed Buckler", rarity: "Rare", text: "+20% armor and +8% crit chance", apply: hero => { multiplyArmor(hero, 1.20); hero.crit += 0.08; } },
-  { name: "Glass Canon", rarity: "Rare", text: "+25% damage, -15% max HP", apply: hero => { hero.damage *= 1.25; multiplyMaxHp(hero, 0.85, false); } },
-  { name: "War Training", rarity: "Epic", text: "+20% damage and +10% max HP", apply: hero => { hero.damage *= 1.2; multiplyMaxHp(hero, 1.1, false); } },
-  { name: "Runed Greatblade", rarity: "Epic", text: "+32% damage", apply: hero => hero.damage *= 1.32 },
-  { name: "Giant's Supper", rarity: "Epic", text: "+32% max HP", apply: hero => multiplyMaxHp(hero, 1.32) },
-  { name: "Silver Reflexes", rarity: "Epic", text: "+28% attack speed", apply: hero => hero.attackSpeed *= 1.28 },
-  { name: "Fortune's Edge", rarity: "Epic", text: "+20% damage, +8% crit chance, +2 Luck", apply: hero => { hero.damage *= 1.2; hero.crit += 0.08; hero.luck = (hero.luck || 0) + 2; } },
-  { name: "Iron Momentum", rarity: "Epic", text: "+25% armor and +18% attack speed", apply: hero => { multiplyArmor(hero, 1.25); hero.attackSpeed *= 1.18; } },
-  { name: "Vampiric Training", rarity: "Epic", text: "+22% damage and +2 HP regen", apply: hero => { hero.damage *= 1.22; hero.regen = (hero.regen || 0) + 2; } },
-  { name: "Kingslayer Edge", rarity: "Legendary", text: "Crown-forged: +45% damage and +10% crit chance", apply: hero => { hero.damage *= 1.45; hero.crit += 0.1; } },
-  { name: "Titan Plate", rarity: "Legendary", text: "Ancient royal plate: +40% armor and +22% max HP", apply: hero => { multiplyArmor(hero, 1.4); multiplyMaxHp(hero, 1.22, false); } },
-  { name: "Eternal Edge", rarity: "Legendary", text: "A blade with a name of its own: +45% damage", apply: hero => hero.damage *= 1.45 },
-  { name: "Colossus Heart", rarity: "Legendary", text: "A thunderous second heartbeat: +45% max HP", apply: hero => multiplyMaxHp(hero, 1.45) },
-  { name: "Chrono Spurs", rarity: "Legendary", text: "Time buckles under each step: +42% attack speed", apply: hero => hero.attackSpeed *= 1.42 },
-  { name: "Storm Tempo", rarity: "Epic", text: "+32% attack speed", apply: hero => hero.attackSpeed *= 1.32 },
-  { name: "Battle Renewal", rarity: "Epic", text: "+5 HP regen while in battle", apply: hero => hero.regen = (hero.regen || 0) + 5 },
-  { name: "Sovereign Star", rarity: "Legendary", text: "A fate-lit royal charm: +6 Luck, +15% crit chance, +60 gold", apply: hero => { hero.luck = (hero.luck || 0) + 6; hero.crit += 0.15; run.gold += 60; } },
-  { name: "Living Aegis", rarity: "Legendary", text: "A shield that remembers kings: +40% armor, +20% max HP, +2 HP regen", apply: hero => { multiplyArmor(hero, 1.4); multiplyMaxHp(hero, 1.2, false); hero.regen = (hero.regen || 0) + 2; } },
+  { name: "Vitality Draught", rarity: "Rare", text: "+14% max HP", apply: hero => multiplyMaxHp(hero, 1.14, false) },
+  { name: "Lucky Charm", rarity: "Rare", text: "+6% crit chance", apply: hero => hero.crit += 0.06 },
+  { name: "Knightly Edge", rarity: "Rare", text: "+15% damage", apply: hero => hero.damage *= 1.15 },
+  { name: "Oakheart Tonic", rarity: "Rare", text: "+16% max HP", apply: hero => multiplyMaxHp(hero, 1.16) },
+  { name: "Clockwork Grip", rarity: "Rare", text: "+14% attack speed", apply: hero => hero.attackSpeed *= 1.14 },
+  { name: "Royal Purse", rarity: "Common", text: "+35 gold", apply: () => run.gold += 35 },
+  { name: "Field Medic", rarity: "Rare", text: "+8% max HP and +10% armor", apply: hero => { multiplyMaxHp(hero, 1.08, false); multiplyArmor(hero, 1.1); } },
+  { name: "Gilded Compass", rarity: "Rare", text: "+2 Luck and +20 gold", apply: hero => { hero.luck = (hero.luck || 0) + 2; run.gold += 20; } },
+  { name: "Barbed Buckler", rarity: "Rare", text: "+15% armor and +5% crit chance", apply: hero => { multiplyArmor(hero, 1.15); hero.crit += 0.05; } },
+  { name: "Glass Canon", rarity: "Rare", text: "+20% damage, -12% max HP", apply: hero => { hero.damage *= 1.2; multiplyMaxHp(hero, 0.88, false); } },
+  { name: "War Training", rarity: "Epic", text: "+14% damage and +8% max HP", apply: hero => { hero.damage *= 1.14; multiplyMaxHp(hero, 1.08, false); } },
+  { name: "Runed Greatblade", rarity: "Epic", text: "+24% damage", apply: hero => hero.damage *= 1.24 },
+  { name: "Giant's Supper", rarity: "Epic", text: "+24% max HP", apply: hero => multiplyMaxHp(hero, 1.24) },
+  { name: "Silver Reflexes", rarity: "Epic", text: "+20% attack speed", apply: hero => hero.attackSpeed *= 1.2 },
+  { name: "Fortune's Edge", rarity: "Epic", text: "+14% damage, +5% crit chance, +1 Luck", apply: hero => { hero.damage *= 1.14; hero.crit += 0.05; hero.luck = (hero.luck || 0) + 1; } },
+  { name: "Iron Momentum", rarity: "Epic", text: "+16% armor and +12% attack speed", apply: hero => { multiplyArmor(hero, 1.16); hero.attackSpeed *= 1.12; } },
+  { name: "Vampiric Training", rarity: "Epic", text: "+15% damage and +1 HP regen", apply: hero => { hero.damage *= 1.15; hero.regen = (hero.regen || 0) + 1; } },
+  { name: "Kingslayer Edge", rarity: "Legendary", text: "Crown-forged: +35% damage and +6% crit chance", apply: hero => { hero.damage *= 1.35; hero.crit += 0.06; } },
+  { name: "Titan Plate", rarity: "Legendary", text: "Ancient royal plate: +35% armor and +16% max HP", apply: hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.16, false); } },
+  { name: "Eternal Edge", rarity: "Legendary", text: "A blade with a name of its own: +35% damage", apply: hero => hero.damage *= 1.35 },
+  { name: "Colossus Heart", rarity: "Legendary", text: "A thunderous second heartbeat: +35% max HP", apply: hero => multiplyMaxHp(hero, 1.35) },
+  { name: "Chrono Spurs", rarity: "Legendary", text: "Time buckles under each step: +32% attack speed", apply: hero => hero.attackSpeed *= 1.32 },
+  { name: "Storm Tempo", rarity: "Epic", text: "+22% attack speed", apply: hero => hero.attackSpeed *= 1.22 },
+  { name: "Battle Renewal", rarity: "Epic", text: "+3 HP regen while in battle", apply: hero => hero.regen = (hero.regen || 0) + 3 },
+  { name: "Sovereign Star", rarity: "Legendary", text: "A fate-lit royal charm: +4 Luck, +10% crit chance, +40 gold", apply: hero => { hero.luck = (hero.luck || 0) + 4; hero.crit += 0.1; run.gold += 40; } },
+  { name: "Living Aegis", rarity: "Legendary", text: "A shield that remembers kings: +35% armor, +12% max HP, +1 HP regen", apply: hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.12, false); hero.regen = (hero.regen || 0) + 1; } },
 
-  { classId: "knight", name: "Shield Drill", rarity: "Common", text: "Knight only: start each battle with +25 shield", apply: hero => hero.runStartShield = (hero.runStartShield || 0) + 25 },
-  { classId: "knight", name: "Plate Fitting", rarity: "Common", text: "Knight only: +12% armor and +10% max HP", apply: hero => { multiplyArmor(hero, 1.12); multiplyMaxHp(hero, 1.1, false); } },
-  { classId: "knight", name: "Guard Stance", rarity: "Rare", text: "Knight only: +8% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.08 },
-  { classId: "knight", name: "Shield Timing", rarity: "Common", text: "Knight only: +4% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.04 },
-  { classId: "knight", name: "Bulwark Drill", rarity: "Rare", text: "Knight only: +10% block chance and +15 shield each battle", apply: hero => { hero.runBlockChance = (hero.runBlockChance || 0) + 0.1; hero.runStartShield = (hero.runStartShield || 0) + 15; } },
-  { classId: "knight", name: "Spiked Shield", rarity: "Rare", text: "Knight only: blocked damage retaliates for 20%", apply: hero => hero.runRetaliateBlock = (hero.runRetaliateBlock || 0) + 0.2 },
-  { classId: "knight", name: "Unbroken Vow", rarity: "Epic", text: "Knight only: +25% max HP and +25 shield each battle", apply: hero => { multiplyMaxHp(hero, 1.25, false); hero.runStartShield = (hero.runStartShield || 0) + 25; } },
-  { classId: "knight", name: "Castle Guard", rarity: "Epic", text: "Knight only: +16% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.16 },
-  { classId: "knight", name: "Royal Bastion", rarity: "Legendary", text: "Knight only: a king's last wall. +40% armor, +4 armor, and +20% max HP", apply: hero => { multiplyArmor(hero, 1.4); hero.armor += 4; multiplyMaxHp(hero, 1.2, false); } },
+  { classId: "knight", name: "Shield Drill", rarity: "Common", text: "Knight only: start each battle with +12 shield", apply: hero => hero.runStartShield = (hero.runStartShield || 0) + 12 },
+  { classId: "knight", name: "Plate Fitting", rarity: "Common", text: "Knight only: +12% armor and +6% max HP", apply: hero => { multiplyArmor(hero, 1.12); multiplyMaxHp(hero, 1.06, false); } },
+  { classId: "knight", name: "Guard Stance", rarity: "Rare", text: "Knight only: +5% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.05 },
+  { classId: "knight", name: "Shield Timing", rarity: "Common", text: "Knight only: +3% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.03 },
+  { classId: "knight", name: "Bulwark Drill", rarity: "Rare", text: "Knight only: +6% block chance and +10 shield each battle", apply: hero => { hero.runBlockChance = (hero.runBlockChance || 0) + 0.06; hero.runStartShield = (hero.runStartShield || 0) + 10; } },
+  { classId: "knight", name: "Spiked Shield", rarity: "Rare", text: "Knight only: blocked damage retaliates for 12%", apply: hero => hero.runRetaliateBlock = (hero.runRetaliateBlock || 0) + 0.12 },
+  { classId: "knight", name: "Unbroken Vow", rarity: "Epic", text: "Knight only: +14% max HP and +15 shield each battle", apply: hero => { multiplyMaxHp(hero, 1.14, false); hero.runStartShield = (hero.runStartShield || 0) + 15; } },
+  { classId: "knight", name: "Castle Guard", rarity: "Epic", text: "Knight only: +10% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.1 },
+  { classId: "knight", name: "Royal Bastion", rarity: "Legendary", text: "Knight only: +28% armor, +2 armor, and +16% max HP", apply: hero => { multiplyArmor(hero, 1.28); hero.armor += 2; multiplyMaxHp(hero, 1.16, false); } },
 
-  { classId: "rogue", name: "Serrated Oil", rarity: "Common", text: "Rogue only: +15% max HP bleed damage", apply: hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.15 },
-  { classId: "rogue", name: "Quickstep", rarity: "Common", text: "Rogue only: +12% attack speed and +3% evasion", apply: hero => { hero.attackSpeed *= 1.12; hero.runEvasion = (hero.runEvasion || 0) + 0.03; } },
-  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", text: "Rogue only: +25% max HP bleed damage", apply: hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.25 },
-  { classId: "rogue", name: "Assassin's Eye", rarity: "Rare", text: "Rogue only: +12% crit chance and +15% execute damage", apply: hero => { hero.crit += 0.12; hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.15; } },
-  { classId: "rogue", name: "Blood Rush", rarity: "Epic", text: "Rogue only: +50% max HP bleed damage and +8% attack speed after bleeding a new target", apply: hero => { hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.5; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.08; } },
-  { classId: "rogue", name: "Deathblow Contract", rarity: "Legendary", text: "Rogue only: enemies below 40% HP take +45% execute damage", apply: hero => { hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.45; hero.runExecuteThreshold = Math.max(hero.runExecuteThreshold || 0, 0.4); } },
+  { classId: "rogue", name: "Serrated Oil", rarity: "Common", text: "Rogue only: +0.2% max HP bleed damage per second", apply: hero => hero.runBleedMaxHpPercent = (hero.runBleedMaxHpPercent || 0) + 0.002 },
+  { classId: "rogue", name: "Quickstep", rarity: "Common", text: "Rogue only: +8% attack speed and +2% evasion", apply: hero => { hero.attackSpeed *= 1.08; hero.runEvasion = (hero.runEvasion || 0) + 0.02; } },
+  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", text: "Rogue only: +0.35% max HP bleed damage per second", apply: hero => hero.runBleedMaxHpPercent = (hero.runBleedMaxHpPercent || 0) + 0.0035 },
+  { classId: "rogue", name: "Assassin's Eye", rarity: "Rare", text: "Rogue only: +8% crit chance and +10% execute damage", apply: hero => { hero.crit += 0.08; hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.1; } },
+  { classId: "rogue", name: "Blood Rush", rarity: "Epic", text: "Rogue only: +0.5% max HP bleed damage per second and +5% attack speed after bleeding a new target", apply: hero => { hero.runBleedMaxHpPercent = (hero.runBleedMaxHpPercent || 0) + 0.005; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.05; } },
+  { classId: "rogue", name: "Deathblow Contract", rarity: "Legendary", text: "Rogue only: enemies below 40% HP take +30% execute damage", apply: hero => { hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.3; hero.runExecuteThreshold = Math.max(hero.runExecuteThreshold || 0, 0.4); } },
 
-  { classId: "wizard", name: "Kindling Rune", rarity: "Common", text: "Wizard only: +15% burn chance", apply: hero => hero.runBurnChance = (hero.runBurnChance || 0) + 0.15 },
-  { classId: "wizard", name: "Arcane Focus", rarity: "Common", text: "Wizard only: +12% damage and +8% splash damage", apply: hero => { hero.damage *= 1.12; hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.08; } },
-  { classId: "wizard", name: "Frost Thread", rarity: "Rare", text: "Wizard only: attacks gain +15% chance to slow by 20% for 3.5s", apply: hero => hero.runSlowChance = (hero.runSlowChance || 0) + 0.15 },
-  { classId: "wizard", name: "Mana Ward", rarity: "Rare", text: "Wizard only: splash grants +25 shield", apply: hero => hero.runSplashShield = (hero.runSplashShield || 0) + 25 },
-  { classId: "wizard", name: "Chain Spell", rarity: "Epic", text: "Wizard only: +18% splash damage", apply: hero => hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.18 },
-  { classId: "wizard", name: "Inferno Thesis", rarity: "Legendary", text: "Wizard only: +8 burn damage per second and burning enemies take +25% damage", apply: hero => { hero.runBurnDamage = (hero.runBurnDamage || 0) + 8; hero.runBurningEnemyDamage = (hero.runBurningEnemyDamage || 0) + 0.25; } },
+  { classId: "wizard", name: "Kindling Rune", rarity: "Common", text: "Wizard only: +10% burn chance", apply: hero => hero.runBurnChance = (hero.runBurnChance || 0) + 0.1 },
+  { classId: "wizard", name: "Arcane Focus", rarity: "Common", text: "Wizard only: +10% damage and +5% splash damage", apply: hero => { hero.damage *= 1.1; hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.05; } },
+  { classId: "wizard", name: "Frost Thread", rarity: "Rare", text: "Wizard only: attacks gain +10% chance to slow by 20% for 3.5s", apply: hero => hero.runSlowChance = (hero.runSlowChance || 0) + 0.1 },
+  { classId: "wizard", name: "Mana Ward", rarity: "Rare", text: "Wizard only: splash grants +9 shield", apply: hero => hero.runSplashShield = (hero.runSplashShield || 0) + 9 },
+  { classId: "wizard", name: "Scorching Brand", rarity: "Rare", text: "Wizard only: burn deals +0.25% max HP damage per second", apply: hero => hero.runBurnMaxHpPercent = (hero.runBurnMaxHpPercent || 0) + 0.0025 },
+  { classId: "wizard", name: "Chain Spell", rarity: "Epic", text: "Wizard only: +12% splash damage", apply: hero => hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.12 },
+  { classId: "wizard", name: "Inferno Thesis", rarity: "Legendary", text: "Wizard only: +5 burn damage per second and burning enemies take +16% damage", apply: hero => { hero.runBurnDamage = (hero.runBurnDamage || 0) + 5; hero.runBurningEnemyDamage = (hero.runBurningEnemyDamage || 0) + 0.16; } },
 
   { requiresAbility: "wizard_curse", name: "Cruel Hex", rarity: "Rare", text: "Curse lasts +1.5s and cursed enemies take an extra +6% damage.", apply: hero => { hero.runCurseDuration = (hero.runCurseDuration || 0) + 1.5; hero.runCurseDamageTaken = (hero.runCurseDamageTaken || 0) + 0.06; } },
   { requiresAbility: "wizard_iceball", name: "Packed Ice", rarity: "Rare", text: "Iceball deals +20% damage and lasts +1s longer.", apply: hero => { hero.runIceballDamage = (hero.runIceballDamage || 0) + 0.2; hero.runIceballDuration = (hero.runIceballDuration || 0) + 1; } },
@@ -844,6 +875,7 @@ const REWARDS = [
   { requiresAbility: "rogue_poison", name: "Toxic Reservoir", rarity: "Rare", text: "Poison special deals +6 damage per second.", apply: hero => hero.runPoisonAbilityDamage = (hero.runPoisonAbilityDamage || 0) + 6 },
   { requiresAbility: "rogue_bleed", name: "Barbed Trap", rarity: "Rare", text: "Trap slow increases from 28% to 36%.", apply: hero => hero.runTrapSlow = (hero.runTrapSlow || 0) + 0.08 },
   { requiresAbility: "rogue_burn", name: "Pitch Powder", rarity: "Rare", text: "Burn special lasts +1.5s longer.", apply: hero => hero.runBurnAbilityDuration = (hero.runBurnAbilityDuration || 0) + 1.5 },
+  { requiresAbility: "rogue_burn", name: "Charcoal Powder", rarity: "Rare", text: "Burn special deals +4 damage and +0.25% max HP damage per second.", apply: hero => { hero.runBurnDamage = (hero.runBurnDamage || 0) + 4; hero.runBurnMaxHpPercent = (hero.runBurnMaxHpPercent || 0) + 0.0025; } },
   { requiresAbility: "knight_heavy_attack", name: "Crushing Windup", rarity: "Rare", text: "Heavy Attack deals +6% max HP damage.", apply: hero => hero.runHeavyAttackMaxHpDamage = (hero.runHeavyAttackMaxHpDamage || 0) + 0.06 },
   { requiresAbility: "knight_holy_sword", name: "Long Benediction", rarity: "Epic", text: "Holy Sword empowers +1 additional hit.", apply: hero => hero.runHolySwordHits = (hero.runHolySwordHits || 0) + 1 },
   { requiresAbility: "knight_holy_shield", name: "Consecrated Guard", rarity: "Rare", text: "Holy Shield protects against +1 additional enemy hit.", apply: hero => hero.runHolyShieldHits = (hero.runHolyShieldHits || 0) + 1 },
@@ -853,7 +885,7 @@ const REWARDS = [
   { classId: "wizard", requiresNode: "wizard_lightning_unlock", abilityId: "wizard_lightning", name: "Storm Sigil", rarity: "Mythic", text: "Unlock Lightning: 2s cooldown, hits 3 enemies for 90%/75%/60% damage", apply: hero => grantRunAbility(hero, "wizard_lightning") },
   { classId: "rogue", requiresNode: "rogue_poison_unlock", abilityId: "rogue_poison", name: "Poison Vials", rarity: "Mythic", text: "Unlock Poison: 2.8s cooldown, 4.5s duration, 9 + 0.75 per stage DPS", apply: hero => grantRunAbility(hero, "rogue_poison") },
   { classId: "rogue", requiresNode: "rogue_bleed_unlock", abilityId: "rogue_bleed", name: "Snare Kit", rarity: "Mythic", text: "Unlock Trap: 2.5s cooldown, slows all enemies by 28% for 4s and makes Rogue deal +8% damage to slowed enemies", apply: hero => grantRunAbility(hero, "rogue_bleed") },
-  { classId: "rogue", requiresNode: "rogue_burn_unlock", abilityId: "rogue_burn", name: "Fire Powder", rarity: "Mythic", text: "Unlock Burn: 2.2s cooldown, 3.5s duration, 7 + 0.55 per stage DPS", apply: hero => grantRunAbility(hero, "rogue_burn") },
+  { classId: "rogue", requiresNode: "rogue_burn_unlock", abilityId: "rogue_burn", name: "Fire Powder", rarity: "Mythic", text: "Unlock Burn: 2.2s cooldown, 3.5s duration, stacks on one enemy, 7 + 0.55 per stage DPS", apply: hero => grantRunAbility(hero, "rogue_burn") },
   { classId: "knight", requiresNode: "knight_heavy_attack_unlock", abilityId: "knight_heavy_attack", name: "Weighted Pommel", rarity: "Mythic", text: "Unlock Heavy Attack: 3s cooldown, deals 25% max HP damage", apply: hero => grantRunAbility(hero, "knight_heavy_attack") },
   { classId: "knight", requiresNode: "knight_holy_sword_unlock", abilityId: "knight_holy_sword", name: "Blessed Oil", rarity: "Mythic", text: "Unlock Holy Sword: 4s cooldown, next 3 hits deal +50% damage", apply: hero => grantRunAbility(hero, "knight_holy_sword") },
   { classId: "knight", requiresNode: "knight_holy_shield_unlock", abilityId: "knight_holy_shield", name: "Sunlit Bulwark", rarity: "Mythic", text: "Unlock Holy Shield: 5s cooldown, +50% armor for next 2 enemy hits", apply: hero => grantRunAbility(hero, "knight_holy_shield") }
@@ -879,178 +911,54 @@ const SHOP_ITEMS = [
 ];
 
 const RELICS = [
-  { id: "wolf_fang", name: "Wolf Fang", description: "+13% damage.", rarity: "Common", icon: "WF", effect: { type: "stat", stat: "damageMultiplier", value: 0.1 } },
-  { id: "plain_whetstone", name: "Plain Whetstone", description: "+16% damage.", rarity: "Common", icon: "PW", effect: { type: "stat", stat: "damageMultiplier", value: 0.12 } },
-  { id: "traveler_brooch", name: "Traveler Brooch", description: "+10% max HP.", rarity: "Common", icon: "TB", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.1 } },
-  { id: "quick_clasp", name: "Quick Clasp", description: "+12% attack speed.", rarity: "Common", icon: "QC", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.1 } },
-  { id: "iron_crown", name: "Iron Crown", description: "+15% armor.", rarity: "Common", icon: "IC", effect: { type: "stat", stat: "armorMultiplier", value: 0.15 } },
-  { id: "blood_chalice", name: "Blood Chalice", description: "+3 HP regen while in battle.", rarity: "Rare", icon: "BC", effect: { type: "stat", stat: "regen", value: 3 } },
-  { id: "duelist_charm", name: "Duelist Charm", description: "+20% damage.", rarity: "Rare", icon: "DC", effect: { type: "stat", stat: "damageMultiplier", value: 0.2 } },
-  { id: "lion_cloak", name: "Lion Cloak", description: "+18% max HP.", rarity: "Rare", icon: "LC", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.18 } },
-  { id: "silver_gear", name: "Silver Gear", description: "+18% attack speed.", rarity: "Rare", icon: "SG", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.18 } },
-  { id: "ember_ring", name: "Ember Ring", description: "Critical hits deal +50% damage.", rarity: "Rare", icon: "ER", effect: { type: "critBonus", value: 0.5 } },
-  { id: "war_drum", name: "War Drum", description: "+12% attack speed.", rarity: "Common", icon: "WD", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.12 } },
-  { id: "old_coin", name: "Old Coin", description: "Gain +15 gold after each battle.", rarity: "Common", icon: "OC", effect: { type: "afterBattleGold", value: 15 } },
-  { id: "clover_pin", name: "Clover Pin", description: "+2 Luck.", rarity: "Common", icon: "CP", effect: { type: "stat", stat: "luck", value: 2 } },
-  { id: "glass_dagger", name: "Glass Dagger", description: "+25% damage, -10% max HP.", rarity: "Rare", icon: "GD", effect: { type: "glassDagger", damageMultiplier: 0.25, maxHpMultiplier: -0.1 } },
-  { id: "guardian_seal", name: "Guardian Seal", description: "First enemy hit each battle deals 30% less damage.", rarity: "Rare", icon: "GS", effect: { type: "firstHitReduction", value: 0.3 } },
-  { id: "red_crown_splinter", requiresNode: "unlock_relics", name: "Red Crown Splinter", description: "+18% damage.", rarity: "Epic", icon: "RC", effect: { type: "stat", stat: "damageMultiplier", value: 0.18 } },
-  { id: "merchant_seal", requiresNode: "unlock_relics", name: "Merchant Seal", description: "Gain +30 gold after each battle.", rarity: "Rare", icon: "MS", effect: { type: "afterBattleGold", value: 30 } },
-  { id: "dawn_banner", requiresNode: "unlock_relics", name: "Dawn Banner", description: "Start each battle with +35 shield.", rarity: "Epic", icon: "DB", effect: { type: "stat", stat: "blockChance", value: 0, battleStartShield: 35 } },
-  { id: "scholars_rune", name: "Scholar's Rune", description: "+10% Essence earned.", rarity: "Rare", icon: "SR", effect: { type: "essenceMultiplier", value: 0.1 } },
-  { id: "oracle_lens", name: "Oracle Lens", description: "+4 Luck and +5% crit chance.", rarity: "Rare", icon: "OL", effect: { type: "stat", stat: "luck", value: 4, critChance: 0.05 } },
-  { id: "hunters_mark", name: "Hunter's Mark", description: "+12% damage.", rarity: "Epic", icon: "HM", effect: { type: "stat", stat: "damageMultiplier", value: 0.12 } },
-  { id: "executioners_file", name: "Executioner's File", description: "+32% damage.", rarity: "Epic", icon: "EF", effect: { type: "stat", stat: "damageMultiplier", value: 0.32 } },
-  { id: "giant_knot", name: "Giant Knot", description: "+30% max HP.", rarity: "Epic", icon: "GK", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.3 } },
-  { id: "storm_buckle", name: "Storm Buckle", description: "+28% attack speed.", rarity: "Epic", icon: "SB", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.28 } },
-  { id: "silver_spur", name: "Silver Spur", description: "+75 gold immediately.", rarity: "Common", icon: "SS", effect: { type: "gold", value: 75 } },
-  { id: "sun_amulet", name: "Sun Amulet", description: "+22% max HP.", rarity: "Epic", icon: "SA", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.22 } },
-  { id: "fate_deck", name: "Fate Deck", description: "+6 Luck.", rarity: "Epic", icon: "FD", effect: { type: "stat", stat: "luck", value: 6 } },
-  { id: "dragon_heart", name: "Dragon Heart", description: "A living ember beats in your chest. +28% max HP and +2 HP regen.", rarity: "Legendary", icon: "DH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.28, regen: 2 } },
-  { id: "sunforged_edge", name: "Sunforged Edge", description: "A royal killing edge. +45% damage.", rarity: "Legendary", icon: "SE", effect: { type: "stat", stat: "damageMultiplier", value: 0.45 } },
-  { id: "titan_heart", name: "Titan Heart", description: "A mountain's pulse. +55% max HP.", rarity: "Legendary", icon: "TH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.55 } },
-  { id: "hourglass_chain", name: "Hourglass Chain", description: "The second hand snaps forward. +35% attack speed.", rarity: "Legendary", icon: "HC", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.35 } },
-  { id: "starforged_blade", name: "Starforged Blade", description: "A weapon bright enough to cut fate. +30% damage.", rarity: "Legendary", icon: "SB", effect: { type: "stat", stat: "damageMultiplier", value: 0.3 } },
-  { id: "crown_of_chance", name: "Crown of Chance", description: "The crown smiles on impossible odds. +7 Luck and +8% Essence earned.", rarity: "Legendary", icon: "CC", effect: { type: "stat", stat: "luck", value: 7, essenceMultiplier: 0.08 } },
-  { id: "phoenix_ember", name: "Phoenix Ember", description: "A reborn flame drives your strikes. +20% attack speed and +7% crit chance.", rarity: "Legendary", icon: "PE", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.2, critChance: 0.07 } },
-  { id: "blood_grail", name: "Blood Grail", description: "+5% life steal.", rarity: "Epic", icon: "BG", effect: { type: "stat", stat: "lifeSteal", value: 0.05 } },
-  { id: "tower_shield", classId: "knight", name: "Tower Shield", description: "+8% block chance.", rarity: "Rare", icon: "TS", effect: { type: "stat", stat: "blockChance", value: 0.08 } },
-  { id: "oathguard_emblem", classId: "knight", name: "Oathguard Emblem", description: "+12% block chance and +8% max HP.", rarity: "Epic", icon: "OE", effect: { type: "stat", stat: "blockChance", value: 0.12, maxHpMultiplier: 0.08 } },
-  { id: "kingwall_sigil", classId: "knight", name: "Kingwall Sigil", description: "A royal ward for standing firm. +16% block chance.", rarity: "Legendary", icon: "KS", effect: { type: "stat", stat: "blockChance", value: 0.16 } },
-  { id: "storm_capacitor", name: "Storm Capacitor", description: "Lightning special deals +20% damage.", rarity: "Epic", icon: "SC", requiresAbility: "wizard_lightning", effect: { type: "abilityStat", stat: "runLightningDamage", value: 0.2 } },
-  { id: "frost_core", name: "Frost Core", description: "Iceball special slows enemies by an extra 8%.", rarity: "Rare", icon: "FC", requiresAbility: "wizard_iceball", effect: { type: "abilityStat", stat: "runIceballSlow", value: 0.08 } },
-  { id: "trapwire_spool", name: "Trapwire Spool", description: "Trap special lasts +1.5s longer.", rarity: "Rare", icon: "TS", requiresAbility: "rogue_bleed", effect: { type: "abilityStat", stat: "runTrapDuration", value: 1.5 } },
-  { id: "holy_reliquary", name: "Holy Reliquary", description: "Holy Sword and Holy Shield cooldowns are 12% shorter.", rarity: "Epic", icon: "HR", requiresAnyAbility: ["knight_holy_sword", "knight_holy_shield"], effect: { type: "abilityStat", stat: "runHolyCooldownReduction", value: 0.12 } },
-  { id: "campaign_heart", name: "Campaign Heart", description: "Gain +3% max HP after each stage defeated.", rarity: "Legendary", icon: "CH", effect: { type: "stageGrowth", stat: "maxHpMultiplier", value: 0.03 } },
-  { id: "campaign_blade", name: "Campaign Blade", description: "Gain +3% damage after each stage defeated.", rarity: "Legendary", icon: "CB", effect: { type: "stageGrowth", stat: "damageMultiplier", value: 0.03 } },
-  { id: "campaign_spurs", name: "Campaign Spurs", description: "Gain +2% attack speed after each stage defeated.", rarity: "Legendary", icon: "CS", effect: { type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.02 } },
-  { id: "campaign_plate", name: "Campaign Plate", description: "Gain +3% armor after each stage defeated.", rarity: "Legendary", icon: "CP", effect: { type: "stageGrowth", stat: "armorMultiplier", value: 0.03 } },
-  { id: "moonlit_armor", name: "Moonlit Armor", description: "+65% armor and +14% max HP.", rarity: "Epic", icon: "MA", effect: { type: "stat", stat: "armorMultiplier", value: 0.65, maxHpMultiplier: 0.14 } }
+  { id: "wolf_fang", name: "Wolf Fang", description: "+15% damage.", rarity: "Common", icon: "WF", effect: { type: "stat", stat: "damageMultiplier", value: 0.15 } },
+  { id: "plain_whetstone", name: "Plain Whetstone", description: "+15% damage.", rarity: "Common", icon: "PW", effect: { type: "stat", stat: "damageMultiplier", value: 0.15 } },
+  { id: "traveler_brooch", name: "Traveler Brooch", description: "+12% max HP.", rarity: "Common", icon: "TB", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.12 } },
+  { id: "quick_clasp", name: "Quick Clasp", description: "+15% attack speed.", rarity: "Common", icon: "QC", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.15 } },
+  { id: "iron_crown", name: "Iron Crown", description: "+20% armor.", rarity: "Common", icon: "IC", effect: { type: "stat", stat: "armorMultiplier", value: 0.2 } },
+  { id: "blood_chalice", name: "Blood Chalice", description: "+5 HP regen while in battle.", rarity: "Rare", icon: "BC", effect: { type: "stat", stat: "regen", value: 5 } },
+  { id: "duelist_charm", name: "Duelist Charm", description: "+25% damage.", rarity: "Rare", icon: "DC", effect: { type: "stat", stat: "damageMultiplier", value: 0.25 } },
+  { id: "lion_cloak", name: "Lion Cloak", description: "+24% max HP.", rarity: "Rare", icon: "LC", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.24 } },
+  { id: "silver_gear", name: "Silver Gear", description: "+22% attack speed.", rarity: "Rare", icon: "SG", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.22 } },
+  { id: "ember_ring", name: "Ember Ring", description: "Critical hits deal +75% damage.", rarity: "Rare", icon: "ER", effect: { type: "critBonus", value: 0.75 } },
+  { id: "war_drum", name: "War Drum", description: "+15% attack speed.", rarity: "Common", icon: "WD", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.15 } },
+  { id: "old_coin", name: "Old Coin", description: "Gain +30 gold after each battle.", rarity: "Common", icon: "OC", effect: { type: "afterBattleGold", value: 30 } },
+  { id: "clover_pin", name: "Clover Pin", description: "+3 Luck.", rarity: "Common", icon: "CP", effect: { type: "stat", stat: "luck", value: 3 } },
+  { id: "glass_dagger", name: "Glass Dagger", description: "+32% damage, -10% max HP.", rarity: "Rare", icon: "GD", effect: { type: "glassDagger", damageMultiplier: 0.32, maxHpMultiplier: -0.1 } },
+  { id: "guardian_seal", name: "Guardian Seal", description: "First enemy hit each battle deals 40% less damage.", rarity: "Rare", icon: "GS", effect: { type: "firstHitReduction", value: 0.4 } },
+  { id: "red_crown_splinter", requiresNode: "unlock_relics", name: "Red Crown Splinter", description: "+35% damage.", rarity: "Epic", icon: "RC", effect: { type: "stat", stat: "damageMultiplier", value: 0.35 } },
+  { id: "merchant_seal", requiresNode: "unlock_relics", name: "Merchant Seal", description: "Gain +50 gold after each battle.", rarity: "Rare", icon: "MS", effect: { type: "afterBattleGold", value: 50 } },
+  { id: "dawn_banner", requiresNode: "unlock_relics", name: "Dawn Banner", description: "Start each battle with +50 shield.", rarity: "Epic", icon: "DB", effect: { type: "stat", stat: "blockChance", value: 0, battleStartShield: 50 } },
+  { id: "scholars_rune", name: "Scholar's Rune", description: "+15% Essence earned.", rarity: "Rare", icon: "SR", effect: { type: "essenceMultiplier", value: 0.15 } },
+  { id: "oracle_lens", name: "Oracle Lens", description: "+6 Luck and +8% crit chance.", rarity: "Rare", icon: "OL", effect: { type: "stat", stat: "luck", value: 6, critChance: 0.08 } },
+  { id: "hunters_mark", name: "Hunter's Mark", description: "+30% damage.", rarity: "Epic", icon: "HM", effect: { type: "stat", stat: "damageMultiplier", value: 0.3 } },
+  { id: "executioners_file", name: "Executioner's File", description: "+40% damage.", rarity: "Epic", icon: "EF", effect: { type: "stat", stat: "damageMultiplier", value: 0.4 } },
+  { id: "giant_knot", name: "Giant Knot", description: "+35% max HP.", rarity: "Epic", icon: "GK", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.35 } },
+  { id: "storm_buckle", name: "Storm Buckle", description: "+32% attack speed.", rarity: "Epic", icon: "SB", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.32 } },
+  { id: "silver_spur", name: "Silver Spur", description: "+100 gold immediately.", rarity: "Common", icon: "SS", effect: { type: "gold", value: 100 } },
+  { id: "sun_amulet", name: "Sun Amulet", description: "+35% max HP.", rarity: "Epic", icon: "SA", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.35 } },
+  { id: "fate_deck", name: "Fate Deck", description: "+8 Luck.", rarity: "Epic", icon: "FD", effect: { type: "stat", stat: "luck", value: 8 } },
+  { id: "dragon_heart", name: "Dragon Heart", description: "A living ember beats in your chest. +45% max HP and +3 HP regen.", rarity: "Legendary", icon: "DH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.45, regen: 3 } },
+  { id: "sunforged_edge", name: "Sunforged Edge", description: "A royal killing edge. +60% damage.", rarity: "Legendary", icon: "SE", effect: { type: "stat", stat: "damageMultiplier", value: 0.6 } },
+  { id: "titan_heart", name: "Titan Heart", description: "A mountain's pulse. +65% max HP.", rarity: "Legendary", icon: "TH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.65 } },
+  { id: "hourglass_chain", name: "Hourglass Chain", description: "The second hand snaps forward. +55% attack speed.", rarity: "Legendary", icon: "HC", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.55 } },
+  { id: "starforged_blade", name: "Starforged Blade", description: "A weapon bright enough to cut fate. +55% damage.", rarity: "Legendary", icon: "SB", effect: { type: "stat", stat: "damageMultiplier", value: 0.55 } },
+  { id: "crown_of_chance", name: "Crown of Chance", description: "The crown smiles on impossible odds. +9 Luck and +15% Essence earned.", rarity: "Legendary", icon: "CC", effect: { type: "stat", stat: "luck", value: 9, essenceMultiplier: 0.15 } },
+  { id: "phoenix_ember", name: "Phoenix Ember", description: "A reborn flame drives your strikes. +40% attack speed and +12% crit chance.", rarity: "Legendary", icon: "PE", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.4, critChance: 0.12 } },
+  { id: "blood_grail", name: "Blood Grail", description: "+8% life steal.", rarity: "Epic", icon: "BG", effect: { type: "stat", stat: "lifeSteal", value: 0.08 } },
+  { id: "tower_shield", classId: "knight", name: "Tower Shield", description: "+10% block chance.", rarity: "Rare", icon: "TS", effect: { type: "stat", stat: "blockChance", value: 0.1 } },
+  { id: "oathguard_emblem", classId: "knight", name: "Oathguard Emblem", description: "+16% block chance and +15% max HP.", rarity: "Epic", icon: "OE", effect: { type: "stat", stat: "blockChance", value: 0.16, maxHpMultiplier: 0.15 } },
+  { id: "kingwall_sigil", classId: "knight", name: "Kingwall Sigil", description: "A royal ward for standing firm. +22% block chance.", rarity: "Legendary", icon: "KS", effect: { type: "stat", stat: "blockChance", value: 0.22 } },
+  { id: "storm_capacitor", name: "Storm Capacitor", description: "Lightning special deals +35% damage.", rarity: "Epic", icon: "SC", requiresAbility: "wizard_lightning", effect: { type: "abilityStat", stat: "runLightningDamage", value: 0.35 } },
+  { id: "frost_core", name: "Frost Core", description: "Iceball special slows enemies by an extra 12%.", rarity: "Rare", icon: "FC", requiresAbility: "wizard_iceball", effect: { type: "abilityStat", stat: "runIceballSlow", value: 0.12 } },
+  { id: "trapwire_spool", name: "Trapwire Spool", description: "Trap special lasts +2.5s longer.", rarity: "Rare", icon: "TS", requiresAbility: "rogue_bleed", effect: { type: "abilityStat", stat: "runTrapDuration", value: 2.5 } },
+  { id: "holy_reliquary", name: "Holy Reliquary", description: "Holy Sword and Holy Shield cooldowns are 20% shorter.", rarity: "Epic", icon: "HR", requiresAnyAbility: ["knight_holy_sword", "knight_holy_shield"], effect: { type: "abilityStat", stat: "runHolyCooldownReduction", value: 0.2 } },
+  { id: "campaign_heart", name: "Campaign Heart", description: "Gain +5% max HP after each stage defeated.", rarity: "Legendary", icon: "CH", effect: { type: "stageGrowth", stat: "maxHpMultiplier", value: 0.05 } },
+  { id: "campaign_blade", name: "Campaign Blade", description: "Gain +5% damage after each stage defeated.", rarity: "Legendary", icon: "CB", effect: { type: "stageGrowth", stat: "damageMultiplier", value: 0.05 } },
+  { id: "campaign_spurs", name: "Campaign Spurs", description: "Gain +3% attack speed after each stage defeated.", rarity: "Legendary", icon: "CS", effect: { type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.03 } },
+  { id: "campaign_plate", name: "Campaign Plate", description: "Gain +5% armor after each stage defeated.", rarity: "Legendary", icon: "CP", effect: { type: "stageGrowth", stat: "armorMultiplier", value: 0.05 } },
+  { id: "moonlit_armor", name: "Moonlit Armor", description: "+70% armor and +22% max HP.", rarity: "Epic", icon: "MA", effect: { type: "stat", stat: "armorMultiplier", value: 0.7, maxHpMultiplier: 0.22 } }
 ];
-
-applyRunItemBalance();
-
-function applyRunItemBalance() {
-  const updateUpgrade = (name, text, apply) => {
-    const item = REWARDS.find(reward => reward.name === name);
-    if (item) { item.text = text; item.apply = apply; }
-  };
-  const updateRelic = (id, description, effect) => {
-    const relic = RELICS.find(item => item.id === id);
-    if (relic) { relic.description = description; relic.effect = effect; }
-  };
-
-  updateUpgrade("Sharpened Blade", "+10% hero damage", hero => hero.damage *= 1.1);
-  updateUpgrade("Battle Rhythm", "+10% attack speed", hero => hero.attackSpeed *= 1.1);
-  updateUpgrade("Iron Skin", "+10% armor", hero => multiplyArmor(hero, 1.1));
-  updateUpgrade("Leeching Edge", "+2% life steal", hero => hero.lifeSteal = (hero.lifeSteal || 0) + 0.02);
-  updateUpgrade("Balanced Blade", "+10% damage", hero => hero.damage *= 1.1);
-  updateUpgrade("Hardy Bread", "+8% max HP", hero => multiplyMaxHp(hero, 1.08));
-  updateUpgrade("Quick Buckle", "+8% attack speed", hero => hero.attackSpeed *= 1.08);
-  updateUpgrade("Scout's Dice", "+2 Luck", hero => hero.luck = (hero.luck || 0) + 2);
-  updateUpgrade("Prepared Camp", "Start future battles this run with +10 shield", hero => hero.runStartShield = (hero.runStartShield || 0) + 10);
-  updateUpgrade("Opening Gambit", "Gain +20 gold and +2 Luck", hero => { run.gold += 20; hero.luck = (hero.luck || 0) + 2; });
-  updateUpgrade("Triage Kit", "+8% max HP and +1 HP regen", hero => { multiplyMaxHp(hero, 1.08, false); hero.regen = (hero.regen || 0) + 1; });
-  updateUpgrade("Risky Footwork", "+15% attack speed, -15% armor", hero => { hero.attackSpeed *= 1.15; multiplyArmor(hero, 0.85); });
-  updateUpgrade("Vitality Draught", "+14% max HP", hero => multiplyMaxHp(hero, 1.14, false));
-  updateUpgrade("Lucky Charm", "+6% crit chance", hero => hero.crit += 0.06);
-  updateUpgrade("Knightly Edge", "+15% damage", hero => hero.damage *= 1.15);
-  updateUpgrade("Oakheart Tonic", "+16% max HP", hero => multiplyMaxHp(hero, 1.16));
-  updateUpgrade("Clockwork Grip", "+14% attack speed", hero => hero.attackSpeed *= 1.14);
-  updateUpgrade("Royal Purse", "+35 gold", () => run.gold += 35);
-  updateUpgrade("Field Medic", "+8% max HP and +10% armor", hero => { multiplyMaxHp(hero, 1.08, false); multiplyArmor(hero, 1.1); });
-  updateUpgrade("Gilded Compass", "+2 Luck and +20 gold", hero => { hero.luck = (hero.luck || 0) + 2; run.gold += 20; });
-  updateUpgrade("Barbed Buckler", "+15% armor and +5% crit chance", hero => { multiplyArmor(hero, 1.15); hero.crit += 0.05; });
-  updateUpgrade("Glass Canon", "+20% damage, -12% max HP", hero => { hero.damage *= 1.2; multiplyMaxHp(hero, 0.88, false); });
-  updateUpgrade("War Training", "+14% damage and +8% max HP", hero => { hero.damage *= 1.14; multiplyMaxHp(hero, 1.08, false); });
-  updateUpgrade("Runed Greatblade", "+24% damage", hero => hero.damage *= 1.24);
-  updateUpgrade("Giant's Supper", "+24% max HP", hero => multiplyMaxHp(hero, 1.24));
-  updateUpgrade("Silver Reflexes", "+20% attack speed", hero => hero.attackSpeed *= 1.2);
-  updateUpgrade("Fortune's Edge", "+14% damage, +5% crit chance, +1 Luck", hero => { hero.damage *= 1.14; hero.crit += 0.05; hero.luck = (hero.luck || 0) + 1; });
-  updateUpgrade("Iron Momentum", "+16% armor and +12% attack speed", hero => { multiplyArmor(hero, 1.16); hero.attackSpeed *= 1.12; });
-  updateUpgrade("Vampiric Training", "+15% damage and +1 HP regen", hero => { hero.damage *= 1.15; hero.regen = (hero.regen || 0) + 1; });
-  updateUpgrade("Storm Tempo", "+22% attack speed", hero => hero.attackSpeed *= 1.22);
-  updateUpgrade("Battle Renewal", "+3 HP regen while in battle", hero => hero.regen = (hero.regen || 0) + 3);
-  updateUpgrade("Kingslayer Edge", "Crown-forged: +35% damage and +6% crit chance", hero => { hero.damage *= 1.35; hero.crit += 0.06; });
-  updateUpgrade("Titan Plate", "Ancient royal plate: +35% armor and +16% max HP", hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.16, false); });
-  updateUpgrade("Eternal Edge", "A blade with a name of its own: +35% damage", hero => hero.damage *= 1.35);
-  updateUpgrade("Colossus Heart", "A thunderous second heartbeat: +35% max HP", hero => multiplyMaxHp(hero, 1.35));
-  updateUpgrade("Chrono Spurs", "Time buckles under each step: +32% attack speed", hero => hero.attackSpeed *= 1.32);
-  updateUpgrade("Sovereign Star", "A fate-lit royal charm: +4 Luck, +10% crit chance, +40 gold", hero => { hero.luck = (hero.luck || 0) + 4; hero.crit += 0.1; run.gold += 40; });
-  updateUpgrade("Living Aegis", "A shield that remembers kings: +35% armor, +12% max HP, +1 HP regen", hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.12, false); hero.regen = (hero.regen || 0) + 1; });
-
-  updateUpgrade("Shield Drill", "Knight only: start each battle with +12 shield", hero => hero.runStartShield = (hero.runStartShield || 0) + 12);
-  updateUpgrade("Plate Fitting", "Knight only: +12% armor and +6% max HP", hero => { multiplyArmor(hero, 1.12); multiplyMaxHp(hero, 1.06, false); });
-  updateUpgrade("Guard Stance", "Knight only: +5% block chance", hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.05);
-  updateUpgrade("Shield Timing", "Knight only: +3% block chance", hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.03);
-  updateUpgrade("Bulwark Drill", "Knight only: +6% block chance and +10 shield each battle", hero => { hero.runBlockChance = (hero.runBlockChance || 0) + 0.06; hero.runStartShield = (hero.runStartShield || 0) + 10; });
-  updateUpgrade("Spiked Shield", "Knight only: blocked damage retaliates for 12%", hero => hero.runRetaliateBlock = (hero.runRetaliateBlock || 0) + 0.12);
-  updateUpgrade("Unbroken Vow", "Knight only: +14% max HP and +15 shield each battle", hero => { multiplyMaxHp(hero, 1.14, false); hero.runStartShield = (hero.runStartShield || 0) + 15; });
-  updateUpgrade("Castle Guard", "Knight only: +10% block chance", hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.1);
-  updateUpgrade("Royal Bastion", "Knight only: +28% armor, +2 armor, and +16% max HP", hero => { multiplyArmor(hero, 1.28); hero.armor += 2; multiplyMaxHp(hero, 1.16, false); });
-  updateUpgrade("Serrated Oil", "Rogue only: +25% max HP bleed damage", hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.25);
-  updateUpgrade("Quickstep", "Rogue only: +8% attack speed and +2% evasion", hero => { hero.attackSpeed *= 1.08; hero.runEvasion = (hero.runEvasion || 0) + 0.02; });
-  updateUpgrade("Rending Cuts", "Rogue only: +40% max HP bleed damage", hero => hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.4);
-  updateUpgrade("Assassin's Eye", "Rogue only: +8% crit chance and +10% execute damage", hero => { hero.crit += 0.08; hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.1; });
-  updateUpgrade("Blood Rush", "Rogue only: +35% max HP bleed damage and +5% attack speed after bleeding a new target", hero => { hero.runBleedDamageMultiplier = (hero.runBleedDamageMultiplier || 0) + 0.35; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.05; });
-  updateUpgrade("Deathblow Contract", "Rogue only: enemies below 40% HP take +30% execute damage", hero => { hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.3; hero.runExecuteThreshold = Math.max(hero.runExecuteThreshold || 0, 0.4); });
-  updateUpgrade("Kindling Rune", "Wizard only: +10% burn chance", hero => hero.runBurnChance = (hero.runBurnChance || 0) + 0.1);
-  updateUpgrade("Arcane Focus", "Wizard only: +10% damage and +5% splash damage", hero => { hero.damage *= 1.1; hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.05; });
-  updateUpgrade("Frost Thread", "Wizard only: attacks gain +10% chance to slow by 20% for 3.5s", hero => hero.runSlowChance = (hero.runSlowChance || 0) + 0.1);
-  updateUpgrade("Mana Ward", "Wizard only: splash grants +9 shield", hero => hero.runSplashShield = (hero.runSplashShield || 0) + 9);
-  updateUpgrade("Chain Spell", "Wizard only: +12% splash damage", hero => hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.12);
-  updateUpgrade("Inferno Thesis", "Wizard only: +5 burn damage per second and burning enemies take +16% damage", hero => { hero.runBurnDamage = (hero.runBurnDamage || 0) + 5; hero.runBurningEnemyDamage = (hero.runBurningEnemyDamage || 0) + 0.16; });
-
-  updateRelic("wolf_fang", "+15% damage.", { type: "stat", stat: "damageMultiplier", value: 0.15 });
-  updateRelic("plain_whetstone", "+15% damage.", { type: "stat", stat: "damageMultiplier", value: 0.15 });
-  updateRelic("traveler_brooch", "+12% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.12 });
-  updateRelic("quick_clasp", "+15% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.15 });
-  updateRelic("iron_crown", "+20% armor.", { type: "stat", stat: "armorMultiplier", value: 0.2 });
-  updateRelic("blood_chalice", "+5 HP regen while in battle.", { type: "stat", stat: "regen", value: 5 });
-  updateRelic("duelist_charm", "+25% damage.", { type: "stat", stat: "damageMultiplier", value: 0.25 });
-  updateRelic("lion_cloak", "+24% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.24 });
-  updateRelic("silver_gear", "+22% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.22 });
-  updateRelic("ember_ring", "Critical hits deal +75% damage.", { type: "critBonus", value: 0.75 });
-  updateRelic("war_drum", "+15% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.15 });
-  updateRelic("old_coin", "Gain +30 gold after each battle.", { type: "afterBattleGold", value: 30 });
-  updateRelic("clover_pin", "+3 Luck.", { type: "stat", stat: "luck", value: 3 });
-  updateRelic("glass_dagger", "+32% damage, -10% max HP.", { type: "glassDagger", damageMultiplier: 0.32, maxHpMultiplier: -0.1 });
-  updateRelic("guardian_seal", "First enemy hit each battle deals 40% less damage.", { type: "firstHitReduction", value: 0.4 });
-  updateRelic("red_crown_splinter", "+35% damage.", { type: "stat", stat: "damageMultiplier", value: 0.35 });
-  updateRelic("merchant_seal", "Gain +50 gold after each battle.", { type: "afterBattleGold", value: 50 });
-  updateRelic("dawn_banner", "Start each battle with +50 shield.", { type: "stat", stat: "blockChance", value: 0, battleStartShield: 50 });
-  updateRelic("scholars_rune", "+15% Essence earned.", { type: "essenceMultiplier", value: 0.15 });
-  updateRelic("oracle_lens", "+6 Luck and +8% crit chance.", { type: "stat", stat: "luck", value: 6, critChance: 0.08 });
-  updateRelic("hunters_mark", "+30% damage.", { type: "stat", stat: "damageMultiplier", value: 0.3 });
-  updateRelic("executioners_file", "+40% damage.", { type: "stat", stat: "damageMultiplier", value: 0.4 });
-  updateRelic("giant_knot", "+35% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.35 });
-  updateRelic("storm_buckle", "+32% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.32 });
-  updateRelic("silver_spur", "+100 gold immediately.", { type: "gold", value: 100 });
-  updateRelic("sun_amulet", "+35% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.35 });
-  updateRelic("fate_deck", "+8 Luck.", { type: "stat", stat: "luck", value: 8 });
-  updateRelic("dragon_heart", "A living ember beats in your chest. +45% max HP and +3 HP regen.", { type: "stat", stat: "maxHpMultiplier", value: 0.45, regen: 3 });
-  updateRelic("sunforged_edge", "A royal killing edge. +60% damage.", { type: "stat", stat: "damageMultiplier", value: 0.6 });
-  updateRelic("titan_heart", "A mountain's pulse. +65% max HP.", { type: "stat", stat: "maxHpMultiplier", value: 0.65 });
-  updateRelic("hourglass_chain", "The second hand snaps forward. +55% attack speed.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.55 });
-  updateRelic("starforged_blade", "A weapon bright enough to cut fate. +55% damage.", { type: "stat", stat: "damageMultiplier", value: 0.55 });
-  updateRelic("crown_of_chance", "The crown smiles on impossible odds. +9 Luck and +15% Essence earned.", { type: "stat", stat: "luck", value: 9, essenceMultiplier: 0.15 });
-  updateRelic("phoenix_ember", "A reborn flame drives your strikes. +40% attack speed and +12% crit chance.", { type: "stat", stat: "attackSpeedMultiplier", value: 0.4, critChance: 0.12 });
-  updateRelic("blood_grail", "+8% life steal.", { type: "stat", stat: "lifeSteal", value: 0.08 });
-  updateRelic("tower_shield", "+10% block chance.", { type: "stat", stat: "blockChance", value: 0.1 });
-  updateRelic("oathguard_emblem", "+16% block chance and +15% max HP.", { type: "stat", stat: "blockChance", value: 0.16, maxHpMultiplier: 0.15 });
-  updateRelic("kingwall_sigil", "A royal ward for standing firm. +22% block chance.", { type: "stat", stat: "blockChance", value: 0.22 });
-  updateRelic("storm_capacitor", "Lightning special deals +35% damage.", { type: "abilityStat", stat: "runLightningDamage", value: 0.35 });
-  updateRelic("frost_core", "Iceball special slows enemies by an extra 12%.", { type: "abilityStat", stat: "runIceballSlow", value: 0.12 });
-  updateRelic("trapwire_spool", "Trap special lasts +2.5s longer.", { type: "abilityStat", stat: "runTrapDuration", value: 2.5 });
-  updateRelic("holy_reliquary", "Holy Sword and Holy Shield cooldowns are 20% shorter.", { type: "abilityStat", stat: "runHolyCooldownReduction", value: 0.2 });
-  updateRelic("campaign_heart", "Gain +5% max HP after each stage defeated.", { type: "stageGrowth", stat: "maxHpMultiplier", value: 0.05 });
-  updateRelic("campaign_blade", "Gain +5% damage after each stage defeated.", { type: "stageGrowth", stat: "damageMultiplier", value: 0.05 });
-  updateRelic("campaign_spurs", "Gain +3% attack speed after each stage defeated.", { type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.03 });
-  updateRelic("campaign_plate", "Gain +5% armor after each stage defeated.", { type: "stageGrowth", stat: "armorMultiplier", value: 0.05 });
-  updateRelic("moonlit_armor", "+70% armor and +22% max HP.", { type: "stat", stat: "armorMultiplier", value: 0.7, maxHpMultiplier: 0.22 });
-}
-
-const CLASS_TALENT_STAGES = [3, 6, 9];
 
 const CLASS_TALENTS = {
   knight: [
@@ -1062,7 +970,7 @@ const CLASS_TALENTS = {
     { id: "knight_last_stand", classId: "knight", name: "Last Stand", description: "Deal 30% more damage while below 35% HP.", icon: "LS", tier: 3, effect: { type: "lowHpDamage", threshold: 0.35, value: 0.3 } }
   ],
   rogue: [
-  { id: "rogue_deep_cuts", classId: "rogue", name: "Deep Cuts", description: "Rogue bleed deals +50% of max HP per second.", icon: "DC", tier: 1, effect: { type: "bleedMaxHpPercent", value: 0.5 } },
+    { id: "rogue_deep_cuts", classId: "rogue", name: "Deep Cuts", description: "Rogue bleed gains +0.75% max HP damage per second.", icon: "DC", tier: 1, effect: { type: "bleedMaxHpPercent", value: 0.0075 } },
     { id: "rogue_venom_blade", classId: "rogue", name: "Venom Blade", description: "Attacks have a 22% chance to poison for 4 seconds. Poison scales with stage.", icon: "VB", tier: 1, effect: { type: "poisonChance", chance: 0.22, damage: 4, duration: 4 } },
     { id: "rogue_backstab", classId: "rogue", name: "Shadow Backstab", description: "Critical hits deal 40% more damage.", icon: "SB", tier: 2, effect: { type: "critDamage", value: 0.4 } },
     { id: "rogue_evasion", classId: "rogue", name: "Evasion", description: "Gain a 15% chance to avoid enemy attacks.", icon: "EV", tier: 2, effect: { type: "evasion", chance: 0.15 } },
@@ -1094,7 +1002,7 @@ const TREE_NODES = [
   { id: "crown_purse", classId: "global", branch: "Crown", name: "Crown Purse", description: "+8 starting gold per level for all classes.", cost: 55, maxLevel: 4, effect: { startingGold: 8 }, x: 1840, y: 620, prerequisites: ["fortune"], type: "stat" },
   { id: "field_drills", classId: "global", branch: "Crown", name: "Field Drills", description: "+1 starting damage and +0.02 attack speed per level.", cost: 65, maxLevel: 5, effect: { damage: 1, attackSpeed: 0.02 }, x: 1300, y: 840, prerequisites: ["crown_legacy"], type: "stat" },
   { id: "royal_tithe", classId: "global", branch: "Crown", name: "Royal Tithe", description: "+2% Essence earned, +5 starting gold, and +1 Luck per level.", cost: 90, maxLevel: 4, effect: { essenceMultiplier: 0.02, startingGold: 5, luck: 1 }, x: 2020, y: 500, prerequisites: ["crown_purse"], type: "notable" },
-  { id: "old_campaigns", classId: "global", branch: "Crown", name: "Old Campaigns", description: "+18 starting HP and +1 armor per level.", cost: 90, maxLevel: 4, effect: { maxHp: 18, armor: 1 }, x: 580, y: 500, prerequisites: ["armor"], type: "notable" },
+  { id: "old_campaigns", classId: "global", branch: "Crown", name: "Old Campaigns", description: "+1 starting HP and +1 armor per level.", cost: 90, maxLevel: 4, effect: { maxHp: 1, armor: 1 }, x: 580, y: 500, prerequisites: ["armor"], type: "notable" },
   { id: "duelist_lessons", classId: "global", branch: "Crown", name: "Duelist Lessons", description: "+2% crit chance per level for all classes.", cost: 95, maxLevel: 5, effect: { critChance: 0.02 }, x: 1440, y: 670, prerequisites: ["field_drills"], type: "stat" },
   { id: "life_siphon", classId: "global", branch: "Crown", name: "Life Siphon", description: "+1% life steal per level for all classes.", cost: 90, maxLevel: 5, effect: { lifeSteal: 0.01 }, x: 1300, y: 540, prerequisites: ["field_drills"], type: "stat" },
   { id: "marching_songs", classId: "global", branch: "Crown", name: "Marching Songs", description: "+0.03 attack speed per level for all classes.", cost: 95, maxLevel: 5, effect: { attackSpeed: 0.03 }, x: 1220, y: 670, prerequisites: ["field_drills"], type: "stat" },
@@ -1118,11 +1026,11 @@ const TREE_NODES = [
   { id: "rogue_root", classId: "rogue", branch: "Rogue", name: "Rogue Branch", description: "Unlocks Rogue upgrades. +1 starting damage and +0.03 attack speed.", cost: 50, maxLevel: 1, effect: { damage: 1, attackSpeed: 0.03 }, x: 1300, y: 1320, prerequisites: ["crown_legacy"], type: "class" },
 
   { id: "knight_plate", classId: "knight", branch: "Armor", name: "Plate Training", description: "+2 starting armor per level.", cost: 55, maxLevel: 4, effect: { armor: 2 }, x: 780, y: 780, prerequisites: ["knight_root"], type: "stat" },
-  { id: "knight_vigor", classId: "knight", branch: "Armor", name: "Oathbound Vigor", description: "+14 starting HP per level.", cost: 70, maxLevel: 4, effect: { maxHp: 14 }, x: 580, y: 720, prerequisites: ["knight_plate"], type: "stat" },
+  { id: "knight_vigor", classId: "knight", branch: "Armor", name: "Oathbound Vigor", description: "+10 starting HP per level.", cost: 70, maxLevel: 4, effect: { maxHp: 14 }, x: 580, y: 720, prerequisites: ["knight_plate"], type: "stat" },
   { id: "knight_iron_will", classId: "knight", branch: "Armor", name: "Iron Will", description: "+1 armor and +1 HP regen per level.", cost: 120, maxLevel: 3, effect: { armor: 1, regen: 1 }, x: 380, y: 660, prerequisites: ["knight_vigor"], type: "notable" },
   { id: "knight_iron_bastion", classId: "knight", branch: "Armor", name: "Iron Bastion", description: "Capstone: +6 armor, +60 starting HP, and +3 HP regen.", cost: 285, maxLevel: 1, effect: { armor: 6, maxHp: 60, regen: 3 }, x: 180, y: 600, prerequisites: ["knight_iron_will"], type: "capstone" },
 
-  { id: "knight_bulwark", classId: "knight", branch: "Shield", name: "Bulwark", description: "+14 battle-start shield per level.", cost: 60, maxLevel: 4, effect: { battleStartShield: 14 }, x: 760, y: 960, prerequisites: ["knight_root"], type: "stat" },
+  { id: "knight_bulwark", classId: "knight", branch: "Shield", name: "Bulwark", description: "+12 battle-start shield per level.", cost: 60, maxLevel: 4, effect: { battleStartShield: 14 }, x: 760, y: 960, prerequisites: ["knight_root"], type: "stat" },
   { id: "knight_guard", classId: "knight", branch: "Shield", name: "Shield Guard", description: "+10 battle-start shield and blocked damage retaliates for +8% per level.", cost: 105, maxLevel: 3, effect: { battleStartShield: 10, retaliateBlock: 0.08 }, x: 560, y: 960, prerequisites: ["knight_bulwark"], type: "notable" },
   { id: "knight_sanctuary", classId: "knight", branch: "Shield", name: "Sanctuary Aegis", description: "+18 battle-start shield per level.", cost: 150, maxLevel: 3, effect: { battleStartShield: 18 }, x: 360, y: 960, prerequisites: ["knight_guard"], type: "notable" },
   { id: "knight_aegis_eternal", classId: "knight", branch: "Shield", name: "Eternal Aegis", description: "Capstone: +85 battle-start shield and +3 armor.", cost: 285, maxLevel: 1, effect: { battleStartShield: 85, armor: 3 }, x: 160, y: 960, prerequisites: ["knight_sanctuary"], type: "capstone" },
@@ -1163,7 +1071,7 @@ const TREE_NODES = [
 
   { id: "rogue_poison_unlock", classId: "rogue", branch: "Ability Unlock", name: "Poison", description: "Unlocks Poison: every 2.8s, poison one enemy for 4.5s. Poison deals 9 + 0.75 per stage DPS.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "rogue_poison" }, x: 1060, y: 2150, prerequisites: ["rogue_crimson_execution"], type: "ability" },
   { id: "rogue_bleed_unlock", classId: "rogue", branch: "Ability Unlock", name: "Trap", description: "Unlocks Trap: every 2.5s, slow all living enemies by 28% for 4s and make Rogue deal +8% damage to slowed enemies.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "rogue_bleed" }, x: 1300, y: 2150, prerequisites: ["rogue_perfect_strike"], type: "ability" },
-  { id: "rogue_burn_unlock", classId: "rogue", branch: "Ability Unlock", name: "Burn", description: "Unlocks Burn: every 2.2s, burn one enemy for 3.5s. Burn deals 7 + 0.55 per stage DPS.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "rogue_burn" }, x: 1540, y: 2150, prerequisites: ["rogue_ghostblade"], type: "ability" },
+  { id: "rogue_burn_unlock", classId: "rogue", branch: "Ability Unlock", name: "Burn", description: "Unlocks Burn: every 2.2s, burn one enemy for 3.5s. Burn stacks on that enemy and deals 7 + 0.55 per stage DPS.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "rogue_burn" }, x: 1540, y: 2150, prerequisites: ["rogue_ghostblade"], type: "ability" },
 
   { id: "wizard_ember", classId: "wizard", branch: "Burn", name: "Ember Study", description: "Burn deals +18% damage per level.", cost: 55, maxLevel: 4, effect: { burnDamage: 0.18 }, x: 1800, y: 720, prerequisites: ["wizard_root"], type: "stat" },
   { id: "wizard_wildfire_meta", classId: "wizard", branch: "Burn", name: "Wildfire", description: "Burn spread chance +10% per level.", cost: 105, maxLevel: 3, effect: { burnSpreadChance: 0.1 }, x: 2000, y: 660, prerequisites: ["wizard_ember"], type: "notable" },

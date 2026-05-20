@@ -36,7 +36,6 @@
           <button onclick="startRunFlow()">Start Run</button>
           <button onclick="showScreen('charactersScreen')">Characters</button>
           <button onclick="showScreen('upgradeScreen')">Skill Tree</button>
-          <button onclick="showScreen('leaderboardScreen')">Leaderboard</button>
           <button onclick="showScreen('statsScreen')">Account Stats</button>
           <button onclick="showScreen('achievementScreen')">Achievements</button>
           <button onclick="showSettings('menuScreen')">Settings</button>
@@ -71,23 +70,42 @@
       </div>
     </section>
 
+    <section id="gauntletScreen" class="screen">
+      <div class="panel center-card flow-panel gauntlet-panel">
+        <div class="screen-ornament">&#9819; &#9876; &#9819;</div>
+        <h2 class="screen-title">Gauntlet</h2>
+        <p class="screen-text">Fight ranked 1v1 tournament battles, earn tournament coins, and climb into the top 10.</p>
+        <div id="gauntletSummary" class="gauntlet-summary"></div>
+        <div class="gauntlet-layout">
+          <div class="gauntlet-section">
+            <h3 class="section-title">Unranked Opponents</h3>
+            <div id="gauntletOpponentCards" class="gauntlet-card-grid"></div>
+          </div>
+          <div class="gauntlet-section">
+            <h3 class="section-title">Tournament Shop</h3>
+            <div id="gauntletShopGrid" class="gauntlet-shop-grid"></div>
+          </div>
+        </div>
+        <div class="gauntlet-leaderboards">
+          <div class="gauntlet-section">
+            <h3 class="section-title">Top Heroes</h3>
+            <div id="gauntletHeroLeaderboard" class="gauntlet-rank-list"></div>
+          </div>
+          <div class="gauntlet-section">
+            <h3 class="section-title">Top Enemies</h3>
+            <div id="gauntletEnemyLeaderboard" class="gauntlet-rank-list"></div>
+          </div>
+        </div>
+        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+      </div>
+    </section>
+
     <section id="statsScreen" class="screen">
       <div class="panel center-card flow-panel">
         <div class="screen-ornament">&#9670; &#9819; &#9670;</div>
         <h2 class="screen-title">Account Stats</h2>
         <p class="screen-text">Your permanent record across runs on this save.</p>
         <div id="accountStatsGrid" class="account-stats-grid"></div>
-        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
-      </div>
-    </section>
-
-    <section id="leaderboardScreen" class="screen">
-      <div class="panel center-card flow-panel leaderboard-panel">
-        <div class="screen-ornament">&#9819; &#9670; &#9819;</div>
-        <h2 class="screen-title">Endless Leaderboard</h2>
-        <p class="screen-text">Top 10 Endless runs saved locally on this device.</p>
-        <p id="leaderboardEmpty" class="screen-text leaderboard-empty">No Endless scores yet. Start an Endless run to set the first mark.</p>
-        <div id="leaderboardGrid" class="leaderboard-grid"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
     </section>
@@ -295,6 +313,7 @@
         <h2 id="runEndTitle" class="screen-title">Run Complete</h2>
         <p id="runEndText" class="screen-text"></p>
         <div class="actions">
+          <button id="gauntletReturnButton" onclick="showGauntletScreen()" style="display:none">Return to Gauntlet</button>
           <button onclick="showScreen('difficultyScreen')">Start New Run</button>
           <button onclick="showScreen('upgradeScreen')">Spend Essence</button>
           <button onclick="showScreen('menuScreen')">Main Menu</button>
@@ -333,6 +352,7 @@
   <script src="js/state.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/combat.js"></script>
+  <script src="js/gauntlet.js"></script>
   <script src="js/map.js"></script>
   <script src="js/devtools.js"></script>
   <script src="js/main.js"></script>
