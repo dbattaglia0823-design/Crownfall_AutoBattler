@@ -721,14 +721,21 @@ function prepareBattleResult(victory) {
   }
   if (shouldDropBossEquipment()) {
     const defeatedBoss = battle.enemies.find(enemy => enemy.boss || enemy.finalBoss);
-    const drop = addInventoryItem(generateEquipmentDrop({
+    const dropResult = collectEquipmentDrop(generateEquipmentDrop({
       classId: run.classId,
       stage: run.stage,
       sourceName: defeatedBoss?.name || "Boss",
       rarityBonus: isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss" ? 0.45 : isEndlessRun() ? Math.min(0.65, run.stage * 0.015) : 0
     }));
+    const drop = dropResult.item;
     battle.result.equipmentDrop = drop;
-    log(`Equipment found: ${drop.rarity} ${drop.name} (${formatEquipmentItemSummary(drop)}).`, "reward");
+    battle.result.equipmentAutosold = dropResult.sold;
+    battle.result.equipmentAutosellValue = dropResult.value;
+    if (dropResult.sold) {
+      log(`Equipment autosold: ${drop.rarity} ${drop.name} for ${dropResult.value} Essence.`, "reward");
+    } else {
+      log(`Equipment found: ${drop.rarity} ${drop.name} (${formatEquipmentItemSummary(drop)}).`, "reward");
+    }
   }
   log(`Battle stats: ${Math.round(battle.damageDone)} damage dealt, ${Math.round(battle.damageTaken)} damage taken.`);
   const skillSummary = Object.entries(battle.skillsUsed).map(([name, count]) => `${name} x${count}`).join(", ");

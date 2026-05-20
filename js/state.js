@@ -73,7 +73,7 @@ function defaultSkinPurchases() {
 
 function defaultInventory() {
   return {
-    items: STARTER_INVENTORY_ITEMS.map(item => normalizeInventoryItem(item)),
+    items: [],
     equipment: Object.keys(CLASSES).reduce((equipment, classId) => {
       equipment[classId] = defaultHeroEquipment();
       return equipment;
@@ -131,6 +131,7 @@ function defaultSettings() {
     sfxVolume: 70,
     damageNumbers: true,
     tooltips: true,
+    equipmentAutosellRarity: "",
     sound: true,
     soundMigrated: true
   };
@@ -151,6 +152,7 @@ function loadSave() {
     const storedSave = { ...(parsed || {}) };
     delete storedSave.customAssets;
     const settings = { ...fallback.settings, ...((parsed && parsed.settings) || {}) };
+    settings.equipmentAutosellRarity = normalizeEquipmentAutosellRarity(settings.equipmentAutosellRarity);
     if (parsed && parsed.settings && parsed.settings.sound === false && parsed.settings.soundMigrated !== true) {
       settings.sound = true;
       settings.soundMigrated = true;
@@ -225,6 +227,7 @@ function normalizeInventory(storedInventory, fallback = defaultInventory()) {
   const itemsByInstance = new Map();
   [...fallback.items, ...storedItems].forEach(item => {
     const normalized = normalizeInventoryItem(item);
+    if (isStarterInventoryItem(normalized)) return;
     if (normalized.instanceId) itemsByInstance.set(normalized.instanceId, normalized);
   });
   const items = [...itemsByInstance.values()];
@@ -240,6 +243,10 @@ function normalizeInventory(storedInventory, fallback = defaultInventory()) {
     });
   });
   return { items, equipment };
+}
+
+function isStarterInventoryItem(item) {
+  return String(item?.instanceId || "").startsWith("starter_");
 }
 
 function normalizeInventoryItem(item) {
@@ -321,6 +328,28 @@ function addInventoryItem(item) {
   save.inventory.items.push(normalized);
   saveGame();
   return normalized;
+}
+
+function collectEquipmentDrop(item) {
+  const normalized = normalizeInventoryItem(item);
+  if (shouldAutoSellEquipmentItem(normalized)) {
+    const value = getEquipmentSellValue(normalized);
+    save.essence = Math.max(0, Math.round((Number(save.essence) || 0) + value));
+    saveGame();
+    return { item: normalized, sold: true, value };
+  }
+  return { item: addInventoryItem(normalized), sold: false, value: 0 };
+}
+
+function shouldAutoSellEquipmentItem(item) {
+  const rarity = normalizeEquipmentAutosellRarity(save.settings?.equipmentAutosellRarity);
+  if (!rarity || !item?.rarity) return false;
+  return getEquipmentRarityRank(item.rarity) <= getEquipmentRarityRank(rarity);
+}
+
+function normalizeEquipmentAutosellRarity(rarity) {
+  const value = String(rarity || "");
+  return EQUIPMENT_RARITIES.some(item => item.id === value) ? value : "";
 }
 
 function removeInventoryItem(instanceId) {
@@ -497,6 +526,7 @@ function getAllCharacterEnemies() {
 
 function getEnemySpriteSheet(enemy) {
   if (!enemy) return "";
+  if (enemy.spriteSheet) return enemy.spriteSheet;
   return SPRITE_SHEETS.enemies[enemy.id] || SPRITE_SHEETS.enemies[enemy.className] || "";
 }
 

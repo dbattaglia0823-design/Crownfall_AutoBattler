@@ -168,6 +168,15 @@
             </span>
             <input id="tooltipsSetting" type="checkbox" />
           </label>
+          <label class="setting-row">
+            <span>
+              <strong>Equipment Autosell</strong>
+              <small>Automatically sells dropped equipment of the selected rarity and below.</small>
+            </span>
+            <select id="equipmentAutosellRaritySetting">
+              <option value="">Off</option>
+            </select>
+          </label>
           <div class="setting-row">
             <span>
               <strong>Fullscreen Toggle</strong>
@@ -314,8 +323,9 @@
         <p id="runEndText" class="screen-text"></p>
         <div class="actions">
           <button id="gauntletReturnButton" onclick="showGauntletScreen()" style="display:none">Return to Gauntlet</button>
-          <button onclick="showScreen('difficultyScreen')">Start New Run</button>
-          <button onclick="showScreen('upgradeScreen')">Spend Essence</button>
+          <button id="gauntletFightAgainButton" onclick="fightGauntletAgain()" style="display:none">Fight Again</button>
+          <button id="runEndStartButton" onclick="showScreen('difficultyScreen')">Start New Run</button>
+          <button id="runEndEssenceButton" onclick="showScreen('upgradeScreen')">Spend Essence</button>
           <button onclick="showScreen('menuScreen')">Main Menu</button>
         </div>
       </div>

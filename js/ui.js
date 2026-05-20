@@ -8,10 +8,10 @@ const battlefield = $("battlefield"), buildTestFightHud = $("buildTestFightHud")
 const rewardSubtitle = $("rewardSubtitle"), rewardHeroStats = $("rewardHeroStats"), rewardCards = $("rewardCards"), rewardRerollButton = $("rewardRerollButton"), relicSubtitle = $("relicSubtitle"), relicHeroStats = $("relicHeroStats"), relicCards = $("relicCards"), relicRerollButton = $("relicRerollButton");
 const talentSubtitle = $("talentSubtitle"), talentCards = $("talentCards"), mapScreen = $("mapScreen"), mapSubtitle = $("mapSubtitle"), mapConnections = $("mapConnections"), mapBoard = $("mapBoard"), mapLegend = $("mapLegend");
 const shopSubtitle = $("shopSubtitle"), shopGold = $("shopGold"), shopHeroStats = $("shopHeroStats"), shopCards = $("shopCards"), shopRerollButton = $("shopRerollButton"), runEndTitle = $("runEndTitle"), runEndText = $("runEndText");
-const gauntletReturnButton = $("gauntletReturnButton");
+const gauntletReturnButton = $("gauntletReturnButton"), gauntletFightAgainButton = $("gauntletFightAgainButton"), runEndStartButton = $("runEndStartButton"), runEndEssenceButton = $("runEndEssenceButton");
 const upgradeScreen = $("upgradeScreen"), treeCards = $("treeCards"), treeViewport = $("treeViewport"), treeDetails = $("treeDetails"), treeEssence = $("treeEssence"), treeTabs = $("treeTabs");
 const gauntletSummary = $("gauntletSummary"), gauntletOpponentCards = $("gauntletOpponentCards"), gauntletShopGrid = $("gauntletShopGrid"), gauntletHeroLeaderboard = $("gauntletHeroLeaderboard"), gauntletEnemyLeaderboard = $("gauntletEnemyLeaderboard");
-const battleSpeedSetting = $("battleSpeedSetting"), disableShakeSetting = $("disableShakeSetting"), reduceAnimationsSetting = $("reduceAnimationsSetting"), soundSetting = $("soundSetting"), musicVolumeSetting = $("musicVolumeSetting"), sfxVolumeSetting = $("sfxVolumeSetting"), damageNumbersSetting = $("damageNumbersSetting"), tooltipsSetting = $("tooltipsSetting"), fullscreenHint = $("fullscreenHint"), settingsMainMenuButton = $("settingsMainMenuButton");
+const battleSpeedSetting = $("battleSpeedSetting"), disableShakeSetting = $("disableShakeSetting"), reduceAnimationsSetting = $("reduceAnimationsSetting"), soundSetting = $("soundSetting"), musicVolumeSetting = $("musicVolumeSetting"), sfxVolumeSetting = $("sfxVolumeSetting"), damageNumbersSetting = $("damageNumbersSetting"), tooltipsSetting = $("tooltipsSetting"), equipmentAutosellRaritySetting = $("equipmentAutosellRaritySetting"), fullscreenHint = $("fullscreenHint"), settingsMainMenuButton = $("settingsMainMenuButton");
 
 let settingsReturnScreen = "menuScreen";
 let selectedTreeNodeId = "crown_legacy";
@@ -25,9 +25,12 @@ let characterBrowserTab = "heroes";
 let selectedCharacterId = "knight";
 let selectedEquipmentSlotTab = "all";
 let equipmentShopOffers = {};
+let equipmentShopRefreshAvailableAt = {};
+let equipmentShopRefreshTimer = null;
 let previewSkins = { heroes: {}, enemies: {} };
 let lastAttackSoundAt = 0;
 let lastHudRenderAt = 0;
+const EQUIPMENT_SHOP_REFRESH_COOLDOWN_MS = 60000;
 const BUILD_TEST_ATTACK_SOUND_INTERVAL = 0.1;
 const BUILD_TEST_STACK_LIMIT = 100;
 const TREE_TAB_ROOTS = { global: "crown_legacy", knight: "knight_root", rogue: "rogue_root", wizard: "wizard_root" };
@@ -55,7 +58,14 @@ function showScreen(id) {
   if (id === "statsScreen") renderAccountStats();
   if (id === "achievementScreen") renderAchievements();
   if (id === "gauntletScreen") renderGauntletScreen();
-  if (id === "runEndScreen" && gauntletReturnButton) gauntletReturnButton.style.display = "none";
+  if (id === "runEndScreen") resetRunEndActions();
+}
+
+function resetRunEndActions() {
+  if (gauntletReturnButton) gauntletReturnButton.style.display = "none";
+  if (gauntletFightAgainButton) gauntletFightAgainButton.style.display = "none";
+  if (runEndStartButton) runEndStartButton.style.display = "";
+  if (runEndEssenceButton) runEndEssenceButton.style.display = "";
 }
 
 function applyRunTheme() {
@@ -81,6 +91,7 @@ function getActiveScreenId() {
 }
 
 function renderSettings() {
+  renderEquipmentAutosellOptions();
   battleSpeedSetting.value = String(getBattleSpeedPreference());
   disableShakeSetting.checked = !!save.settings.disableShake;
   reduceAnimationsSetting.checked = !!save.settings.reduceAnimations;
@@ -89,6 +100,7 @@ function renderSettings() {
   sfxVolumeSetting.value = Number(save.settings.sfxVolume ?? 70);
   damageNumbersSetting.checked = save.settings.damageNumbers !== false;
   tooltipsSetting.checked = save.settings.tooltips !== false;
+  equipmentAutosellRaritySetting.value = normalizeEquipmentAutosellRarity(save.settings.equipmentAutosellRarity);
   settingsMainMenuButton.textContent = run ? "Exit Run to Main Menu" : "Main Menu";
   settingsMainMenuButton.classList.toggle("danger-btn", !!run);
   fullscreenHint.textContent = "";
@@ -104,6 +116,7 @@ function saveSettings() {
   save.settings.sfxVolume = Math.max(0, Math.min(100, Number(sfxVolumeSetting.value) || 0));
   save.settings.damageNumbers = damageNumbersSetting.checked;
   save.settings.tooltips = tooltipsSetting.checked;
+  save.settings.equipmentAutosellRarity = normalizeEquipmentAutosellRarity(equipmentAutosellRaritySetting.value);
   saveGame();
   if (save.settings.sound === false) stopMusic();
   else updateMusicVolume();
@@ -112,11 +125,18 @@ function saveSettings() {
 }
 
 function setupSettingsAutoSave() {
-  [battleSpeedSetting, disableShakeSetting, reduceAnimationsSetting, soundSetting, musicVolumeSetting, sfxVolumeSetting, damageNumbersSetting, tooltipsSetting].forEach(control => {
+  [battleSpeedSetting, disableShakeSetting, reduceAnimationsSetting, soundSetting, musicVolumeSetting, sfxVolumeSetting, damageNumbersSetting, tooltipsSetting, equipmentAutosellRaritySetting].forEach(control => {
     if (!control) return;
     control.addEventListener("input", saveSettings);
     control.addEventListener("change", saveSettings);
   });
+}
+
+function renderEquipmentAutosellOptions() {
+  if (!equipmentAutosellRaritySetting) return;
+  const current = normalizeEquipmentAutosellRarity(save.settings.equipmentAutosellRarity);
+  equipmentAutosellRaritySetting.innerHTML = `<option value="">Off</option>${EQUIPMENT_RARITIES.map(rarity => `<option value="${rarity.id}">${rarity.id}</option>`).join("")}`;
+  equipmentAutosellRaritySetting.value = current;
 }
 
 function changeBattleSpeed(value) {
@@ -554,6 +574,8 @@ function renderHeroEquipmentPanel(classId) {
     `<button class="equipment-tab ${selectedEquipmentSlotTab === tab.id ? "equipment-tab-active" : ""}" data-equipment-tab="${tab.id}">${escapeHtml(tab.name)}</button>`
   ).join("");
   const shopOffers = getEquipmentShopOffers(classId);
+  const refreshRemaining = getEquipmentShopRefreshRemainingSeconds(classId);
+  scheduleEquipmentShopRefreshRender(classId);
   const shop = shopOffers.map((item, index) => {
     const cost = getEquipmentBuyCost(item);
     return `<div class="equipment-shop-item equipment-rarity-${String(item.rarity || "Common").toLowerCase()}">
@@ -577,7 +599,7 @@ function renderHeroEquipmentPanel(classId) {
     <div class="equipment-shop">
       <div class="equipment-panel-header">
         <h4>Essence Gear Shop</h4>
-        <button data-refresh-equipment-shop>Refresh</button>
+        <button data-refresh-equipment-shop ${refreshRemaining > 0 ? "disabled" : ""}>${refreshRemaining > 0 ? `Refresh ${refreshRemaining}s` : "Refresh"}</button>
       </div>
       <div class="equipment-shop-list">${shop}</div>
     </div>
@@ -616,8 +638,11 @@ function wireHeroEquipmentPanel(classId) {
   });
   const refreshButton = characterDetails.querySelector("[data-refresh-equipment-shop]");
   if (refreshButton) refreshButton.onclick = () => {
+    if (getEquipmentShopRefreshRemainingSeconds(classId) > 0) return;
     equipmentShopOffers[classId] = createEquipmentShopOffers(classId);
+    equipmentShopRefreshAvailableAt[classId] = Date.now() + EQUIPMENT_SHOP_REFRESH_COOLDOWN_MS;
     renderHeroCharacterDetails(classId);
+    scheduleEquipmentShopRefreshRender(classId);
   };
   characterDetails.querySelectorAll("[data-unequip-slot]").forEach(button => {
     button.onclick = () => {
@@ -634,6 +659,33 @@ function getEquipmentShopOffers(classId) {
   return equipmentShopOffers[classId];
 }
 
+function getEquipmentShopRefreshRemainingSeconds(classId) {
+  const remaining = (equipmentShopRefreshAvailableAt[classId] || 0) - Date.now();
+  return Math.max(0, Math.ceil(remaining / 1000));
+}
+
+function scheduleEquipmentShopRefreshRender(classId) {
+  if (equipmentShopRefreshTimer) {
+    clearTimeout(equipmentShopRefreshTimer);
+    equipmentShopRefreshTimer = null;
+  }
+  if (!updateEquipmentShopRefreshButton(classId)) return;
+  equipmentShopRefreshTimer = setTimeout(() => {
+    equipmentShopRefreshTimer = null;
+    scheduleEquipmentShopRefreshRender(classId);
+  }, 1000);
+}
+
+function updateEquipmentShopRefreshButton(classId) {
+  if (characterBrowserTab !== "heroes" || selectedCharacterId !== classId || getActiveScreenId() !== "charactersScreen") return false;
+  const refreshButton = characterDetails?.querySelector("[data-refresh-equipment-shop]");
+  if (!refreshButton) return false;
+  const remaining = getEquipmentShopRefreshRemainingSeconds(classId);
+  refreshButton.disabled = remaining > 0;
+  refreshButton.textContent = remaining > 0 ? `Refresh ${remaining}s` : "Refresh";
+  return remaining > 0;
+}
+
 function createEquipmentShopOffers(classId) {
   const stage = Math.max(1, Math.min(FINAL_BOSS_STAGE, save.highestClear || 1));
   return Array.from({ length: 3 }, () => generateEquipmentDrop({ classId, stage, sourceName: "Essence Gear Shop", rarityBonus: 0.12 }));
@@ -644,7 +696,7 @@ function getEquipmentBuyCost(item) {
 }
 
 function getEquipmentSellValue(item) {
-  return Math.max(10, Math.round(getEquipmentBuyCost(item) * 0.4));
+  return Math.max(2, Math.round(getEquipmentBuyCost(item) * 0.08));
 }
 
 function buyEquipmentOffer(classId, index) {
@@ -1248,7 +1300,10 @@ function beginFinalBoss() {
   log("The final gate opens. The Eternal Crown descends."); beginStage("FinalBoss");
 }
 
-function shouldOfferClassTalent() { return CLASS_TALENT_STAGES.includes(run.stage) && getTalentChoices().length > 0; }
+function shouldOfferClassTalent() {
+  const talentStages = Array.isArray(window.CLASS_TALENT_STAGES) ? window.CLASS_TALENT_STAGES : (typeof CLASS_TALENT_STAGES !== "undefined" ? CLASS_TALENT_STAGES : []);
+  return talentStages.includes(run.stage) && getTalentChoices().length > 0;
+}
 function showTalentChoices() {
   const choices = getTalentChoices(); if (!choices.length) return continueAfterClassTalent();
   showScreen("talentScreen"); talentSubtitle.textContent = `${getRunStageLabel()}. Strengthen your ${CLASSES[run.classId].name} for this run.`;
@@ -1523,7 +1578,7 @@ function renderBattleParticles() {
   });
 }
 function renderBossIntro() { const boss = battle.enemies.find(e => e.boss); if (!boss) return; const progress = 1 - battle.bossIntroTimer / Math.max(.1, battle.bossIntroDuration || battle.bossIntroTimer), opacity = progress < .18 ? progress / .18 : progress > .72 ? Math.max(0, (1 - progress) / .28) : 1; const overlay = document.createElement("div"); overlay.className = `boss-intro-overlay${boss.finalBoss ? " boss-intro-final" : ""}`; overlay.style.opacity = opacity; overlay.style.setProperty("--intro-progress", progress); overlay.innerHTML = `<div class="boss-intro-tint"></div><div class="boss-intro-name"><small>${boss.finalBoss ? "THE CROWN AWAKENS" : "BOSS"}</small><h2>${escapeHtml(boss.name.toUpperCase())}</h2><strong>${boss.finalBoss ? "The Last Encounter" : "Final Encounter"}</strong></div>`; battlefield.appendChild(overlay); }
-function renderBattleResultPanel() { const r = battle.result, panel = document.createElement("div"); panel.className = `battle-result-panel${r.victory ? "" : " battle-result-defeat"}`; const finalCrown = battle.nodeType === "FinalBoss" || isFinalBossStage(run.stage), drop = r.equipmentDrop, gauntlet = isGauntletRun(); panel.innerHTML = `<div class="battle-result-kicker">${r.victory ? "Enemies Defeated" : finalCrown ? "The Crown Awakens" : "Hero Defeated"}</div><h2>${r.title}</h2><div class="battle-result-gains"><div><small>${gauntlet ? "Points Gained" : "Gold Gained"}</small><strong>+${Math.floor(gauntlet ? run.gauntlet?.earnedPoints || 0 : r.gold)}</strong></div><div><small>${gauntlet ? "Coins Gained" : "Essence Gained"}</small><strong>+${Math.floor(gauntlet ? run.gauntlet?.earnedCoins || 0 : r.essence)}</strong></div>${drop ? `<div class="battle-equipment-drop equipment-rarity-${String(drop.rarity || "Common").toLowerCase()}"><small>Equipment Found</small><strong>${escapeHtml(drop.rarity)} ${escapeHtml(drop.name)}</strong><span>${escapeHtml(formatEquipmentItemSummary(drop))}</span></div>` : ""}</div><button onclick="continueBattleResult()">${r.nextLabel}</button>`; battlefield.appendChild(panel); }
+function renderBattleResultPanel() { const r = battle.result, panel = document.createElement("div"); panel.className = `battle-result-panel${r.victory ? "" : " battle-result-defeat"}`; const finalCrown = battle.nodeType === "FinalBoss" || isFinalBossStage(run.stage), drop = r.equipmentDrop, gauntlet = isGauntletRun(), gauntletPoints = Math.floor(run.gauntlet?.earnedPoints || 0), autosold = !!r.equipmentAutosold; panel.innerHTML = `<div class="battle-result-kicker">${r.victory ? "Enemies Defeated" : finalCrown ? "The Crown Awakens" : "Hero Defeated"}</div><h2>${r.title}</h2><div class="battle-result-gains"><div><small>${gauntlet ? gauntletPoints < 0 ? "Points Lost" : "Points Gained" : "Gold Gained"}</small><strong>${gauntlet ? `${gauntletPoints >= 0 ? "+" : ""}${gauntletPoints}` : `+${Math.floor(r.gold)}`}</strong></div><div><small>${gauntlet ? "Coins Gained" : "Essence Gained"}</small><strong>+${Math.floor(gauntlet ? run.gauntlet?.earnedCoins || 0 : r.essence)}</strong></div>${drop ? `<div class="battle-equipment-drop equipment-rarity-${String(drop.rarity || "Common").toLowerCase()}"><small>${autosold ? "Equipment Autosold" : "Equipment Found"}</small><strong>${escapeHtml(drop.rarity)} ${escapeHtml(drop.name)}</strong><span>${autosold ? `+${Math.floor(r.equipmentAutosellValue || 0)} Essence` : escapeHtml(formatEquipmentItemSummary(drop))}</span></div>` : ""}</div><button onclick="continueBattleResult()">${r.nextLabel}</button>`; battlefield.appendChild(panel); }
 function getBattleScale() {
   const x = battlefield.clientWidth / 900;
   const y = battlefield.clientHeight / 430;

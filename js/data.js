@@ -30,24 +30,89 @@ const ENEMY_SKIN_ESSENCE_COST = 150;
 const ETERNAL_CROWN_SPRITE_SHEET = "assets/enemies/boss-sheet.png";
 
 const GAUNTLET_OPPONENT_DIFFICULTIES = [
-  { id: "sparring", name: "Sparring", statMultiplier: 0.82, points: 18, coins: 6 },
-  { id: "contender", name: "Contender", statMultiplier: 1, points: 28, coins: 9 },
-  { id: "veteran", name: "Veteran", statMultiplier: 1.22, points: 42, coins: 13 },
-  { id: "champion", name: "Champion", statMultiplier: 1.5, points: 62, coins: 18 }
+  { id: "sparring", name: "Sparring", opponentId: "sparring_duelist", statMultiplier: 1, statVariance: 0.1, points: 18, coins: 10 },
+  { id: "contender", name: "Contender", opponentId: "iron_contender", statMultiplier: 1, statVariance: 0.2, points: 28, coins: 20 },
+  { id: "veteran", name: "Veteran", opponentId: "grave_veteran", statMultiplier: 1, statVariance: 0.3, points: 42, coins: 30 },
+  { id: "champion", name: "Champion", opponentId: "crown_champion", statMultiplier: 1, statVariance: 0.4, points: 62, coins: 40 }
+];
+
+// Edit these records to choose the exact unranked Gauntlet opponents.
+// spriteSheet is optional. Use a 6-frame sheet that follows the normal enemy sheet layout.
+const GAUNTLET_UNRANKED_OPPONENTS = {
+  sparring_duelist: {
+    id: "sparring_duelist",
+    name: "Sparring Duelist",
+    baseEnemyId: "bandit",
+    className: "bandit",
+    spriteSheet: "",
+    stats: { maxHp: 430, damage: 29, attackSpeed: 0.95, armor: 6 }
+  },
+  iron_contender: {
+    id: "iron_contender",
+    name: "Iron Contender",
+    baseEnemyId: "armored_knight",
+    className: "armored-knight",
+    spriteSheet: "",
+    stats: { maxHp: 900, damage: 45, attackSpeed: 1.05, armor: 12 }
+  },
+  grave_veteran: {
+    id: "grave_veteran",
+    name: "Grave Veteran",
+    baseEnemyId: "wraith",
+    className: "wraith",
+    spriteSheet: "",
+    stats: { maxHp: 1500, damage: 68, attackSpeed: 1.08, armor: 10 }
+  },
+  crown_champion: {
+    id: "crown_champion",
+    name: "Crown Champion",
+    baseEnemyId: "fallen_knight",
+    className: "fallen-knight",
+    spriteSheet: "",
+    stats: { maxHp: 3000, damage: 88, attackSpeed: 1.1, armor: 15 }
+  }
+};
+
+// Edit these arrays to customize the ranked Gauntlet top 10.
+// Hero leader spriteSheet is optional; enemy leader spriteSheet uses the normal 6-frame enemy layout.
+const GAUNTLET_HERO_LEADER_CONFIGS = [
+  { id: "hero_aurelia", name: "Aurelia", classId: "knight", rank: 1, spriteSheet: "", stats: { maxHp: 6400, damage: 330, attackSpeed: 1.12, armor: 60 } },
+  { id: "hero_brom", name: "Brom", classId: "wizard", rank: 2, spriteSheet: "", stats: { maxHp: 5600, damage: 360, attackSpeed: 0.95, armor: 48 } },
+  { id: "hero_caldus", name: "Ser Caldus", classId: "knight", rank: 3, spriteSheet: "", stats: { maxHp: 5000, damage: 285, attackSpeed: 1.04, armor: 52 } },
+  { id: "hero_nyra", name: "Nyra", classId: "rogue", rank: 4, spriteSheet: "", stats: { maxHp: 4300, damage: 245, attackSpeed: 1.62, armor: 34 } },
+  { id: "hero_vey", name: "Vey", classId: "wizard", rank: 5, spriteSheet: "", stats: { maxHp: 3800, damage: 265, attackSpeed: 1.02, armor: 32 } },
+  { id: "hero_merek", name: "Merek", classId: "knight", rank: 6, spriteSheet: "", stats: { maxHp: 3400, damage: 205, attackSpeed: 1.02, armor: 35 } },
+  { id: "hero_iris", name: "Iris", classId: "rogue", rank: 7, spriteSheet: "", stats: { maxHp: 3000, damage: 190, attackSpeed: 1.48, armor: 24 } },
+  { id: "hero_tor", name: "Tor", classId: "knight", rank: 8, spriteSheet: "", stats: { maxHp: 2600, damage: 165, attackSpeed: 0.94, armor: 28 } },
+  { id: "hero_sable", name: "Sable", classId: "rogue", rank: 9, spriteSheet: "", stats: { maxHp: 2200, damage: 145, attackSpeed: 1.34, armor: 18 } },
+  { id: "hero_rowan", name: "Rowan", classId: "wizard", rank: 10, spriteSheet: "", stats: { maxHp: 1900, damage: 135, attackSpeed: 0.92, armor: 16 } }
+];
+
+const GAUNTLET_ENEMY_LEADER_CONFIGS = [
+  { id: "enemy_crown_tyrant", name: "Crown Tyrant", enemyId: "fallen_knight", className: "fallen-knight", rank: 1, spriteSheet: "", stats: { maxHp: 6900, damage: 320, attackSpeed: 1.08, armor: 58 } },
+  { id: "enemy_void_wraith", name: "Void Wraith", enemyId: "wraith", className: "wraith", rank: 2, spriteSheet: "", stats: { maxHp: 5600, damage: 345, attackSpeed: 1.22, armor: 40 } },
+  { id: "enemy_crypt_lord", name: "Crypt Lord", enemyId: "necromancer", className: "necromancer", rank: 3, spriteSheet: "", stats: { maxHp: 5100, damage: 280, attackSpeed: 1.05, armor: 44 } },
+  { id: "enemy_iron_oath", name: "Iron Oath", enemyId: "armored_knight", className: "armored-knight", rank: 4, spriteSheet: "", stats: { maxHp: 4700, damage: 235, attackSpeed: 0.98, armor: 50 } },
+  { id: "enemy_blood_acolyte", name: "Blood Acolyte", enemyId: "cultist", className: "cultist", rank: 5, spriteSheet: "", stats: { maxHp: 3900, damage: 230, attackSpeed: 1.16, armor: 28 } },
+  { id: "enemy_marsh_stalker", name: "Marsh Stalker", enemyId: "plague_rat", className: "plague-rat", rank: 6, spriteSheet: "", stats: { maxHp: 3300, damage: 190, attackSpeed: 1.45, armor: 20 } },
+  { id: "enemy_dark_marksman", name: "Dark Marksman", enemyId: "dark_archer", className: "dark-archer", rank: 7, spriteSheet: "", stats: { maxHp: 2900, damage: 185, attackSpeed: 1.18, armor: 18 } },
+  { id: "enemy_war_troll", name: "War Troll", enemyId: "troll", className: "troll", rank: 8, spriteSheet: "", stats: { maxHp: 3600, damage: 155, attackSpeed: 0.72, armor: 30 } },
+  { id: "enemy_red_raider", name: "Red Raider", enemyId: "raider", className: "raider", rank: 9, spriteSheet: "", stats: { maxHp: 2400, damage: 150, attackSpeed: 1.1, armor: 16 } },
+  { id: "enemy_goblin_duke", name: "Goblin Duke", enemyId: "goblin", className: "goblin", rank: 10, spriteSheet: "", stats: { maxHp: 2000, damage: 125, attackSpeed: 1.24, armor: 12 } }
 ];
 
 const GAUNTLET_SHOP_UPGRADES = [
-  { id: "maxHp", name: "Tournament Vigor", description: "+18 max HP in Gauntlet battles.", cost: 18, maxLevel: 10, effect: { maxHp: 18 } },
-  { id: "damage", name: "Arena Edge", description: "+3 damage in Gauntlet battles.", cost: 20, maxLevel: 10, effect: { damage: 3 } },
-  { id: "armor", name: "Duel Plate", description: "+1 armor in Gauntlet battles.", cost: 16, maxLevel: 8, effect: { armor: 1 } },
-  { id: "attackSpeed", name: "Quick Bell", description: "+0.04 attack speed in Gauntlet battles.", cost: 22, maxLevel: 8, effect: { attackSpeed: 0.04 } },
-  { id: "crit", name: "Crowd Favorite", description: "+2% crit chance in Gauntlet battles.", cost: 24, maxLevel: 6, effect: { crit: 0.02 } }
+  { id: "maxHp", name: "Tournament Vigor", description: "+18 max HP in Gauntlet battles.", cost: 18, maxLevel: 20, effect: { maxHp: 18 } },
+  { id: "damage", name: "Arena Edge", description: "+3 damage in Gauntlet battles.", cost: 20, maxLevel: 20, effect: { damage: 3 } },
+  { id: "armor", name: "Duel Plate", description: "+1 armor in Gauntlet battles.", cost: 16, maxLevel: 20, effect: { armor: 1 } },
+  { id: "attackSpeed", name: "Quick Bell", description: "+0.04 attack speed in Gauntlet battles.", cost: 22, maxLevel: 20, effect: { attackSpeed: 0.04 } },
+  { id: "crit", name: "Crowd Favorite", description: "+2% crit chance in Gauntlet battles.", cost: 24, maxLevel: 20, effect: { crit: 0.02 } }
 ];
 
 const CLASSES = {
-  knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 180, damage: 16, attackSpeed: 0.71, armor: 5, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
-  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed based on max HP.", hp: 135, damage: 13, attackSpeed: 1.16, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Max HP bleed"] },
-  wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 115, damage: 28, attackSpeed: 0.58, armor: 1, crit: 0.1, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
+  knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 160, damage: 16, attackSpeed: 0.71, armor: 4, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
+  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed based on max HP.", hp: 135, damage: 13, attackSpeed: 1.04, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Max HP bleed"] },
+  wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 115, damage: 24, attackSpeed: 0.58, armor: 1, crit: 0.1, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
 };
 
 const EQUIPMENT_SLOTS = [
@@ -60,17 +125,17 @@ const EQUIPMENT_SLOTS = [
 ];
 
 const EQUIPMENT_RARITIES = [
-  { id: "Common", weight: 58, statMultiplier: 1, qualityBonus: 0 },
-  { id: "Uncommon", weight: 26, statMultiplier: 1.18, qualityBonus: 0.04 },
-  { id: "Rare", weight: 12, statMultiplier: 1.42, qualityBonus: 0.09 },
-  { id: "Epic", weight: 3.4, statMultiplier: 1.78, qualityBonus: 0.15 },
-  { id: "Legendary", weight: 0.6, statMultiplier: 2.25, qualityBonus: 0.24 }
+  { id: "Common", weight: 60, statMultiplier: 1, qualityBonus: 0 },
+  { id: "Uncommon", weight: 26.5, statMultiplier: 1.18, qualityBonus: 0.04 },
+  { id: "Rare", weight: 10, statMultiplier: 1.42, qualityBonus: 0.09 },
+  { id: "Epic", weight: 3, statMultiplier: 1.78, qualityBonus: 0.15 },
+  { id: "Legendary", weight: 0.5, statMultiplier: 2.25, qualityBonus: 0.24 }
 ];
 
 const EQUIPMENT_STAT_RANGES = {
-  maxHp: { min: 8, max: 46, decimals: 0 },
-  damage: { min: 1, max: 9, decimals: 1 },
-  armor: { min: 1, max: 7, decimals: 0 },
+  maxHp: { min: 8, max: 32, decimals: 0 },
+  damage: { min: 1, max: 6, decimals: 1 },
+  armor: { min: 1, max: 5, decimals: 0 },
   attackSpeed: { min: 0.01, max: 0.09, decimals: 2 },
   critChance: { min: 0.01, max: 0.08, decimals: 2 },
   regen: { min: 0.2, max: 2.2, decimals: 1 },
@@ -152,17 +217,7 @@ const EQUIPMENT_TEMPLATES = {
   ]
 };
 
-const STARTER_INVENTORY_ITEMS = [
-  { itemId: "training_helm", instanceId: "starter_training_helm", name: "Training Helm", slot: "head", rarity: "Common", allowedClassIds: ["knight", "rogue", "wizard"], stats: { maxHp: 5 }, description: "A simple padded helm for early campaigns." },
-  { itemId: "padded_vest", instanceId: "starter_padded_vest", name: "Padded Vest", slot: "body", rarity: "Common", allowedClassIds: ["knight", "rogue", "wizard"], stats: { armor: 1 }, description: "Light body armor with room for future upgrades." },
-  { itemId: "iron_longsword", instanceId: "starter_iron_longsword", name: "Iron Longsword", slot: "mainHand", rarity: "Common", allowedClassIds: ["knight"], stats: { damage: 2 }, description: "A reliable knight weapon." },
-  { itemId: "buckler", instanceId: "starter_buckler", name: "Buckler", slot: "offHand", rarity: "Common", allowedClassIds: ["knight", "rogue"], stats: { armor: 1 }, description: "A compact shield for close fights." },
-  { itemId: "paired_greaves", instanceId: "starter_paired_greaves", name: "Paired Greaves", slot: "legs", rarity: "Common", allowedClassIds: ["knight", "rogue", "wizard"], stats: { maxHp: 4 }, description: "Combined leg armor, stored as one slot." },
-  { itemId: "travel_boots", instanceId: "starter_travel_boots", name: "Travel Boots", slot: "feet", rarity: "Common", allowedClassIds: ["knight", "rogue", "wizard"], stats: { attackSpeed: 0.01 }, description: "Combined footwear, stored as one slot." },
-  { itemId: "twin_daggers", instanceId: "starter_twin_daggers", name: "Twin Daggers", slot: "mainHand", rarity: "Common", allowedClassIds: ["rogue"], stats: { critChance: 0.02 }, description: "A quick rogue main-hand set." },
-  { itemId: "apprentice_staff", instanceId: "starter_apprentice_staff", name: "Apprentice Staff", slot: "mainHand", rarity: "Common", allowedClassIds: ["wizard"], stats: { damage: 2 }, description: "A focus for basic spellwork." },
-  { itemId: "spellbook", instanceId: "starter_spellbook", name: "Spellbook", slot: "offHand", rarity: "Common", allowedClassIds: ["wizard"], stats: { critChance: 0.01 }, description: "A wizard off-hand focus." }
-];
+const STARTER_INVENTORY_ITEMS = [];
 
 const SPRITE_SHEETS = {
   heroes: {
@@ -726,6 +781,21 @@ const ENEMY_KILL_ACHIEVEMENTS = CHARACTER_ENEMIES.map((enemy, index) => ({
   bonus: getEnemySlayerBonus(index)
 }));
 
+const GAUNTLET_ACHIEVEMENTS = [
+  { id: "gauntlet_first_bout", name: "Arena Debut", description: "Finish your first Gauntlet battle.", goal: "Fight 1 Gauntlet battle", condition: save => (save.gauntlet?.stats?.battles || 0) >= 1, essenceReward: 5, bonus: { maxHp: 2 } },
+  { id: "gauntlet_first_win", name: "Duelist's Mark", description: "Win your first Gauntlet battle.", goal: "Win 1 Gauntlet battle", condition: save => (save.gauntlet?.stats?.wins || 0) >= 1, essenceReward: 5, bonus: { damageMultiplier: 0.005 } },
+  { id: "gauntlet_ten_wins", name: "Arena Regular", description: "Win 10 Gauntlet battles.", goal: "Win 10 Gauntlet battles", condition: save => (save.gauntlet?.stats?.wins || 0) >= 10, essenceReward: 10, bonus: { maxHp: 4 } },
+  { id: "gauntlet_fifty_wins", name: "Crowd Favorite", description: "Win 50 Gauntlet battles.", goal: "Win 50 Gauntlet battles", condition: save => (save.gauntlet?.stats?.wins || 0) >= 50, essenceReward: 20, bonus: { damageMultiplier: 0.01 } },
+  { id: "gauntlet_first_rank", name: "Name on the Board", description: "Claim a spot on the Hero leaderboard.", goal: "Enter the Hero Top 10", condition: save => getPlayerGauntletAchievementRank(save) <= 10, essenceReward: 15, bonus: { luck: 1 } },
+  { id: "gauntlet_top_five", name: "Upper Bracket", description: "Reach the top 5 on the Hero leaderboard.", goal: "Reach Hero rank 5", condition: save => getPlayerGauntletAchievementRank(save) <= 5, essenceReward: 25, bonus: { armor: 1 } },
+  { id: "gauntlet_champion", name: "Gauntlet Champion", description: "Reach #1 on the Hero leaderboard.", goal: "Reach Hero rank 1", condition: save => getPlayerGauntletAchievementRank(save) === 1, essenceReward: 50, bonus: { damageMultiplier: 0.025, maxHp: 10 } },
+  { id: "gauntlet_ranked_wins", name: "Ladder Climber", description: "Win 5 ranked Hero leaderboard challenges.", goal: "Win 5 ranked challenges", condition: save => (save.gauntlet?.stats?.rankedWins || 0) >= 5, essenceReward: 20, bonus: { attackSpeedMultiplier: 0.01 } },
+  { id: "gauntlet_points_earned", name: "Point Breaker", description: "Hold 2,500 Gauntlet points.", goal: "Hold 2,500 Gauntlet points", condition: save => (save.gauntlet?.points || 0) >= 2500, essenceReward: 20, bonus: { startingGold: 8 } },
+  { id: "gauntlet_coin_purse", name: "Tournament Purse", description: "Hold 100 Tournament Coins.", goal: "Hold 100 Tournament Coins", condition: save => (save.gauntlet?.coins || 0) >= 100, essenceReward: 15, bonus: { luck: 1 } },
+  { id: "gauntlet_shop_investor", name: "Arena Training", description: "Buy 10 Tournament Shop upgrade levels.", goal: "Buy 10 Gauntlet shop upgrades", condition: save => getGauntletAchievementUpgradeLevels(save) >= 10, essenceReward: 15, bonus: { maxHp: 4 } },
+  { id: "gauntlet_enemy_board", name: "Monster Bracket", description: "Defeat 5 enemies from the Enemy leaderboard.", goal: "Defeat 5 ranked enemies", condition: save => getDefeatedGauntletEnemyLeaders(save) >= 5, essenceReward: 25, bonus: { damageMultiplier: 0.015 } }
+];
+
 const ACHIEVEMENTS = [
   { id: "first_steps", name: "First Steps", description: "Start your first run.", goal: "Start 1 run", condition: save => save.stats.runsStarted >= 1, essenceReward: 3, bonus: { maxHp: 2 } },
   { id: "first_victory", name: "First Victory", description: "Win your first battle.", goal: "Win 1 battle", condition: save => save.stats.battlesWon >= 1, essenceReward: 3, bonus: { damageMultiplier: 0.005 } },
@@ -752,8 +822,22 @@ const ACHIEVEMENTS = [
   { id: "rogue_layer3_clear", name: "Gilded Contract", description: "Win a run with the Rogue by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Rogue", condition: save => save.stats.rogueLayer3Clears >= 1, essenceReward: 20, bonus: { skin: "Rogue Gilded Contract", rogueCritChance: 0.01 } },
   { id: "wizard_layer3_clear", name: "Auric Arcana", description: "Win a run with the Wizard by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Wizard", condition: save => save.stats.wizardLayer3Clears >= 1, essenceReward: 20, bonus: { skin: "Wizard Auric Arcana", damageMultiplier: 0.01 } },
   { id: "eternal_crown", name: "Eternal Crownbreaker", description: "Kill the final boss with 1,000,000 HP.", goal: "Defeat The Eternal Crown", condition: save => save.stats.finalBossKills >= 1, essenceReward: 100, bonus: { unlock: "Endless Mode", damageMultiplier: 0.08, maxHp: 40, armor: 3, luck: 3, essenceMultiplier: 0.05 } },
+  ...GAUNTLET_ACHIEVEMENTS,
   ...ENEMY_KILL_ACHIEVEMENTS
 ];
+
+function getPlayerGauntletAchievementRank(saveData) {
+  const rank = (saveData.gauntlet?.heroLeaders || []).find(entry => entry.id === "local-player")?.rank;
+  return Number.isFinite(Number(rank)) ? Number(rank) : Infinity;
+}
+
+function getGauntletAchievementUpgradeLevels(saveData) {
+  return Object.values(saveData.gauntlet?.upgrades || {}).reduce((total, level) => total + Math.max(0, Math.floor(Number(level) || 0)), 0);
+}
+
+function getDefeatedGauntletEnemyLeaders(saveData) {
+  return (saveData.gauntlet?.enemyLeaders || []).filter(entry => entry.defeatedByPlayer).length;
+}
 
 function getEnemySlayerBonus(index) {
   const bonuses = [
@@ -939,8 +1023,8 @@ const RELICS = [
   { id: "sun_amulet", name: "Sun Amulet", description: "+35% max HP.", rarity: "Epic", icon: "SA", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.35 } },
   { id: "fate_deck", name: "Fate Deck", description: "+8 Luck.", rarity: "Epic", icon: "FD", effect: { type: "stat", stat: "luck", value: 8 } },
   { id: "dragon_heart", name: "Dragon Heart", description: "A living ember beats in your chest. +45% max HP and +3 HP regen.", rarity: "Legendary", icon: "DH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.45, regen: 3 } },
-  { id: "sunforged_edge", name: "Sunforged Edge", description: "A royal killing edge. +60% damage.", rarity: "Legendary", icon: "SE", effect: { type: "stat", stat: "damageMultiplier", value: 0.6 } },
-  { id: "titan_heart", name: "Titan Heart", description: "A mountain's pulse. +65% max HP.", rarity: "Legendary", icon: "TH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.65 } },
+  { id: "sunforged_edge", name: "Sunforged Edge", description: "A royal killing edge. +50% damage.", rarity: "Legendary", icon: "SE", effect: { type: "stat", stat: "damageMultiplier", value: 0.5 } },
+  { id: "titan_heart", name: "Titan Heart", description: "A mountain's pulse. +55% max HP.", rarity: "Legendary", icon: "TH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.55 } },
   { id: "hourglass_chain", name: "Hourglass Chain", description: "The second hand snaps forward. +55% attack speed.", rarity: "Legendary", icon: "HC", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.55 } },
   { id: "starforged_blade", name: "Starforged Blade", description: "A weapon bright enough to cut fate. +55% damage.", rarity: "Legendary", icon: "SB", effect: { type: "stat", stat: "damageMultiplier", value: 0.55 } },
   { id: "crown_of_chance", name: "Crown of Chance", description: "The crown smiles on impossible odds. +9 Luck and +15% Essence earned.", rarity: "Legendary", icon: "CC", effect: { type: "stat", stat: "luck", value: 9, essenceMultiplier: 0.15 } },
@@ -957,8 +1041,10 @@ const RELICS = [
   { id: "campaign_blade", name: "Campaign Blade", description: "Gain +5% damage after each stage defeated.", rarity: "Legendary", icon: "CB", effect: { type: "stageGrowth", stat: "damageMultiplier", value: 0.05 } },
   { id: "campaign_spurs", name: "Campaign Spurs", description: "Gain +3% attack speed after each stage defeated.", rarity: "Legendary", icon: "CS", effect: { type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.03 } },
   { id: "campaign_plate", name: "Campaign Plate", description: "Gain +5% armor after each stage defeated.", rarity: "Legendary", icon: "CP", effect: { type: "stageGrowth", stat: "armorMultiplier", value: 0.05 } },
-  { id: "moonlit_armor", name: "Moonlit Armor", description: "+70% armor and +22% max HP.", rarity: "Epic", icon: "MA", effect: { type: "stat", stat: "armorMultiplier", value: 0.7, maxHpMultiplier: 0.22 } }
+  { id: "moonlit_armor", name: "Moonlit Armor", description: "+35% armor and +15% max HP.", rarity: "Epic", icon: "MA", effect: { type: "stat", stat: "armorMultiplier", value: 0.35, maxHpMultiplier: 0.15 } }
 ];
+
+const CLASS_TALENT_STAGES = [5, 15, 25];
 
 const CLASS_TALENTS = {
   knight: [
