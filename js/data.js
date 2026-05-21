@@ -7,6 +7,7 @@ const SANCTUARY_BASE_HP_GAIN = 100;
 const SANCTUARY_LAYER_HP_GAIN = 50;
 const SANCTUARY_BASE_REGEN_GAIN = 1;
 const SANCTUARY_LAYER_REGEN_GAIN = 1;
+const MAP_BACKGROUND_IMAGE = "";
 
 const BATTLEFIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 430" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#40264f"/><stop offset=".45" stop-color="#a9553f"/><stop offset="1" stop-color="#3c2a25"/></linearGradient><linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8b6438"/><stop offset="1" stop-color="#3e2a1b"/></linearGradient><radialGradient id="glow" cx="50%" cy="42%" r="42%"><stop offset="0" stop-color="#ffe28a" stop-opacity=".95"/><stop offset=".25" stop-color="#f59e45" stop-opacity=".45"/><stop offset="1" stop-color="#1b1120" stop-opacity="0"/></radialGradient></defs><rect width="900" height="430" fill="url(#sky)"/><rect width="900" height="430" fill="url(#glow)"/><circle cx="450" cy="180" r="34" fill="#ffd874"/><path d="M0 188 L64 132 L118 187 L164 112 L229 190 L292 120 L349 188 L406 96 L480 190 L548 118 L618 190 L684 99 L758 190 L825 126 L900 187 L900 250 L0 250 Z" fill="#33294b"/><path d="M0 238 L80 199 L170 235 L258 196 L350 238 L450 203 L536 238 L637 194 L722 238 L812 201 L900 238 L900 288 L0 288 Z" fill="#4f3a37"/><path d="M318 201 V150 H332 V126 H346 V154 H358 V110 H374 V154 H388 V132 H402 V201 Z" fill="#2a2434"/><rect x="309" y="194" width="104" height="20" fill="#33283a"/><path d="M620 205 V150 H636 V118 H652 V158 H668 V136 H684 V205 Z" fill="#302337"/><rect x="606" y="198" width="96" height="20" fill="#3a2a34"/><path d="M92 215 V92 H132 V204 H152 V222 H68 V204 H92 Z" fill="#322d31"/><path d="M768 215 V96 H810 V204 H832 V222 H746 V204 H768 Z" fill="#322d31"/><rect x="99" y="118" width="24" height="72" fill="#273558"/><rect x="779" y="120" width="25" height="74" fill="#6d2020"/><rect y="250" width="900" height="180" fill="url(#ground)"/><path d="M110 310 C208 286 348 282 452 288 C572 295 690 288 804 310 C704 331 584 342 455 338 C318 334 202 330 110 310 Z" fill="#9a7142" opacity=".72"/><rect x="83" y="292" width="34" height="12" fill="#b09369"/><rect x="242" y="301" width="44" height="11" fill="#a4885e"/><rect x="510" y="302" width="42" height="10" fill="#b08c5c"/><rect x="734" y="294" width="38" height="11" fill="#a68961"/><rect x="18" y="392" width="132" height="38" fill="#201711"/><rect x="732" y="392" width="150" height="38" fill="#201711"/></svg>`;
 
@@ -26,14 +27,12 @@ const PLAYER_BASE_STAT_MULTIPLIER = 1.05;
 const ENEMY_BASE_STAT_MULTIPLIER = 1.3;
 const HERO_SKIN_ESSENCE_COST = 200;
 const ENEMY_SKIN_ESSENCE_COST = 150;
-// Change this path when you add a dedicated Eternal Crown sprite sheet.
-const ETERNAL_CROWN_SPRITE_SHEET = "assets/enemies/boss-sheet.png";
 
 const GAUNTLET_OPPONENT_DIFFICULTIES = [
   { id: "sparring", name: "Sparring", opponentId: "sparring_duelist", statMultiplier: 1, statVariance: 0.1, points: 18, coins: 10 },
-  { id: "contender", name: "Contender", opponentId: "iron_contender", statMultiplier: 1, statVariance: 0.2, points: 28, coins: 20 },
-  { id: "veteran", name: "Veteran", opponentId: "grave_veteran", statMultiplier: 1, statVariance: 0.3, points: 42, coins: 30 },
-  { id: "champion", name: "Champion", opponentId: "crown_champion", statMultiplier: 1, statVariance: 0.4, points: 62, coins: 40 }
+  { id: "contender", name: "Contender", opponentId: "iron_contender", statMultiplier: 1, statVariance: 0.2, points: 28, coins: 15 },
+  { id: "veteran", name: "Veteran", opponentId: "grave_veteran", statMultiplier: 1, statVariance: 0.3, points: 42, coins: 25 },
+  { id: "champion", name: "Champion", opponentId: "crown_champion", statMultiplier: 1, statVariance: 0.4, points: 62, coins: 35 }
 ];
 
 // Edit these records to choose the exact unranked Gauntlet opponents.
@@ -228,10 +227,10 @@ const SPRITE_SHEETS = {
   enemies: {
     goblin: "assets/enemies/goblin-sheet.png",
     skeleton: "assets/enemies/skeleton-sheet.png",
-    orc: "assets/enemies/orc-sheet.svg",
+    orc: "assets/enemies/orc-sheet.png",
     wolf: "assets/enemies/wolf-sheet.png",
     bandit: "assets/enemies/bandit-sheet.png",
-    cultist: "assets/enemies/cultist-sheet.svg",
+    cultist: "assets/enemies/cultist-sheet.png",
     dark_archer: "assets/enemies/dark-archer-sheet.png",
     plague_rat: "assets/enemies/plague-rat-sheet.png",
     armored_knight: "assets/enemies/armored-knight-sheet.png",
@@ -239,9 +238,9 @@ const SPRITE_SHEETS = {
     necromancer: "assets/enemies/necromancer-sheet.png",
     wraith: "assets/enemies/wraith-sheet.png",
     troll: "assets/enemies/troll-sheet.png",
-    raider: "assets/enemies/raider-sheet.svg",
+    raider: "assets/enemies/raider-sheet.png",
     boss: "assets/enemies/boss-sheet.png",
-    eternalCrown: ETERNAL_CROWN_SPRITE_SHEET
+    eternalCrown: "assets/enemies/eternal-crown-sheet.png"
   }
 };
 
@@ -524,6 +523,162 @@ const AREA_ENEMY_POOLS = {
 };
 
 const BIOME_THEMES = {
+  // Optional custom area assets:
+  // - backgroundImage: "assets/areas/your-area.png" replaces the generated battlefield art.
+  // - spriteSheets.enemies: { goblin: "assets/areas/your-area/goblin-sheet.png" } overrides enemy sprites while fighting in this area.
+  sunlitBeach: {
+    name: "Beach",
+    description: "A bright shoreline where the first crown scouts land among wreckage and tide pools.",
+    icon: "BE",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["forest"]),
+    eventTags: ["wreck", "tide", "supply"],
+    eventNodes: ["Heal", "Merchant", "Battle"],
+    musicKey: "beach",
+    bossVariant: "shore_raider",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#62a8d8", skyMid: "#f3c46b", skyBottom: "#8fd3d6",
+      groundTop: "#d7b46a", groundBottom: "#6f5a32", sun: "#fff1a8",
+      far: "#427b89", near: "#c08f47", accentA: "#256d85", accentB: "#8b5e34"
+    })
+  },
+  greenwoodForest: {
+    name: "Forest",
+    description: "The road bends into old trees watched by beasts, bandits, and crown-marked scouts.",
+    icon: "FO",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["forest", "crypt"]),
+    eventTags: ["ambush", "shrine", "fog"],
+    eventNodes: ["Heal", "Battle", "Merchant"],
+    musicKey: "forest",
+    bossVariant: "forest_horror",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#172313", skyMid: "#263f27", skyBottom: "#111827",
+      groundTop: "#334d25", groundBottom: "#161f13", sun: "#c7d2fe",
+      far: "#18241a", near: "#20341f", accentA: "#365314", accentB: "#1f2937"
+    })
+  },
+  storyGoblinCamp: {
+    name: "Goblin Camp",
+    description: "A crude war camp guarding the last safe path toward the fallen crownlands.",
+    icon: "GC",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["forest", "warCamp"]),
+    eventTags: ["loot", "trap", "campfire"],
+    eventNodes: ["Merchant", "Battle", "Elite"],
+    musicKey: "goblin_camp",
+    bossVariant: "goblin_warlord",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#3f2f1f", skyMid: "#9a5c24", skyBottom: "#2f1f14",
+      groundTop: "#8a5a2b", groundBottom: "#31200f", sun: "#fde68a",
+      far: "#4a341f", near: "#5f3e1f", accentA: "#365314", accentB: "#a16207"
+    })
+  },
+  crownOutskirts: {
+    name: "Outskirts",
+    description: "Burned farms and broken roads mark the edge of the kingdom's collapse.",
+    icon: "OS",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["forest", "warCamp"]),
+    eventTags: ["refugee", "barricade", "patrol"],
+    eventNodes: ["Merchant", "Heal", "Battle"],
+    musicKey: "outskirts",
+    bossVariant: "fallen_commander",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#32424a", skyMid: "#806241", skyBottom: "#2b2119",
+      groundTop: "#756148", groundBottom: "#292017", sun: "#facc15",
+      far: "#3d3f39", near: "#544033", accentA: "#78716c", accentB: "#7f1d1d"
+    })
+  },
+  ashLands: {
+    name: "Ash Lands",
+    description: "A scorched march through cinders, siege smoke, and royal firebreaks.",
+    icon: "AL",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["warCamp", "darkCastle"]),
+    eventTags: ["ash", "siege", "embers"],
+    eventNodes: ["Elite", "Merchant", "Heal"],
+    musicKey: "ash_lands",
+    bossVariant: "ash_regent",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#23181a", skyMid: "#7c2d12", skyBottom: "#1c120d",
+      groundTop: "#6b3f20", groundBottom: "#24130b", sun: "#fdba74",
+      far: "#3f2418", near: "#552c18", accentA: "#9a3412", accentB: "#292524"
+    })
+  },
+  necromancerTower: {
+    name: "Necromancer Tower",
+    description: "A black spire where the crown's dead are named, bound, and sent onward.",
+    icon: "NT",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["crypt", "darkCastle"]),
+    eventTags: ["ritual", "library", "curse"],
+    eventNodes: ["Heal", "Elite", "Merchant"],
+    musicKey: "necromancer_tower",
+    bossVariant: "crypt_lord",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#111827", skyMid: "#263044", skyBottom: "#0f172a",
+      groundTop: "#3f3f46", groundBottom: "#18181b", sun: "#93c5fd",
+      far: "#27272a", near: "#3f3f46", accentA: "#a8a29e", accentB: "#6d28d9"
+    })
+  },
+  kingdomEntrance: {
+    name: "Kingdom Entrance",
+    description: "The shattered gate into Crownfall, still guarded by soldiers who never yielded.",
+    icon: "KE",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["warCamp", "darkCastle"]),
+    eventTags: ["gate", "siege", "standard"],
+    eventNodes: ["Merchant", "Elite", "Battle"],
+    musicKey: "kingdom_entrance",
+    bossVariant: "gate_warden",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#2f2a35", skyMid: "#5b463f", skyBottom: "#211816",
+      groundTop: "#6b5a45", groundBottom: "#2b2119", sun: "#fbbf24",
+      far: "#3a3440", near: "#4b3b34", accentA: "#78716c", accentB: "#7f1d1d"
+    })
+  },
+  royalDungeon: {
+    name: "Dungeon",
+    description: "Cells beneath the keep, packed with sealed horrors and crown-forged jailers.",
+    icon: "DG",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["crypt", "darkCastle"]),
+    eventTags: ["chains", "cells", "vault"],
+    eventNodes: ["Heal", "Elite", "Merchant"],
+    musicKey: "dungeon",
+    bossVariant: "dungeon_jailer",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#111827", skyMid: "#1f2937", skyBottom: "#0b0f18",
+      groundTop: "#3f3f46", groundBottom: "#18181b", sun: "#a8a29e",
+      far: "#27272a", near: "#2b2b30", accentA: "#78716c", accentB: "#581c87"
+    })
+  },
+  kingsQuarters: {
+    name: "King's Quarters",
+    description: "The ruined royal chambers, the final threshold before the Eternal Crown descends.",
+    icon: "KQ",
+    backgroundImage: "",
+    spriteSheets: { enemies: {} },
+    enemyPool: buildAreaEnemyPool(["darkCastle"]),
+    eventTags: ["throne", "blood_oath", "dark_altar"],
+    eventNodes: ["Elite", "Merchant", "Battle"],
+    musicKey: "kings_quarters",
+    bossVariant: "fallen_king",
+    backgroundSvg: createBiomeBattlefieldSvg({
+      skyTop: "#180f1f", skyMid: "#4c1d3f", skyBottom: "#14080f",
+      groundTop: "#4b1f24", groundBottom: "#1c0f12", sun: "#ef4444",
+      far: "#231325", near: "#35151d", accentA: "#7f1d1d", accentB: "#111827"
+    })
+  },
   hauntedForest: {
     name: "Haunted Forest",
     description: "A moonlit wood packed with beasts, thieves, and lingering spirits.",
@@ -642,13 +797,14 @@ const DIFFICULTIES = {
     armorGrowth: 5,
     essenceMultiplier: 0.6,
     enemyPool: AREA_ENEMY_POOLS.easy,
-    themeIds: ["hauntedForest", "goblinCamp"],
-    layerEnemyMultipliers: [1.0, 1.3, 1.6],
-    layerDamageMultipliers: [1.0, 1.18, 1.3]
+    themeIds: ["sunlitBeach", "greenwoodForest", "storyGoblinCamp"],
+    layerEnemyMultipliers: [1.0, 1.3, 1.7],
+    layerDamageMultipliers: [1.0, 1.18, 1.4]
   },
   medium: {
     name: "Ashen Ramparts",
     description: "A balanced siege route with steady danger and stronger rewards.",
+    requiresDifficultyClear: "easy",
     enemyHealth: 1,
     enemyDamage: 1,
     stageHealthGrowth: 0.15,
@@ -656,14 +812,14 @@ const DIFFICULTIES = {
     armorGrowth: 4,
     essenceMultiplier: 1.1,
     enemyPool: AREA_ENEMY_POOLS.medium,
-    themeIds: ["ruinedKeep", "cursedMarsh"],
-    layerEnemyMultipliers: [1.35, 1.6, 2.0],
-    layerDamageMultipliers: [1.1, 1.3, 1.5]
+    themeIds: ["crownOutskirts", "ashLands", "necromancerTower"],
+    layerEnemyMultipliers: [1.4, 1.8, 2.2],
+    layerDamageMultipliers: [1.2, 1.4, 1.6]
   },
   hard: {
     name: "Crownfall Keep",
     description: "The crown's brutal inner keep. Enemies hit hard, scale fast, and reward bold runs.",
-    requiresNode: "unlock_harder_difficulty",
+    requiresDifficultyClear: "medium",
     enemyHealth: 1.32,
     enemyDamage: 1.35,
     stageHealthGrowth: 0.22,
@@ -671,9 +827,9 @@ const DIFFICULTIES = {
     armorGrowth: 3,
     essenceMultiplier: 1.9,
     enemyPool: AREA_ENEMY_POOLS.hard,
-    themeIds: ["warCamp", "darkCastle"],
-    layerEnemyMultipliers: [2.0, 2.5, 3.25],
-    layerDamageMultipliers: [1.3, 1.7, 2.0]
+    themeIds: ["kingdomEntrance", "royalDungeon", "kingsQuarters"],
+    layerEnemyMultipliers: [2.0, 2.7, 3.25],
+    layerDamageMultipliers: [1.4, 1.8, 2.1]
   },
   endless: {
     name: "Endless Mode",
@@ -1105,7 +1261,6 @@ const TREE_NODES = [
   { id: "unlock_merchants", classId: "global", branch: "Unlocks", name: "Black Market", description: "Unlocks additional merchant stock in shops.", cost: 170, maxLevel: 1, effect: {}, x: 2180, y: 80, prerequisites: ["battle_trance"], type: "unlock" },
   { id: "unlock_enemies", classId: "global", branch: "Unlocks", name: "Wanted Posters", description: "Unlocks dangerous new enemies that can drop higher rewards.", cost: 150, maxLevel: 1, effect: {}, x: 2480, y: 260, prerequisites: ["battle_trance"], type: "unlock" },
   { id: "unlock_starting_bonuses", classId: "global", branch: "Unlocks", name: "Campaign Kit", description: "Unlocks starting bonus rewards and grants +10 battle-start shield.", cost: 155, maxLevel: 1, effect: { battleStartShield: 10 }, x: 300, y: 80, prerequisites: ["royal_mender"], type: "unlock" },
-  { id: "unlock_harder_difficulty", classId: "global", branch: "Unlocks", name: "Crownfall Writ", description: "Unlocks the Crownfall Keep difficulty.", cost: 220, maxLevel: 1, effect: {}, x: 1300, y: 180, prerequisites: ["ancient_charter"], type: "unlock" },
 
   { id: "knight_root", classId: "knight", branch: "Knight", name: "Knight Branch", description: "Unlocks Knight upgrades. +10 starting HP and +1 armor.", cost: 50, maxLevel: 1, effect: { maxHp: 10, armor: 1 }, x: 980, y: 1050, prerequisites: ["crown_legacy"], type: "class" },
   { id: "wizard_root", classId: "wizard", branch: "Wizard", name: "Wizard Branch", description: "Unlocks Wizard upgrades. +2 starting damage and +15 starting HP.", cost: 50, maxLevel: 1, effect: { damage: 2, maxHp: 15 }, x: 1620, y: 1050, prerequisites: ["crown_legacy"], type: "class" },
@@ -1194,7 +1349,7 @@ function applyUniformTreeLayout() {
     unlock_starting_bonuses: [260, 120], unlock_relics: [660, 120],
 
     field_drills: [1600, 960], haste: [1380, 780], essence: [1200, 600], crown_doctrine: [1160, 420], ancient_charter: [1160, 240],
-    unlock_events: [960, 100], unlock_harder_difficulty: [1360, 100],
+    unlock_events: [960, 100],
     marching_songs: [1560, 760], life_siphon: [1600, 600], duelist_lessons: [1780, 760],
 
     might: [1920, 1000], fortune: [2160, 820], lucky_omens: [2060, 640], crown_purse: [2340, 660], royal_tithe: [2520, 500],

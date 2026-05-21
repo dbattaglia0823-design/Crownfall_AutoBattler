@@ -44,6 +44,7 @@ function defaultSave() {
     essence: 0,
     highestClear: 0,
     firstBossDefeated: false,
+    difficultyClears: {},
     stats: defaultAccountStats(),
     achievements: {},
     achievementEssenceClaims: {},
@@ -162,6 +163,7 @@ function loadSave() {
     const leaderboards = normalizeLeaderboards(parsed && parsed.leaderboards, fallback.leaderboards);
     const gauntlet = normalizeGauntletData(parsed && parsed.gauntlet, fallback.gauntlet);
     const inventory = normalizeInventory(parsed && parsed.inventory, fallback.inventory);
+    const difficultyClears = normalizeDifficultyClears(parsed && parsed.difficultyClears, parsed);
     return {
       ...fallback,
       ...storedSave,
@@ -172,6 +174,7 @@ function loadSave() {
       skins,
       skinPurchases,
       inventory,
+      difficultyClears,
       leaderboards,
       gauntlet,
       settings
@@ -179,6 +182,16 @@ function loadSave() {
   } catch {
     return defaultSave();
   }
+}
+
+function normalizeDifficultyClears(storedClears, parsedSave = {}) {
+  const clears = {};
+  Object.keys(DIFFICULTIES || {}).forEach(id => {
+    if (DIFFICULTIES[id].mode) return;
+    clears[id] = !!(storedClears && storedClears[id]);
+  });
+  if (!storedClears && Number(parsedSave?.highestClear || 0) >= STAGE_COUNT) clears.easy = true;
+  return clears;
 }
 
 function normalizeSkins(storedSkins, fallback, purchases) {
@@ -647,16 +660,18 @@ function getBattleSpeedPreference() {
 }
 
 function createRun(difficultyId, mode = "standard") {
-  const themeId = getRandomThemeForDifficulty(difficultyId);
   const endless = mode === "endless";
   const buildTest = mode === "buildTest";
   const gauntlet = mode === "gauntlet";
+  const themeIds = getThemeIdsForDifficulty(difficultyId, mode);
+  const themeId = themeIds[0] || getRandomThemeForDifficulty(difficultyId);
   return {
     mode: gauntlet ? "gauntlet" : buildTest ? "buildTest" : endless ? "endless" : "standard",
     runId: `local-run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     runSeed: Math.floor(Math.random() * 1000000000),
     difficultyId,
     themeId,
+    themeIds,
     classId: null,
     stage: 1,
     startedAt: Date.now(),
@@ -684,7 +699,7 @@ function createRun(difficultyId, mode = "standard") {
     hero: null,
     buildTestSelections: buildTest ? { skills: {}, upgrades: {}, relics: {}, talents: {} } : null,
     gauntlet: gauntlet ? { opponent: null, challengeRank: null, pointsAwarded: 0, coinsAwarded: 0 } : null,
-    map: endless || buildTest || gauntlet ? [] : generateRunMap(themeId),
+    map: endless || buildTest || gauntlet ? [] : generateRunMap(themeIds),
     currentNodeId: endless || buildTest || gauntlet ? null : "s1-start",
     chosenNodeIds: endless || buildTest || gauntlet ? [] : ["s1-start"],
     availableNodeIds: []
@@ -703,9 +718,46 @@ function isGauntletRun() {
   return run && run.mode === "gauntlet";
 }
 
+function getThemeIdsForDifficulty(difficultyId, mode = "standard") {
+  const difficulty = DIFFICULTIES[difficultyId] || {};
+  const themeIds = difficulty.themeIds && difficulty.themeIds.length ? difficulty.themeIds : Object.keys(BIOME_THEMES);
+  if (mode === "standard") return themeIds.slice(0, MAP_LAYER_SIZE ? Math.ceil(STAGE_COUNT / MAP_LAYER_SIZE) : 3);
+  return [themeIds[Math.floor(Math.random() * themeIds.length)] || themeIds[0] || "hauntedForest"];
+}
+
 function getRandomThemeForDifficulty(difficultyId) {
   const themeIds = (DIFFICULTIES[difficultyId] && DIFFICULTIES[difficultyId].themeIds) || Object.keys(BIOME_THEMES);
   return themeIds[Math.floor(Math.random() * themeIds.length)] || "hauntedForest";
+}
+
+function getRunLayer(stage = run?.stage || 1) {
+  return Math.max(1, Math.min(3, Math.ceil(stage / MAP_LAYER_SIZE)));
+}
+
+function getRunThemeIds() {
+  if (run?.themeIds && run.themeIds.length) return run.themeIds;
+  return [run?.themeId].filter(Boolean);
+}
+
+function getRunThemeIdForStage(stage = run?.stage || 1) {
+  const ids = getRunThemeIds();
+  return ids[getRunLayer(stage) - 1] || ids[0] || run?.themeId || getRandomThemeForDifficulty(run?.difficultyId);
+}
+
+function getRunThemeForStage(stage = run?.stage || 1) {
+  return BIOME_THEMES[getRunThemeIdForStage(stage)] || null;
+}
+
+function getDifficultyThemeNames(difficulty) {
+  return (difficulty?.themeIds || []).map(themeId => BIOME_THEMES[themeId]?.name).filter(Boolean);
+}
+
+function getRunRouteName() {
+  const difficulty = DIFFICULTIES[run?.difficultyId];
+  if (!difficulty) return "Unknown Route";
+  if (difficulty.mode) return difficulty.name;
+  const areaNames = getRunThemeIds().map(themeId => BIOME_THEMES[themeId]?.name).filter(Boolean);
+  return areaNames.length ? `${difficulty.name} / ${areaNames.join(" -> ")}` : difficulty.name;
 }
 
 function buildHero(classId) {
@@ -785,6 +837,10 @@ function hasPermanentUnlock(id) {
 
 function hasAchievement(id) {
   return !!id && !!save?.achievements && !!save.achievements[id];
+}
+
+function hasDifficultyClear(id) {
+  return !!id && !!save?.difficultyClears && !!save.difficultyClears[id];
 }
 
 function validateDifficultyProgression() {

@@ -150,7 +150,7 @@ function getBossForStage(stage) {
 }
 
 function getAreaEnemyPool() {
-  const theme = BIOME_THEMES[run.themeId] || null;
+  const theme = getRunThemeForStage();
   if (theme && theme.enemyPool && theme.enemyPool.length) return filterUnlockedEnemies(theme.enemyPool);
   const difficulty = DIFFICULTIES[run.difficultyId] || {};
   return difficulty.enemyPool && difficulty.enemyPool.length ? filterUnlockedEnemies(difficulty.enemyPool) : ENEMIES;
@@ -191,6 +191,7 @@ function makeEnemy(base, x, y, boss, nodeType) {
   if (base.finalBoss || nodeType === "FinalBoss") {
     return {
       ...base,
+      spriteSheet: getAreaEnemySpriteSheet(base),
       x,
       y,
       hp: scaledHp,
@@ -234,6 +235,7 @@ function makeEnemy(base, x, y, boss, nodeType) {
 
   return {
     ...base,
+    spriteSheet: getAreaEnemySpriteSheet(base),
     name: miniBoss && eliteMod ? `${eliteMod.name} ${base.name}` : base.name,
     skillName: base.skillName,
     eliteSkill: eliteMod ? eliteMod.skillName : null,
@@ -355,6 +357,11 @@ function updateBattle(dt) {
     }
     if (enemyAttacksThisFrame >= maxEnemyAttacks && enemy.attackCooldown <= 0) enemy.attackCooldown = 1 / getEnemyAttackSpeed(enemy);
   });
+}
+
+function getAreaEnemySpriteSheet(enemy) {
+  const theme = getRunThemeForStage();
+  return theme?.spriteSheets?.enemies?.[enemy?.id] || theme?.enemySpriteSheets?.[enemy?.id] || enemy?.spriteSheet || "";
 }
 
 function updateVisualTimers(dt) {
@@ -868,8 +875,7 @@ function endRun(victory) {
   saveGame();
   showScreen("runEndScreen");
   runEndTitle.textContent = victory ? "Crownfall Broken" : isEndlessRun() ? "Endless Run Ended" : "Run Failed";
-  const theme = BIOME_THEMES[run.themeId];
-  const routeName = isEndlessRun() ? DIFFICULTIES[run.difficultyId].name : theme ? `${DIFFICULTIES[run.difficultyId].name} / ${theme.name}` : DIFFICULTIES[run.difficultyId].name;
+  const routeName = getRunRouteName();
   runEndText.innerHTML = renderRunSummary(victory, routeName, essence, getRunEndMessage(victory, endlessResult), getRunEndExtraRows(endlessResult));
   battle = null;
 }
@@ -907,6 +913,10 @@ function recordRunEndStats(victory, essence) {
   if (victory && !isEndlessRun() && run.stagesCleared >= STAGE_COUNT) addAccountStat(`${run.classId}Layer3Clears`, 1);
   addAccountStat("totalEssenceEarned", essence);
   if (victory) save.firstBossDefeated = true;
+  if (victory && !isEndlessRun() && !isBuildTestRun() && !isGauntletRun() && run.stagesCleared >= STAGE_COUNT) {
+    if (!save.difficultyClears) save.difficultyClears = {};
+    save.difficultyClears[run.difficultyId] = true;
+  }
 }
 
 function recordLayer3VictoryBeforeEternalCrown() {
@@ -926,8 +936,7 @@ function endEternalCrownEnding(crownDefeated = false) {
   saveGame();
   showScreen("runEndScreen");
   runEndTitle.textContent = crownDefeated ? "The Impossible Crown Falls" : "The Eternal Crown Endures";
-  const theme = BIOME_THEMES[run.themeId];
-  const routeName = theme ? `${DIFFICULTIES[run.difficultyId].name} / ${theme.name}` : DIFFICULTIES[run.difficultyId].name;
+  const routeName = getRunRouteName();
   runEndText.innerHTML = renderRunSummary(true, routeName, essence, crownDefeated
     ? "Against all odds, the Eternal Crown has fallen. Your Layer 3 victory was already sealed."
     : "Layer 3 was conquered and your victory stands. The Eternal Crown wipes out the champion as the crown's last cruel joke.");

@@ -1,4 +1,4 @@
-function generateRunMap(themeId, stages = STAGE_COUNT) {
+function generateRunMap(themeIds, stages = STAGE_COUNT) {
   const rows = [[{ id: "s1-start", stage: 1, type: "Battle", connectsTo: [] }]];
 
   for (let stage = 2; stage <= stages; stage++) {
@@ -8,7 +8,7 @@ function generateRunMap(themeId, stages = STAGE_COUNT) {
     }
 
     const count = getMapNodeCount(stage);
-    const types = getStageNodeTypes(stage, count, themeId);
+    const types = getStageNodeTypes(stage, count, getMapThemeIdForStage(themeIds, stage));
 
     rows.push(
       types.map((type, index) => ({
@@ -34,26 +34,24 @@ function generateRunMap(themeId, stages = STAGE_COUNT) {
 }
 
 function getMapNodeCount(stage) {
-  return 3;
+  if (stage % MAP_LAYER_SIZE === 4 || stage % MAP_LAYER_SIZE === 9) return 3;
+  return 1;
 }
 
 function getStageNodeTypes(stage, count, themeId) {
-  // Round 4 and 9: only Merchant / Sanctuary
+  // Round 4 and 9: optional side stops, with the main route staying as combat.
   if (stage % MAP_LAYER_SIZE === 4 || stage % MAP_LAYER_SIZE === 9) {
-    const themeEvents = getThemeEventNodes(themeId);
-    const types = Array.from({ length: count }, (_, index) => themeEvents[index % themeEvents.length]);
-    if (!types.includes("Heal")) types[count - 1] = "Heal";
-    return types;
+    return ["Merchant", "Battle", "Heal"];
   }
 
   // Round 5: only Elite
   if (stage % MAP_LAYER_SIZE === 5) {
-    return Array.from({ length: count }, () => "Elite");
+    return ["Elite"];
   }
 
   // Boss rounds are handled in generateRunMap()
 
-  return Array.from({ length: count }, () => "Battle");
+  return ["Battle"];
 }
 
 function getThemeEventNodes(themeId) {
@@ -64,15 +62,28 @@ function getThemeEventNodes(themeId) {
   return events;
 }
 
+function getMapThemeIdForStage(themeIds, stage) {
+  const ids = Array.isArray(themeIds) ? themeIds : [themeIds].filter(Boolean);
+  const layer = Math.max(1, Math.min(3, Math.ceil(stage / MAP_LAYER_SIZE)));
+  return ids[layer - 1] || ids[0];
+}
+
 function showMap() {
   if (isEndlessRun()) return beginNextEndlessStage();
+  applyRunTheme();
+  applyMapBackground();
   run.availableNodeIds = getCurrentNode().connectsTo;
   showScreen("mapScreen");
   const nextStage = run.stage + 1;
-  const layer = Math.ceil(nextStage / MAP_LAYER_SIZE);
-  mapSubtitle.textContent = `Choose the route for Stage ${nextStage} - Map Layer ${layer}. Your previous path remains highlighted.`;
+  mapSubtitle.textContent = `Stage ${nextStage}`;
   renderMapLegend();
   renderRoguelikeMap();
+}
+
+function applyMapBackground() {
+  const theme = getRunThemeForStage(run?.stage + 1 || run?.stage || 1);
+  const image = theme?.mapBackgroundImage || theme?.mapImage || MAP_BACKGROUND_IMAGE || "";
+  document.documentElement.style.setProperty("--map-bg-image", image ? `url("${image}")` : "none");
 }
 
 function getCurrentNode() {

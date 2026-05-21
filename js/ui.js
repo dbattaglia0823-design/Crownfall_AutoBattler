@@ -69,7 +69,11 @@ function resetRunEndActions() {
 }
 
 function applyRunTheme() {
-  const theme = run && BIOME_THEMES[run.themeId];
+  const theme = run && getRunThemeForStage();
+  if (theme?.backgroundImage) {
+    document.documentElement.style.setProperty("--battlefield-bg", `url("${theme.backgroundImage}")`);
+    return;
+  }
   const svg = theme ? theme.backgroundSvg : BATTLEFIELD_SVG;
   document.documentElement.style.setProperty("--battlefield-bg", `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`);
 }
@@ -415,7 +419,8 @@ function renderDifficulties() {
     const buildTest = difficulty.mode === "buildTest";
     const gauntlet = difficulty.mode === "gauntlet";
     const icon = gauntlet ? "G" : buildTest ? "BT" : endless ? "&#9760;" : id === "easy" ? "&#9827;" : id === "medium" ? "&#9876;" : "&#9819;";
-    const modeText = locked && difficulty.requiresAchievement ? "Locked: defeat The Eternal Crown to unlock." : gauntlet ? "Ranked 1v1 tournament battles with separate points, coins, and shop upgrades." : buildTest ? "Choose a hero, build freely, then fight only the Eternal Crown." : endless ? "Exponential scaling. Same upgrades and relics, then straight into the next fight." : `Biome randomly chosen from: ${difficulty.themeIds.map(themeId => BIOME_THEMES[themeId].name).join(", ")}`;
+    const areaNames = getDifficultyThemeNames(difficulty);
+    const modeText = locked ? getDifficultyLockReason(difficulty) : gauntlet ? "Ranked 1v1 tournament battles with separate points, coins, and shop upgrades." : buildTest ? "Choose a hero, build freely, then fight only the Eternal Crown." : endless ? "Exponential scaling. Same upgrades and relics, then straight into the next fight." : `Story route: ${areaNames.join(" -> ")}`;
     return `<div class="card choice-card difficulty-card difficulty-${id}${locked ? " choice-card-locked" : ""}" data-difficulty="${id}"><div class="choice-icon">${icon}</div><h3>${difficulty.name}</h3><p>${difficulty.description}</p><p class="subtle">${modeText}</p><button ${locked ? "disabled" : ""}>${locked ? "Locked" : `Select ${difficulty.name}`}</button></div>`;
   }).join("");
   difficultyCards.querySelectorAll("[data-difficulty]").forEach(card => {
@@ -429,7 +434,17 @@ function renderDifficulties() {
 }
 
 function isDifficultyLocked(difficulty) {
-  return !!((difficulty.requiresNode && !hasPermanentUnlock(difficulty.requiresNode)) || (difficulty.requiresAchievement && !hasAchievement(difficulty.requiresAchievement)));
+  return !!((difficulty.requiresDifficultyClear && !hasDifficultyClear(difficulty.requiresDifficultyClear)) || (difficulty.requiresNode && !hasPermanentUnlock(difficulty.requiresNode)) || (difficulty.requiresAchievement && !hasAchievement(difficulty.requiresAchievement)));
+}
+
+function getDifficultyLockReason(difficulty) {
+  if (difficulty.requiresDifficultyClear && !hasDifficultyClear(difficulty.requiresDifficultyClear)) {
+    const required = DIFFICULTIES[difficulty.requiresDifficultyClear];
+    return `Locked: beat ${required?.name || "the previous difficulty"} first.`;
+  }
+  if (difficulty.requiresAchievement && !hasAchievement(difficulty.requiresAchievement)) return "Locked: defeat The Eternal Crown to unlock.";
+  if (difficulty.requiresNode && !hasPermanentUnlock(difficulty.requiresNode)) return "Locked: unlock it in the Skill Tree.";
+  return "Locked";
 }
 
 function renderClasses() {
@@ -1067,7 +1082,8 @@ function getRunStageLabel() {
   if (run.stage === FINAL_BOSS_STAGE) return "Final Boss";
   const layer = Math.max(1, Math.ceil(run.stage / MAP_LAYER_SIZE));
   const stageInLayer = ((run.stage - 1) % MAP_LAYER_SIZE) + 1;
-  return `Layer ${layer}: ${stageInLayer} / ${MAP_LAYER_SIZE}`;
+  const theme = getRunThemeForStage();
+  return `Layer ${layer}: ${theme?.name || "Area"} ${stageInLayer} / ${MAP_LAYER_SIZE}`;
 }
 
 function showRewards() {
@@ -1407,7 +1423,7 @@ function renderRoguelikeMap() {
   mapBoard.innerHTML = "";
   const visibleLayer = getVisibleMapLayer(), firstStage = ((visibleLayer - 1) * MAP_LAYER_SIZE) + 1, lastStage = visibleLayer * MAP_LAYER_SIZE;
   run.map.filter(row => row[0].stage >= firstStage && row[0].stage <= lastStage).reverse().forEach(row => {
-    const rowEl = document.createElement("div"); rowEl.className = "map-row"; rowEl.innerHTML = `<div class="map-node-stage"><strong>${row[0].type === "Boss" ? "Boss" : "Stage " + row[0].stage}</strong><span>${[...new Set(row.map(node => MAP_TYPES[node.type].label))].join(" / ")}</span></div>`;
+    const rowEl = document.createElement("div"); rowEl.className = "map-row"; rowEl.innerHTML = `<div class="map-node-stage"><strong>Stage ${row[0].stage}</strong></div>`;
     getMapRowSlots(row).forEach(node => {
       if (!node) { const spacer = document.createElement("div"); spacer.className = "map-node-spacer"; rowEl.appendChild(spacer); return; }
       const type = MAP_TYPES[node.type], available = run.availableNodeIds.includes(node.id), chosen = run.chosenNodeIds.includes(node.id);

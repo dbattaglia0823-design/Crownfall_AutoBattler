@@ -179,6 +179,7 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .run-summary-grid small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .55px; }
 .run-summary-grid strong { color: var(--gold2); }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 18px; }
+.mobile-top-actions { display: none; }
 .menu-actions { max-width: 340px; margin-left: auto; margin-right: auto; flex-direction: column; align-items: stretch; gap: 12px; }
 .menu-actions button { width: 100%; min-height: 52px; font-size: 17px; }
 .danger-btn { background: linear-gradient(180deg, #7b3028, #4a1a16) !important; border-color: #9a4b40 !important; }
@@ -647,12 +648,10 @@ body.disable-shake .screen-shake-light, body.disable-shake .screen-shake-heavy {
 body.hide-tooltips .tooltip-item::after { display: none; }
 
 .roguelike-map-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 280px); gap: 22px; align-items: start; margin-top: 12px; position: relative; z-index: 2; }
-.roguelike-map-panel { position: relative; min-height: clamp(590px, 72vh, 780px); padding: clamp(18px, 2.5vw, 28px); border: 1px solid #6f5437; border-radius: 18px; background: radial-gradient(circle at 50% 12%, rgba(255,226,162,.08), transparent 36%), linear-gradient(180deg, rgba(38,29,23,.98), rgba(24,18,14,.98)); overflow: hidden; }
+.roguelike-map-panel { position: relative; min-height: clamp(590px, 72vh, 780px); padding: clamp(18px, 2.5vw, 28px); border: 1px solid #6f5437; border-radius: 18px; background: linear-gradient(rgba(24,18,14,.34), rgba(24,18,14,.58)), var(--map-bg-image, none) center / cover no-repeat, radial-gradient(circle at 50% 12%, rgba(255,226,162,.08), transparent 36%), linear-gradient(180deg, rgba(38,29,23,.98), rgba(24,18,14,.98)); image-rendering: pixelated; overflow: hidden; }
 .roguelike-map-board { position: relative; z-index: 2; min-height: clamp(535px, 66vh, 720px); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; }
 .map-connections { position: absolute; z-index: 1; pointer-events: none; overflow: visible; }
-.map-row { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: clamp(28px, 5.6vw, 84px); justify-items: center; align-items: center; min-height: clamp(58px, 6.8vw, 76px); padding-left: 96px; border-radius: 999px; }
-.map-row:nth-child(odd) { transform: translateX(-10px); }
-.map-row:nth-child(even) { transform: translateX(10px); }
+.map-row { position: relative; display: grid; grid-template-columns: minmax(0, .76fr) minmax(56px, 72px) minmax(0, .76fr); column-gap: clamp(8px, 2.8vw, 34px); justify-items: center; align-items: center; min-height: clamp(58px, 6.8vw, 76px); padding-left: 96px; border-radius: 999px; }
 .map-row-current { background: linear-gradient(90deg, rgba(255,226,162,.16), rgba(255,226,162,.04), transparent); box-shadow: inset 0 0 0 1px rgba(255,226,162,.12), 0 0 24px rgba(255,226,162,.12); }
 .map-row-completed { background: linear-gradient(90deg, rgba(86,169,143,.08), transparent); }
 .map-node-button, .map-node-static, .map-node-spacer { width: clamp(44px, 4.8vw, 56px); height: clamp(44px, 4.8vw, 56px); }
@@ -807,6 +806,11 @@ body.hide-tooltips .tooltip-item::after { display: none; }
   .reward-card button, .relic-card button, .shop-card button, .talent-card button { left: 10px; right: 10px; bottom: 10px; width: calc(100% - 20px); }
   .actions { align-items: stretch; }
   .actions button { flex: 1 1 150px; min-width: 0; }
+  .mobile-top-actions { display: flex; margin: -2px 0 14px; position: relative; z-index: 3; }
+  .mobile-top-actions button { flex: 0 1 180px; }
+  .menu-actions { max-width: 270px; gap: 10px; }
+  .menu-actions button { min-height: 48px; padding-left: 12px; padding-right: 12px; }
+  .upgrade-mobile-actions { z-index: 9; }
   .card, .choice-card { min-height: auto; }
   .map-node-button::after { display: none; }
 }

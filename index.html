@@ -47,6 +47,7 @@
       <div class="panel center-card flow-panel characters-panel">
         <div class="screen-ornament">&#9819; &#9670; &#9819;</div>
         <h2 class="screen-title">Characters</h2>
+        <div class="actions mobile-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div class="character-tabs">
           <button id="heroCharacterTab" class="character-tab-active" onclick="setCharacterBrowserTab('heroes')">Heroes</button>
           <button id="enemyCharacterTab" onclick="setCharacterBrowserTab('enemies')">Enemies</button>
@@ -75,6 +76,7 @@
         <div class="screen-ornament">&#9819; &#9876; &#9819;</div>
         <h2 class="screen-title">Gauntlet</h2>
         <p class="screen-text">Fight ranked 1v1 tournament battles, earn tournament coins, and climb into the top 10.</p>
+        <div class="actions mobile-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div id="gauntletSummary" class="gauntlet-summary"></div>
         <div class="gauntlet-layout">
           <div class="gauntlet-section">
@@ -105,6 +107,7 @@
         <div class="screen-ornament">&#9670; &#9819; &#9670;</div>
         <h2 class="screen-title">Account Stats</h2>
         <p class="screen-text">Your permanent record across runs on this save.</p>
+        <div class="actions mobile-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div id="accountStatsGrid" class="account-stats-grid"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
@@ -114,6 +117,7 @@
       <div class="panel center-card flow-panel">
         <div class="screen-ornament">&#9670; &#9881; &#9670;</div>
         <h2 class="screen-title">Settings</h2>
+        <div class="actions mobile-top-actions"><button onclick="closeSettings()">Back</button></div>
         <div class="settings-list">
           <label class="setting-row">
             <span>
@@ -207,6 +211,7 @@
         <div class="screen-ornament">◆ ⚔ ◆</div>
         <h2 id="difficultyTitle" class="screen-title">Select Difficulty</h2>
         <p id="difficultyText" class="screen-text">Choose the danger level for this run. Harder paths empower enemies but return more Essence.</p>
+        <div class="actions mobile-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div id="difficultyCards" class="grid-3"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
@@ -217,6 +222,7 @@
         <div class="screen-ornament">♛ ◆ ♛</div>
         <h2 id="classTitle" class="screen-title">Select Hero</h2>
         <p id="classText" class="screen-text">Choose the champion who will carry the run. Each class has distinct stats, combat rhythm, and strengths.</p>
+        <div class="actions mobile-top-actions"><button onclick="showScreen('difficultyScreen')">Back</button></div>
         <div id="classCards" class="grid-3"></div>
         <div class="actions"><button onclick="showScreen('difficultyScreen')">Back</button></div>
       </div>
@@ -227,6 +233,7 @@
         <div class="screen-ornament">â™› âš™ â™›</div>
         <h2 class="screen-title">Build Test</h2>
         <p id="buildTestText" class="screen-text">Assemble a build, then fight the Eternal Crown.</p>
+        <div class="actions mobile-top-actions"><button onclick="showScreen('classScreen')">Back</button></div>
         <div id="buildTestSummary" class="build-test-summary"></div>
         <div id="buildTestStats" class="build-test-stats"></div>
         <div id="buildTestCategories" class="build-test-categories"></div>
@@ -321,10 +328,11 @@
       <div class="panel center-card flow-panel">
         <h2 id="runEndTitle" class="screen-title">Run Complete</h2>
         <p id="runEndText" class="screen-text"></p>
+        <div class="actions mobile-top-actions"><button onclick="showScreen('menuScreen')">Main Menu</button></div>
         <div class="actions">
           <button id="gauntletReturnButton" onclick="showGauntletScreen()" style="display:none">Return to Gauntlet</button>
           <button id="gauntletFightAgainButton" onclick="fightGauntletAgain()" style="display:none">Fight Again</button>
-          <button id="runEndStartButton" onclick="showScreen('difficultyScreen')">Start New Run</button>
+          <button id="runEndStartButton" onclick="startRunFlow()">Start New Run</button>
           <button id="runEndEssenceButton" onclick="showScreen('upgradeScreen')">Spend Essence</button>
           <button onclick="showScreen('menuScreen')">Main Menu</button>
         </div>
@@ -336,6 +344,7 @@
         <div class="screen-ornament">♛ ✦ ♛</div>
         <h2 class="screen-title">Skill Tree</h2>
         <p class="screen-text">Spend Essence to improve future runs. These upgrades are saved in your browser.</p>
+        <div class="actions mobile-top-actions upgrade-mobile-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div id="treeTabs" class="tree-tabs">
           <button data-tree-tab="global" class="tree-tab-active" onclick="setTreeTab('global')">General</button>
           <button data-tree-tab="knight" onclick="setTreeTab('knight')">Knight</button>
