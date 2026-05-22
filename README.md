@@ -22,9 +22,11 @@ Crownfall/
 
   js/
     data.js
+    leaderboard.js
     state.js
     ui.js
     combat.js
+    gauntlet.js
     map.js
     devtools.js
     main.js
@@ -34,12 +36,12 @@ Crownfall/
       Main New.ceol
       Side Slow.ceol
     icons/
-      icon-192.png
-      icon-512.png
-      maskable-192.png
-      maskable-512.png
+      Crownfall.png
     heroes/
+      skins/
     enemies/
+      skins/
+    skills/
 
   electron/
     main.js

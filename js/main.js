@@ -13,6 +13,7 @@ function initGame() {
   registerServiceWorker();
 
   window.addEventListener("resize", () => {
+    syncMobileBattleDropdowns();
     if (battleScreen.classList.contains("active")) renderBattle();
     if (mapScreen.classList.contains("active")) requestAnimationFrame(drawMapConnections);
     if (upgradeScreen.classList.contains("active")) requestAnimationFrame(applyTreeCamera);

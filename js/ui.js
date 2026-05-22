@@ -33,6 +33,9 @@ let lastHudRenderAt = 0;
 const EQUIPMENT_SHOP_REFRESH_COOLDOWN_MS = 60000;
 const BUILD_TEST_ATTACK_SOUND_INTERVAL = 0.1;
 const BUILD_TEST_STACK_LIMIT = 100;
+const TREE_COST_GROWTH = 1.75;
+const GLOBAL_TREE_COST_MULTIPLIER = 0.75;
+const GLOBAL_TREE_COST_GROWTH = 1.5;
 const TREE_TAB_ROOTS = { global: "crown_legacy", knight: "knight_root", rogue: "rogue_root", wizard: "wizard_root" };
 const BUILD_TEST_EFFECT_LIMITS = {
   ".attack-vfx": 10,
@@ -58,6 +61,7 @@ function showScreen(id) {
   if (id === "statsScreen") renderAccountStats();
   if (id === "achievementScreen") renderAchievements();
   if (id === "gauntletScreen") renderGauntletScreen();
+  if (id === "battleScreen") syncMobileBattleDropdowns();
   if (id === "runEndScreen") resetRunEndActions();
 }
 
@@ -66,6 +70,21 @@ function resetRunEndActions() {
   if (gauntletFightAgainButton) gauntletFightAgainButton.style.display = "none";
   if (runEndStartButton) runEndStartButton.style.display = "";
   if (runEndEssenceButton) runEndEssenceButton.style.display = "";
+}
+
+function syncMobileBattleDropdowns() {
+  const dropdowns = document.querySelectorAll(".mobile-battle-dropdown");
+  const mobile = window.matchMedia("(max-width: 650px)").matches;
+  dropdowns.forEach(dropdown => {
+    if (!mobile) {
+      dropdown.open = true;
+      dropdown.dataset.mobileCollapsed = "";
+      return;
+    }
+    if (dropdown.dataset.mobileCollapsed === "true") return;
+    dropdown.open = false;
+    dropdown.dataset.mobileCollapsed = "true";
+  });
 }
 
 function applyRunTheme() {
@@ -158,7 +177,7 @@ function toggleBuildTestPause() {
 
 function normalizeBattleSpeed(value) {
   const speed = Number(value) || 1;
-  return [1, 2, 3].includes(speed) ? speed : 1;
+  return [1, 1.5, 2].includes(speed) ? speed : 1;
 }
 
 function applySettings() {
@@ -1723,7 +1742,118 @@ function getTreeConnectionPath({ parent, node, siblingIndex, siblingCount }) {
   return `M ${p0.x} ${p0.y} C ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}, ${p3.x} ${p3.y}`;
 }
 function createTreeNodeButtonHtml(node) { const level = getTreeLevel(node.id), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, cost = getTreeUpgradeCost(node, level), available = !locked && !maxed && save.essence >= cost; return `<button class="skill-node skill-node-${node.type} skill-node-${node.classId} ${locked ? "skill-node-locked" : ""} ${maxed ? "skill-node-complete" : ""} ${available ? "skill-node-available" : ""} ${selectedTreeNodeId === node.id ? "skill-node-selected" : ""}" style="left:${node.x}px;top:${node.y}px" data-node="${node.id}"><span>${getTreeNodeInitials(node)}</span><small>${level}/${node.maxLevel}</small></button>`; }
-function renderTreeDetails(node) { const level = getTreeLevel(node.id), cost = getTreeUpgradeCost(node, level), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, prereqs = (node.prerequisites || []).map(id => TREE[id]?.name).filter(Boolean); treeDetails.innerHTML = `<div class="tree-detail-kicker">${node.branch}</div><h3>${node.name}</h3><p>${node.description}</p><div class="tree-detail-row"><span>Level</span><strong>${level}/${node.maxLevel}</strong></div><div class="tree-detail-row"><span>Cost</span><strong>${maxed ? "Maxed" : `${cost} Essence`}</strong></div>${prereqs.length ? `<div class="tree-detail-prereqs"><strong>Requires</strong><br>${prereqs.map(escapeHtml).join(", ")}</div>` : ""}<button ${locked || maxed || save.essence < cost ? "disabled" : ""}>${locked ? "Locked" : maxed ? "Completed" : "Purchase"}</button>`; treeDetails.querySelector("button").onclick = () => purchaseTreeNode(node.id); treeCards.querySelectorAll("[data-node]").forEach(button => button.onclick = () => { selectedTreeNodeId = button.dataset.node; renderTree(); }); }
+function renderTreeDetails(node) {
+  const level = getTreeLevel(node.id), cost = getTreeUpgradeCost(node, level), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, prereqs = (node.prerequisites || []).map(id => TREE[id]?.name).filter(Boolean);
+  treeDetails.innerHTML = `<div class="tree-detail-kicker">${node.branch}</div><h3>${node.name}</h3>${renderTreeEffectList(node)}<div class="tree-detail-row"><span>Level</span><strong>${level}/${node.maxLevel}</strong></div><div class="tree-detail-row"><span>Cost</span><strong>${maxed ? "Maxed" : `${cost} Essence`}</strong></div>${prereqs.length ? `<div class="tree-detail-prereqs"><strong>Requires</strong><br>${prereqs.map(escapeHtml).join(", ")}</div>` : ""}<button ${locked || maxed || save.essence < cost ? "disabled" : ""}>${locked ? "Locked" : maxed ? "Completed" : "Purchase"}</button>`;
+  treeDetails.querySelector("button").onclick = () => purchaseTreeNode(node.id);
+  treeCards.querySelectorAll("[data-node]").forEach(button => button.onclick = () => { selectedTreeNodeId = button.dataset.node; renderTree(); });
+}
+
+function renderTreeEffectList(node) {
+  const bullets = getTreeEffectBullets(node);
+  return `<ul class="tree-effect-list">${bullets.map(text => `<li>${escapeHtml(text)}</li>`).join("")}</ul>`;
+}
+
+function getTreeEffectBullets(node) {
+  const effect = node.effect || {};
+  const entries = Object.entries(effect).filter(([, value]) => value !== undefined && value !== null && value !== 0);
+  if (!entries.length) return [node.type === "unlock" ? "Unlocks new run content" : "No stat change"];
+  return entries.map(([key, value]) => formatTreeEffectBullet(key, value, node));
+}
+
+function formatTreeEffectBullet(key, value, node) {
+  if (key === "unlockRunAbility") return `Unlocks ${RUN_ABILITIES[value]?.name || value}`;
+  if (key === "megaCritFromOvercap") return "Crit chance above 100% becomes mega crit chance";
+  if (key === "firstSpellBurnAll") return "First spell burns all enemies";
+  if (key === "guaranteedCritEvery") return `Every ${value}${getOrdinalSuffix(value)} attack is a guaranteed crit`;
+
+  const label = TREE_EFFECT_LABELS[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, char => char.toUpperCase());
+  const suffix = node.maxLevel > 1 ? " per level" : "";
+  return `${formatSignedTreeEffectValue(key, value)} ${label}${suffix}`;
+}
+
+function formatSignedTreeEffectValue(key, value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value);
+  const sign = numeric > 0 ? "+" : "";
+  if (TREE_PERCENT_EFFECTS.has(key)) return `${sign}${formatPercentValue(numeric)}`;
+  if (TREE_SECONDS_EFFECTS.has(key)) return `${sign}${formatCompactNumber(numeric)}s`;
+  return `${sign}${formatCompactNumber(numeric)}`;
+}
+
+function formatPercentValue(value) {
+  return `${formatCompactNumber(value * 100)}%`;
+}
+
+function formatCompactNumber(value) {
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000);
+}
+
+function getOrdinalSuffix(value) {
+  const number = Math.abs(Math.floor(Number(value) || 0));
+  if (number % 100 >= 11 && number % 100 <= 13) return "th";
+  return ({ 1: "st", 2: "nd", 3: "rd" }[number % 10]) || "th";
+}
+
+const TREE_EFFECT_LABELS = {
+  armor: "Armor",
+  attackSpeed: "Attack speed",
+  battleStartShield: "Battle-start shield",
+  bleedAttackSpeed: "Attack speed after bleeding a new target",
+  bleedMaxHpPercent: "Max HP bleed damage per second",
+  burnDamage: "Burn damage",
+  burnSpreadChance: "Burn spread chance",
+  burningEnemyDamage: "Damage to burning enemies",
+  critAttackSpeedBonus: "Attack speed after crits",
+  critChance: "Crit chance",
+  critDamage: "Crit damage",
+  damage: "Damage",
+  damageMultiplier: "Damage",
+  delayAmount: "Enemy attack delay",
+  delayChance: "Enemy attack delay chance",
+  dodgeCounter: "Dodge counterattack damage",
+  dodgeDamageBonus: "Damage after dodging",
+  eliteRewardMultiplier: "Elite gold and Essence",
+  essenceMultiplier: "Essence earned",
+  evasion: "Evasion",
+  executeDamage: "Execute damage",
+  executeThreshold: "Execute threshold",
+  firstEnemyDelay: "First enemy attack delay",
+  firstHitAvoidChance: "Chance to avoid the first hit",
+  hitRetaliateChance: "Hit retaliation chance",
+  hitRetaliateDamage: "Hit retaliation damage",
+  killAttackSpeed: "Attack speed on kill",
+  killAttackSpeedMax: "Attack speed on-kill cap",
+  lifeSteal: "Life steal",
+  lowHpDamage: "Low-HP damage",
+  luck: "Luck",
+  maxHp: "Starting HP",
+  megaCritDamage: "Mega crit damage",
+  regen: "HP regen",
+  rerolls: "Reward, relic, and shop rerolls",
+  retaliateBlock: "Blocked-damage retaliation",
+  sanctuaryMaxHp: "Sanctuary max HP",
+  sanctuaryRegen: "Sanctuary HP regen",
+  slowChance: "Slow chance",
+  slowValue: "Slow strength",
+  slowedEnemyDamage: "Damage to slowed enemies",
+  splashDamageMultiplier: "Splash damage",
+  splashShield: "Shield from splash",
+  startingGold: "Starting gold",
+  thirdAttackBonus: "Every third attack damage"
+};
+
+const TREE_PERCENT_EFFECTS = new Set([
+  "bleedAttackSpeed", "bleedMaxHpPercent", "burnDamage", "burnSpreadChance", "burningEnemyDamage",
+  "critAttackSpeedBonus", "critChance", "critDamage", "damageMultiplier", "delayChance",
+  "dodgeCounter", "dodgeDamageBonus", "eliteRewardMultiplier", "essenceMultiplier", "evasion",
+  "executeDamage", "executeThreshold", "firstHitAvoidChance", "hitRetaliateChance", "hitRetaliateDamage",
+  "killAttackSpeed", "killAttackSpeedMax", "lifeSteal", "lowHpDamage", "megaCritDamage",
+  "retaliateBlock", "slowChance", "slowValue", "slowedEnemyDamage", "splashDamageMultiplier",
+  "thirdAttackBonus"
+]);
+
+const TREE_SECONDS_EFFECTS = new Set(["delayAmount", "firstEnemyDelay"]);
 function getTreeUpgradeCost(node, level) { if (node.costs) return node.costs[Math.min(level, node.costs.length - 1)]; if (node.type === "ability") return node.cost; return Math.ceil((node.cost * (node.classId === "global" ? GLOBAL_TREE_COST_MULTIPLIER : 1) * Math.pow(node.classId === "global" ? GLOBAL_TREE_COST_GROWTH : TREE_COST_GROWTH, level)) / 10) * 10; }
 function isTreeNodeLocked(node) { return node.prerequisites.some(id => getTreeLevel(id) <= 0); }
 function getTreeNodeInitials(node) { return node.name.split(/\s+/).map(word => word[0]).join("").slice(0, 2).toUpperCase(); }

@@ -1,3 +1,10 @@
+const SAVE_KEY = "crownfall_autobattler_save_v5";
+const STAGE_COUNT = 30;
+const MAP_LAYER_SIZE = 10;
+const FINAL_BOSS_STAGE = STAGE_COUNT + 1;
+const PLAYER_BASE_STAT_MULTIPLIER = 1.0;
+const ENEMY_BASE_STAT_MULTIPLIER = 1.3;
+
 let save = loadSave();
 let run = null;
 let battle = null;

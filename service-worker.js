@@ -1,4 +1,4 @@
-const CACHE_VERSION = "crownfall-v35";
+const CACHE_VERSION = "crownfall-v36";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -19,10 +19,10 @@ const CORE_ASSETS = [
   "./assets/heroes/wizard-sheet.png",
   "./assets/enemies/goblin-sheet.png",
   "./assets/enemies/skeleton-sheet.png",
-  "./assets/enemies/orc-sheet.svg",
+  "./assets/enemies/orc-sheet.png",
   "./assets/enemies/wolf-sheet.png",
   "./assets/enemies/bandit-sheet.png",
-  "./assets/enemies/cultist-sheet.svg",
+  "./assets/enemies/cultist-sheet.png",
   "./assets/enemies/dark-archer-sheet.png",
   "./assets/enemies/plague-rat-sheet.png",
   "./assets/enemies/armored-knight-sheet.png",
@@ -30,8 +30,13 @@ const CORE_ASSETS = [
   "./assets/enemies/necromancer-sheet.png",
   "./assets/enemies/wraith-sheet.png",
   "./assets/enemies/troll-sheet.png",
-  "./assets/enemies/raider-sheet.svg",
+  "./assets/enemies/raider-sheet.png",
   "./assets/enemies/boss-sheet.png",
+  "./assets/enemies/eternal-crown-sheet.png",
+  "./assets/skills/wizard_curse.png",
+  "./assets/skills/wizard_iceball.png",
+  "./assets/skills/wizard_lightning.png",
+  "./assets/skills/rogue_poison.png",
   "./assets/audio/Main%20New.ceol",
   "./assets/audio/Side%20Slow.ceol"
 ];
