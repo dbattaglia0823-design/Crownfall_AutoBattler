@@ -43,7 +43,8 @@ function createGauntletLeader(entry) {
       maxHp: Math.round((source.hp || 300) * 1.45 * rankPower),
       damage: Math.round((source.damage || 46) * 1.35 * rankPower * 10) / 10,
       attackSpeed: Math.round((source.attackSpeed || 0.9) * (1 + (11 - entry.rank) * 0.018) * 100) / 100,
-      armor: Math.round((source.armor || 5) + (11 - entry.rank) * 0.8)
+      armor: Math.round((source.armor || 5) + (11 - entry.rank) * 0.8),
+      armorPiercing: Math.round((source.armorPiercing || 1) + (11 - entry.rank) * 0.6)
     }
   };
 }
@@ -135,7 +136,7 @@ function renderGauntletLeaderboard(entries, type) {
     const defeated = entry.defeatedByPlayer ? `<em>Defeated</em>` : "";
     return `<div class="gauntlet-rank-row">
       <div class="gauntlet-rank">#${entry.rank}</div>
-      <div><strong>${escapeHtml(entry.name)}</strong><span>${className} | ${entry.points} pts ${defeated}</span><small>HP ${entry.stats.maxHp} | DMG ${entry.stats.damage} | AS ${entry.stats.attackSpeed} | ARM ${entry.stats.armor}</small></div>
+      <div><strong>${escapeHtml(entry.name)}</strong><span>${className} | ${entry.points} pts ${defeated}</span><small>HP ${entry.stats.maxHp} | DMG ${entry.stats.damage} | AS ${entry.stats.attackSpeed} | ARM ${entry.stats.armor} | AP ${entry.stats.armorPiercing || 0}</small></div>
       <button onclick="startGauntletBattle(null, '${type}', ${entry.rank})" ${challenge.canChallenge ? "" : "disabled"}>${challenge.label}</button>
     </div>`;
   }).join("");
@@ -272,6 +273,7 @@ function makeGauntletEnemy(opponent) {
   enemy.attackSpeed = (stats.attackSpeed || enemy.attackSpeed) * Math.sqrt(multiplier);
   enemy.attackCooldown = 1 / Math.max(0.01, enemy.attackSpeed);
   enemy.armor = Math.round((stats.armor ?? enemy.armor) * Math.sqrt(multiplier));
+  enemy.armorPiercing = Math.round((stats.armorPiercing ?? enemy.armorPiercing ?? 0) * Math.sqrt(multiplier));
   enemy.statusEffects = {};
   return enemy;
 }

@@ -188,6 +188,7 @@ function makeEnemy(base, x, y, boss, nodeType) {
   const scaledDamage = base.damage * ENEMY_BASE_STAT_MULTIPLIER;
   const scaledAttackSpeed = base.attackSpeed * ENEMY_BASE_STAT_MULTIPLIER;
   const scaledArmor = Math.round((base.armor || 0) * ENEMY_BASE_STAT_MULTIPLIER);
+  const scaledArmorPiercing = Math.round((base.armorPiercing || 0) * ENEMY_BASE_STAT_MULTIPLIER);
   if (base.finalBoss || nodeType === "FinalBoss") {
     return {
       ...base,
@@ -198,6 +199,7 @@ function makeEnemy(base, x, y, boss, nodeType) {
       maxHp: scaledHp,
       damage: scaledDamage,
       armor: 0,
+      armorPiercing: scaledArmorPiercing,
       shield: 0,
       attackSpeed: scaledAttackSpeed,
       attackCooldown: 1 / Math.max(0.01, scaledAttackSpeed),
@@ -245,6 +247,7 @@ function makeEnemy(base, x, y, boss, nodeType) {
     maxHp: Math.round(scaledHp * hpMult),
     damage: scaledDamage * dmgMult * (eliteMod ? (eliteMod.damageMultiplier || 1) : 1),
     armor: scaledArmor + Math.floor(run.stage / (difficulty.armorGrowth || 4)) + secondLayerArmor + (miniBoss ? 2 : 0) + (eliteMod ? (eliteMod.armor || 0) : 0),
+    armorPiercing: scaledArmorPiercing,
     attackSpeed: scaledAttackSpeed * (miniBoss ? 1.05 : 1) * (eliteMod ? (eliteMod.attackSpeedMultiplier || 1) : 1),
     attackCooldown: 1 / Math.max(0.01, scaledAttackSpeed * (miniBoss ? 1.05 : 1) * (eliteMod ? (eliteMod.attackSpeedMultiplier || 1) : 1)),
     skinClass: skin.className,
@@ -626,7 +629,8 @@ function enemyAttack(enemy, hero) {
     battle.guardianSealUsed = true;
   }
   const holyShieldActive = (hero.holyShieldHitsRemaining || 0) > 0;
-  const effectiveArmor = holyShieldActive ? hero.armor * (1 + (hero.holyShieldArmorBonus || 0.5)) : hero.armor;
+  const rawEffectiveArmor = holyShieldActive ? hero.armor * (1 + (hero.holyShieldArmorBonus || 0.5)) : hero.armor;
+  const effectiveArmor = Math.max(0, rawEffectiveArmor - Math.max(0, Number(enemy.armorPiercing) || 0));
   if (holyShieldActive) {
     hero.holyShieldHitsRemaining -= 1;
     addFloat(hero.x, hero.y - 76, "Holy Guard", "#fde68a", { variant: "block" });
