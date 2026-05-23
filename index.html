@@ -35,7 +35,8 @@
         <div class="actions menu-actions">
           <button onclick="startRunFlow()">Start Run</button>
           <button onclick="showScreen('charactersScreen')">Characters</button>
-          <button onclick="showScreen('upgradeScreen')">Skill Tree</button>
+          <button onclick="showScreen('upgradeScreen')">Skills</button>
+          <button onclick="showUpgradePoolScreen()">Unlocks</button>
           <button onclick="showScreen('statsScreen')">Account Stats</button>
           <button onclick="showScreen('achievementScreen')">Achievements</button>
           <button onclick="showSettings('menuScreen')">Settings</button>
@@ -67,6 +68,19 @@
         <p class="screen-text">Milestones that add small bonuses to future runs.</p>
         <div class="actions achievement-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div id="achievementGrid" class="achievement-grid"></div>
+        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+      </div>
+    </section>
+
+    <section id="upgradePoolScreen" class="screen">
+      <div class="panel center-card flow-panel upgrade-pool-panel">
+        <div class="screen-ornament">&#9819; &#10022; &#9819;</div>
+        <h2 class="screen-title">Unlocks</h2>
+        <p class="screen-text">Toggle unlocked run upgrades, relics, and talents. At least five of each rarity stay active when available.</p>
+        <div class="actions mobile-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
+        <div id="upgradePoolSummary" class="upgrade-pool-summary"></div>
+        <div id="upgradePoolTabs" class="upgrade-pool-tabs"></div>
+        <div id="upgradePoolGrid" class="upgrade-pool-grid"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
     </section>
@@ -140,8 +154,8 @@
             </span>
             <select id="battleSpeedSetting">
               <option value="1">1x</option>
+              <option value="1.5">1.5x</option>
               <option value="2">2x</option>
-              <option value="3">3x</option>
             </select>
           </label>
           <label class="setting-row">
@@ -198,7 +212,6 @@
         </div>
         <p id="fullscreenHint" class="settings-hint"></p>
         <div class="actions">
-          <button onclick="saveSettings()">Save Settings</button>
           <button id="settingsMainMenuButton" onclick="exitRunToMainMenu()">Main Menu</button>
           <button class="danger-btn" onclick="resetSave()">Reset Save</button>
           <button onclick="closeSettings()">Back</button>
@@ -251,7 +264,7 @@
         <div class="stat-box"><small>Stage</small><strong id="runStage">Layer 1: 1 / 10</strong></div>
         <div class="stat-box"><small>Gold</small><strong id="runGold">0</strong></div>
         <div class="stat-box"><small>Essence</small><strong id="runEssence">0</strong></div>
-        <div class="stat-box battle-speed-box"><small>Speed</small><select id="battleSpeedSelect" onchange="changeBattleSpeed(this.value)" aria-label="Battle speed"><option value="1">1x</option><option value="2">2x</option><option value="3">3x</option></select></div>
+        <div class="stat-box battle-speed-box"><small>Speed</small><select id="battleSpeedSelect" onchange="changeBattleSpeed(this.value)" aria-label="Battle speed"><option value="1">1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></div>
         <button class="stat-box run-settings-btn" onclick="showSettings('battleScreen')"><small>Menu</small><strong>Settings</strong></button>
       </div>
       <div class="game-layout">
@@ -273,6 +286,7 @@
         <h2 class="screen-title">Choose a Reward</h2>
         <p id="rewardSubtitle" class="screen-text">Pick one upgrade for this run.</p>
         <div id="rewardHeroStats" class="choice-stat-sheet"></div>
+        <p class="rarity-luck-note">Need Luck: Rare 5, Epic 10, Legendary 20.</p>
         <div id="rewardCards" class="reward-grid"></div>
         <div class="actions"><button id="rewardRerollButton" onclick="rerollRewards()">Reroll Rewards</button><button onclick="showSettings('rewardScreen')">Settings</button></div>
       </div>
@@ -284,6 +298,7 @@
         <h2 class="screen-title">Claim a Relic</h2>
         <p id="relicSubtitle" class="screen-text">Choose one artifact for this run.</p>
         <div id="relicHeroStats" class="choice-stat-sheet"></div>
+        <p class="rarity-luck-note">Need Luck: Rare 5, Epic 10, Legendary 20.</p>
         <div id="relicCards" class="relic-grid"></div>
         <div class="actions"><button id="relicRerollButton" onclick="rerollRelics()">Reroll Relics</button><button onclick="showSettings('relicScreen')">Settings</button></div>
       </div>
@@ -319,6 +334,7 @@
         <p id="shopSubtitle" class="screen-text">Spend run gold on temporary upgrades.</p>
         <div class="shop-gold">Gold: <strong id="shopGold">0</strong></div>
         <div id="shopHeroStats" class="choice-stat-sheet"></div>
+        <p class="rarity-luck-note">Need Luck: Rare 5, Epic 10, Legendary 20.</p>
         <div id="shopCards" class="shop-grid"></div>
         <div class="actions"><button id="shopRerollButton" onclick="rerollShop()">Reroll Shop</button><button onclick="leaveShop()">Continue</button><button onclick="showSettings('shopScreen')">Settings</button></div>
       </div>
@@ -341,19 +357,21 @@
 
     <section id="upgradeScreen" class="screen">
       <div class="panel center-card flow-panel upgrade-panel">
-        <div class="screen-ornament">♛ ✦ ♛</div>
-        <h2 class="screen-title">Skill Tree</h2>
-        <p class="screen-text">Spend Essence to improve future runs. These upgrades are saved in your browser.</p>
-        <div class="actions mobile-top-actions upgrade-mobile-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
-        <div id="treeTabs" class="tree-tabs">
-          <button data-tree-tab="global" class="tree-tab-active" onclick="setTreeTab('global')">General</button>
-          <button data-tree-tab="knight" onclick="setTreeTab('knight')">Knight</button>
-          <button data-tree-tab="rogue" onclick="setTreeTab('rogue')">Rogue</button>
-          <button data-tree-tab="wizard" onclick="setTreeTab('wizard')">Wizard</button>
-        </div>
-        <div class="tree-toolbar">
-          <div>Essence: <strong id="treeEssence">0</strong></div>
-          <button onclick="resetTreeView()">Reset View</button>
+        <div class="skills-header">
+          <div class="skills-title-block">
+            <div class="screen-ornament">♛ ✦ ♛</div>
+            <h2 class="screen-title">Skills</h2>
+          </div>
+          <div class="skills-controls">
+            <div id="treeTabs" class="tree-tabs">
+              <button data-tree-tab="global" class="tree-tab-active" onclick="setTreeTab('global')">General</button>
+              <button data-tree-tab="knight" onclick="setTreeTab('knight')">Knight</button>
+              <button data-tree-tab="rogue" onclick="setTreeTab('rogue')">Rogue</button>
+              <button data-tree-tab="wizard" onclick="setTreeTab('wizard')">Wizard</button>
+            </div>
+            <div class="tree-essence-pill">Essence <strong id="treeEssence">0</strong></div>
+            <button onclick="showScreen('menuScreen')">Back</button>
+          </div>
         </div>
         <div class="tree-layout">
           <div id="treeViewport" class="tree-viewport">
@@ -361,7 +379,6 @@
           </div>
           <aside id="treeDetails" class="tree-details"></aside>
         </div>
-        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
     </section>
   </div>

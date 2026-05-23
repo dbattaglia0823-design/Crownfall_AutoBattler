@@ -52,6 +52,7 @@ function defaultSave() {
     skins: defaultSkins(),
     skinPurchases: defaultSkinPurchases(),
     inventory: defaultInventory(),
+    upgradePool: defaultUpgradePool(),
     settings: defaultSettings(),
     leaderboards: defaultLeaderboards(),
     gauntlet: defaultGauntletData()
@@ -79,6 +80,16 @@ function defaultInventory() {
       equipment[classId] = defaultHeroEquipment();
       return equipment;
     }, {})
+  };
+}
+
+function defaultUpgradePool() {
+  return {
+    disabled: {
+      upgrades: {},
+      relics: {},
+      talents: {}
+    }
   };
 }
 
@@ -119,7 +130,9 @@ function defaultAccountStats() {
     knightLayer3Clears: 0,
     rogueLayer3Clears: 0,
     wizardLayer3Clears: 0,
-    enemyKills: {}
+    enemyKills: {},
+    heroEnemyKills: { knight: 0, rogue: 0, wizard: 0 },
+    heroMaxHp: { knight: 0, rogue: 0, wizard: 0 }
   };
 }
 
@@ -163,6 +176,7 @@ function loadSave() {
     const leaderboards = normalizeLeaderboards(parsed && parsed.leaderboards, fallback.leaderboards);
     const gauntlet = normalizeGauntletData(parsed && parsed.gauntlet, fallback.gauntlet);
     const inventory = normalizeInventory(parsed && parsed.inventory, fallback.inventory);
+    const upgradePool = normalizeUpgradePool(parsed && parsed.upgradePool, fallback.upgradePool);
     const difficultyClears = normalizeDifficultyClears(parsed && parsed.difficultyClears, parsed);
     return {
       ...fallback,
@@ -174,6 +188,7 @@ function loadSave() {
       skins,
       skinPurchases,
       inventory,
+      upgradePool,
       difficultyClears,
       leaderboards,
       gauntlet,
@@ -192,6 +207,22 @@ function normalizeDifficultyClears(storedClears, parsedSave = {}) {
   });
   if (!storedClears && Number(parsedSave?.highestClear || 0) >= STAGE_COUNT) clears.easy = true;
   return clears;
+}
+
+function normalizeUpgradePool(storedPool, fallbackPool = defaultUpgradePool()) {
+  const pool = {
+    disabled: {
+      upgrades: { ...(storedPool?.disabled?.upgrades || {}) },
+      relics: { ...(storedPool?.disabled?.relics || {}) },
+      talents: { ...(storedPool?.disabled?.talents || {}) }
+    }
+  };
+  Object.keys(pool.disabled).forEach(category => {
+    Object.keys(pool.disabled[category]).forEach(id => {
+      if (!pool.disabled[category][id]) delete pool.disabled[category][id];
+    });
+  });
+  return { ...fallbackPool, ...pool };
 }
 
 function normalizeSkins(storedSkins, fallback, purchases) {
@@ -300,6 +331,13 @@ function getInventoryItemsForHero(classId, slotId = null) {
   return save.inventory.items.filter(item => canHeroEquipItem(classId, item) && (!slotId || item.slot === slotId));
 }
 
+function isInventoryItemEquipped(instanceId) {
+  if (!save.inventory) return false;
+  return Object.values(save.inventory.equipment || {}).some(heroEquipment =>
+    EQUIPMENT_SLOTS.some(slot => heroEquipment?.[slot.id] === instanceId)
+  );
+}
+
 function getInventoryItem(instanceId) {
   if (!save.inventory) save.inventory = defaultInventory();
   return (save.inventory.items || []).find(item => item.instanceId === instanceId) || null;
@@ -315,11 +353,7 @@ function equipInventoryItem(classId, instanceId) {
   if (!canHeroEquipItem(classId, item)) return false;
   if (!save.inventory) save.inventory = defaultInventory();
   save.inventory = normalizeInventory(save.inventory);
-  Object.keys(save.inventory.equipment).forEach(heroId => {
-    EQUIPMENT_SLOTS.forEach(slot => {
-      if (save.inventory.equipment[heroId][slot.id] === instanceId) save.inventory.equipment[heroId][slot.id] = null;
-    });
-  });
+  if (isInventoryItemEquipped(instanceId)) return false;
   save.inventory.equipment[classId][item.slot] = item.instanceId;
   saveGame();
   return true;
@@ -385,7 +419,7 @@ function generateEquipmentDrop(options = {}) {
   const slot = options.slot || randomChoice(EQUIPMENT_SLOTS).id;
   const templates = EQUIPMENT_TEMPLATES[slot] || [];
   const template = randomChoice(templates);
-  const rarityConfig = rollEquipmentRarity(options.rarityBonus || 0);
+  const rarityConfig = rollEquipmentRarity(options.rarityBonus || 0, options.maxRarity);
   const quality = rollEquipmentQuality(rarityConfig.qualityBonus);
   const stats = rollEquipmentStats(template.stats || ["maxHp"], rarityConfig, quality, options.stage || run?.stage || 1);
   return normalizeInventoryItem({
@@ -403,8 +437,11 @@ function generateEquipmentDrop(options = {}) {
   });
 }
 
-function rollEquipmentRarity(bonus = 0) {
-  const weighted = EQUIPMENT_RARITIES.map(rarity => ({
+function rollEquipmentRarity(bonus = 0, maxRarity = null) {
+  const maxRank = maxRarity ? getEquipmentRarityRank(maxRarity) : Infinity;
+  const luck = Math.max(0, run?.hero?.luck || 0);
+  const pool = EQUIPMENT_RARITIES.filter(rarity => getEquipmentRarityRank(rarity.id) <= maxRank && isRarityAllowedByLuck(rarity.id, luck));
+  const weighted = (pool.length ? pool : EQUIPMENT_RARITIES).map(rarity => ({
     ...rarity,
     weight: rarity.weight * (rarity.id === "Common" ? 1 : 1 + bonus)
   }));
@@ -590,8 +627,12 @@ function saveGame() {
   refreshTopbar();
 }
 
+function isProgressionWriteBlocked() {
+  return typeof isBuildTestRun === "function" && isBuildTestRun();
+}
+
 function addAccountStat(id, amount) {
-  if (typeof isBuildTestRun === "function" && isBuildTestRun()) return;
+  if (isProgressionWriteBlocked()) return;
   if (!save.stats) save.stats = defaultAccountStats();
   save.stats[id] = (Number(save.stats[id]) || 0) + amount;
   checkAchievements();
@@ -599,14 +640,42 @@ function addAccountStat(id, amount) {
 
 function addEnemyKillStat(enemyId, amount = 1) {
   if (!enemyId) return;
-  if (typeof isBuildTestRun === "function" && isBuildTestRun()) return;
+  if (isProgressionWriteBlocked()) return;
   if (!save.stats) save.stats = defaultAccountStats();
   if (!save.stats.enemyKills) save.stats.enemyKills = {};
   save.stats.enemyKills[enemyId] = (Number(save.stats.enemyKills[enemyId]) || 0) + amount;
   checkAchievements();
 }
 
+function addHeroEnemyKillStat(classId, amount = 1) {
+  if (!classId || !amount) return;
+  if (isProgressionWriteBlocked()) return;
+  if (!save.stats) save.stats = defaultAccountStats();
+  if (!save.stats.heroEnemyKills) save.stats.heroEnemyKills = {};
+  save.stats.heroEnemyKills[classId] = (Number(save.stats.heroEnemyKills[classId]) || 0) + amount;
+  checkAchievements();
+}
+
+function recordHeroMaxHpStat(classId, maxHp) {
+  if (!classId || !maxHp) return;
+  if (isProgressionWriteBlocked()) return;
+  if (!save.stats) save.stats = defaultAccountStats();
+  if (!save.stats.heroMaxHp) save.stats.heroMaxHp = {};
+  save.stats.heroMaxHp[classId] = Math.max(Number(save.stats.heroMaxHp[classId]) || 0, Math.floor(maxHp));
+  checkAchievements();
+}
+
+function recordGameEvent(type, payload = {}) {
+  if (isProgressionWriteBlocked()) return;
+  if (type === "enemyKilled") {
+    addEnemyKillStat(payload.enemyId, payload.count || 1);
+    addHeroEnemyKillStat(payload.classId, payload.count || 1);
+  }
+  if (type === "heroMaxHp") recordHeroMaxHpStat(payload.classId, payload.maxHp);
+}
+
 function checkAchievements() {
+  if (isProgressionWriteBlocked()) return [];
   if (!save.achievements) save.achievements = {};
   if (!save.achievementEssenceClaims) save.achievementEssenceClaims = {};
   if (typeof ACHIEVEMENTS === "undefined") return [];
@@ -628,6 +697,56 @@ function checkAchievements() {
   }
   if (essenceClaimed && typeof saveGame === "function") saveGame();
   return unlocked;
+}
+
+function isRequirementMet(requirement, sourceSave = save) {
+  if (!requirement) return true;
+  const stats = sourceSave?.stats || {};
+  return getRequirementProgress(requirement, sourceSave).current >= getRequirementProgress(requirement, sourceSave).target;
+}
+
+function getRequirementProgress(requirement, sourceSave = save) {
+  if (!requirement) return { current: 1, target: 1 };
+  const stats = sourceSave?.stats || {};
+  const target = Math.max(0, Number(requirement.count) || 0);
+  if (requirement.type === "enemyKills") return { current: Number(stats.enemyKills?.[requirement.enemyId]) || 0, target };
+  if (requirement.type === "heroEnemyKills") return { current: Number(stats.heroEnemyKills?.[requirement.classId]) || 0, target };
+  if (requirement.type === "heroMaxHp") return { current: Number(stats.heroMaxHp?.[requirement.classId]) || 0, target };
+  if (requirement.type === "bossKills") return { current: Number(stats.bossesDefeated) || 0, target };
+  if (requirement.type === "finalBossKills") return { current: Number(stats.finalBossKills) || 0, target };
+  if (requirement.type === "stat") return { current: Number(stats[requirement.stat]) || 0, target };
+  return { current: target, target };
+}
+
+function formatRequirement(requirement, options = {}) {
+  if (!requirement) return "";
+  const base = getRequirementBaseText(requirement);
+  if (!options.progress) return base;
+  const progress = getRequirementProgress(requirement, options.save || save);
+  return `${base} (${Math.min(progress.current, progress.target)} / ${progress.target})`;
+}
+
+function getRequirementBaseText(requirement) {
+  if (!requirement) return "";
+  if (requirement.type === "enemyKills") return `Defeat ${getRequirementEnemyName(requirement.enemyId)} ${requirement.count} times`;
+  if (requirement.type === "heroEnemyKills") return `Defeat ${requirement.count} enemies with ${getRequirementClassName(requirement.classId)}`;
+  if (requirement.type === "heroMaxHp") return `Reach ${requirement.count} max HP with ${getRequirementClassName(requirement.classId)}`;
+  if (requirement.type === "bossKills") return `Defeat bosses ${requirement.count} times`;
+  if (requirement.type === "finalBossKills") return `Defeat The Eternal Crown ${requirement.count} times`;
+  if (requirement.type === "stat") return `Reach ${requirement.count} ${formatRequirementStatName(requirement.stat)}`;
+  return "";
+}
+
+function getRequirementEnemyName(enemyId) {
+  return getAllCharacterEnemies().find(enemy => enemy.id === enemyId)?.name || enemyId || "enemy";
+}
+
+function getRequirementClassName(classId) {
+  return CLASSES[classId]?.name || classId || "Hero";
+}
+
+function formatRequirementStatName(stat) {
+  return String(stat || "").replace(/([A-Z])/g, " $1").replace(/^./, char => char.toUpperCase());
 }
 
 function claimAchievementEssence(achievement) {
@@ -656,7 +775,7 @@ function resetSave() {
 
 function getBattleSpeedPreference() {
   const speed = Number(save.settings.battleSpeed) || 1;
-  return [1, 2, 3].includes(speed) ? speed : 1;
+  return [1, 1.5, 2].includes(speed) ? speed : 1;
 }
 
 function createRun(difficultyId, mode = "standard") {

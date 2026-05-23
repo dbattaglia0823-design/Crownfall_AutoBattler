@@ -1,5 +1,5 @@
 const WIZARD_BASE_SPLASH_CHANCE = 1;
-const WIZARD_BASE_SPLASH_DAMAGE = 0.5;
+const WIZARD_BASE_SPLASH_DAMAGE = 0.25;
 const WIZARD_BASE_BURN_CHANCE = 0.1;
 const WIZARD_BASE_BURN_DURATION = 3.5;
 const WIZARD_BASE_SLOW_VALUE = 0.2;
@@ -437,7 +437,7 @@ function heroAttack(hero, enemy) {
   const crit = megaCrit || guaranteedCrit || Math.random() < Math.min(1, Math.max(0, hero.crit));
   if (crit) {
     playSound("crit");
-    damage *= 2 + getRelicEffectTotal("critBonus") + getTalentEffectValue("critDamage") + getPermanentEffectTotal("critDamage", hero.id) + (megaCrit ? getPermanentEffectTotal("megaCritDamage", hero.id) : 0);
+    damage *= 2 + getRelicEffectTotal("critBonus") + getTalentEffectValue("critDamage") + (hero.runCritDamage || 0) + getPermanentEffectTotal("critDamage", hero.id) + (megaCrit ? getPermanentEffectTotal("megaCritDamage", hero.id) : 0);
     const critSpeedBonus = getPermanentEffectTotal("critAttackSpeedBonus", hero.id);
     if (critSpeedBonus) {
       hero.battleAttackSpeedBonus = Math.min(0.35, (hero.battleAttackSpeedBonus || 0) + critSpeedBonus);
@@ -451,8 +451,9 @@ function heroAttack(hero, enemy) {
     damage *= 1 + getTalent("knight_last_stand").effect.value;
   }
   if (hero.hp / hero.maxHp < 0.4) {
-    damage *= 1 + getPermanentEffectTotal("lowHpDamage", hero.id);
-    if (getPermanentEffectTotal("lowHpDamage", hero.id)) triggerSkillVfx(hero.x, hero.y, "Unbroken", "knight");
+    const lowHpDamage = getPermanentEffectTotal("lowHpDamage", hero.id) + (hero.runLowHpDamage || 0);
+    damage *= 1 + lowHpDamage;
+    if (lowHpDamage) triggerSkillVfx(hero.x, hero.y, "Unbroken", "knight");
   }
 
   if (hasTalent("rogue_executioner") && enemy.hp / enemy.maxHp < getTalent("rogue_executioner").effect.threshold) {
@@ -470,7 +471,7 @@ function heroAttack(hero, enemy) {
     damage += bonus;
     addFloat(enemy.x, enemy.y - 58, "Mana Surge", "#c4b5fd");
   }
-  const permanentThirdAttack = getPermanentEffectTotal("thirdAttackBonus", hero.id);
+  const permanentThirdAttack = getPermanentEffectTotal("thirdAttackBonus", hero.id) + (hero.runThirdAttackBonus || 0);
   if (permanentThirdAttack && hero.attackCount % 3 === 0) {
     damage += hero.damage * permanentThirdAttack;
     addFloat(enemy.x, enemy.y - 58, "Rune Burst", "#c4b5fd");
@@ -533,9 +534,11 @@ function heroAttack(hero, enemy) {
     addFloat(hero.x, hero.y - 65, "Inferno Crown", "#fb923c");
     triggerSkillVfx(hero.x, hero.y, "Inferno Crown", "wizard");
   }
-  if (hasTalent("wizard_meteor_spark") && Math.random() < getTalent("wizard_meteor_spark").effect.chance) {
+  const meteorChance = (hasTalent("wizard_meteor_spark") ? getTalent("wizard_meteor_spark").effect.chance : 0) + (hero.runMeteorChance || 0);
+  if (meteorChance && Math.random() < meteorChance) {
     battle.enemies.filter(other => other.hp > 0).forEach(other => {
-      const meteor = Math.max(1, hero.damage * getTalent("wizard_meteor_spark").effect.damageMultiplier - other.armor);
+      const meteorMultiplier = Math.max(hero.runMeteorDamageMultiplier || 0, hasTalent("wizard_meteor_spark") ? getTalent("wizard_meteor_spark").effect.damageMultiplier : 0.4);
+      const meteor = Math.max(1, hero.damage * meteorMultiplier - other.armor);
       damageEnemy(other, meteor, "#fca5a5");
       addFloat(other.x, other.y - 54, "Meteor", "#fca5a5");
     });
@@ -614,18 +617,19 @@ function enemyAttack(enemy, hero) {
   if (hasTalent("rogue_evasion") && Math.random() < getTalent("rogue_evasion").effect.chance) {
     addFloat(hero.x, hero.y - 38, "Evade", "#bae6fd");
     log(`${hero.name} evaded ${enemy.name}'s attack.`, "hero");
-    onHeroDodged(enemy, hero);
+    onHeroEvaded(enemy, hero);
     return;
   }
-  const dodgeChance = Math.min(0.45, getPermanentEffectTotal("evasion", hero.id) + (hero.runEvasion || 0));
-  if (Math.random() < dodgeChance) {
-    addFloat(hero.x, hero.y - 38, "Dodge", "#bae6fd");
-    log(`${hero.name} dodged ${enemy.name}'s attack.`, "hero");
-    onHeroDodged(enemy, hero);
+  const evasionChance = Math.min(0.45, getPermanentEffectTotal("evasion", hero.id) + (hero.runEvasion || 0));
+  if (Math.random() < evasionChance) {
+    addFloat(hero.x, hero.y - 38, "Evasion", "#bae6fd");
+    log(`${hero.name} evaded ${enemy.name}'s attack.`, "hero");
+    onHeroEvaded(enemy, hero);
     return;
   }
-  if (hasRelic("guardian_seal") && !battle.guardianSealUsed) {
-    damage *= 1 - getRelicEffectTotal("firstHitReduction");
+  const firstHitReduction = getRelicEffectTotal("firstHitReduction") + (hero.runFirstHitReduction || 0);
+  if (firstHitReduction > 0 && !battle.guardianSealUsed) {
+    damage *= 1 - firstHitReduction;
     battle.guardianSealUsed = true;
   }
   const holyShieldActive = (hero.holyShieldHitsRemaining || 0) > 0;
@@ -663,9 +667,9 @@ function enemyAttack(enemy, hero) {
     addFloat(enemy.x, enemy.y - 58, "Spiked Guard", "#f8e7bb");
     triggerSkillVfx(hero.x, hero.y, "Spiked Guard", "knight");
   }
-  const hitRetaliateChance = getPermanentEffectTotal("hitRetaliateChance", hero.id);
+  const hitRetaliateChance = getPermanentEffectTotal("hitRetaliateChance", hero.id) + (hero.runHitRetaliateChance || 0);
   if (hitRetaliateChance && Math.random() < hitRetaliateChance) {
-    const retaliate = hero.damage * getPermanentEffectTotal("hitRetaliateDamage", hero.id);
+    const retaliate = hero.damage * (getPermanentEffectTotal("hitRetaliateDamage", hero.id) || 0.22);
     damageEnemy(enemy, retaliate, "#f8e7bb");
     addFloat(enemy.x, enemy.y - 58, "Counter", "#f8e7bb");
     triggerSkillVfx(hero.x, hero.y, "Counter", "knight");
@@ -732,11 +736,13 @@ function prepareBattleResult(victory) {
   }
   if (shouldDropBossEquipment()) {
     const defeatedBoss = battle.enemies.find(enemy => enemy.boss || enemy.finalBoss);
+    const eliteDrop = battle.nodeType === "Elite";
     const dropResult = collectEquipmentDrop(generateEquipmentDrop({
       classId: run.classId,
       stage: run.stage,
-      sourceName: defeatedBoss?.name || "Boss",
-      rarityBonus: isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss" ? 0.45 : isEndlessRun() ? Math.min(0.65, run.stage * 0.015) : 0
+      sourceName: defeatedBoss?.name || (eliteDrop ? "Elite" : "Boss"),
+      rarityBonus: eliteDrop ? 0 : isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss" ? 0.45 : isEndlessRun() ? Math.min(0.65, run.stage * 0.015) : 0,
+      maxRarity: eliteDrop ? "Rare" : null
     }));
     const drop = dropResult.item;
     battle.result.equipmentDrop = drop;
@@ -759,7 +765,7 @@ function prepareBattleResult(victory) {
 
 function shouldDropBossEquipment() {
   if (!battle || !run || isBuildTestRun()) return false;
-  return battle.nodeType === "Boss" || battle.nodeType === "FinalBoss" || isBossStage(run.stage) || isFinalBossStage(run.stage);
+  return battle.nodeType === "Elite" || battle.nodeType === "Boss" || battle.nodeType === "FinalBoss" || isBossStage(run.stage) || isFinalBossStage(run.stage);
 }
 
 function applyStageGrowthRelics() {
@@ -798,9 +804,10 @@ function recordBattleAccountStats(victory, gold, essence) {
   const skillCount = Object.values(battle.skillsUsed || {}).reduce((total, count) => total + count, 0);
   addAccountStat("skillsTriggered", skillCount);
   save.stats.highestBattleDamage = Math.max(Number(save.stats.highestBattleDamage) || 0, battle.damageDone || 0);
+  recordGameEvent("heroMaxHp", { classId: run.classId, maxHp: run.hero?.maxHp || 0 });
   if (victory) {
     addAccountStat("stagesCleared", 1);
-    battle.enemies.forEach(enemy => addEnemyKillStat(enemy.id, 1));
+    battle.enemies.forEach(enemy => recordGameEvent("enemyKilled", { enemyId: enemy.id, classId: run.classId, count: 1 }));
     if (run.difficultyId === "hard") addAccountStat("hardStagesCleared", 1);
     if (battle.nodeType === "Elite") addAccountStat("elitesDefeated", 1);
     if (isBossStage(run.stage) || isFinalBossStage(run.stage)) addAccountStat("bossesDefeated", 1);
@@ -910,6 +917,7 @@ function endBuildTest(victory) {
 function recordRunEndStats(victory, essence) {
   if (run.runEndStatsRecorded) return;
   run.runEndStatsRecorded = true;
+  if (isBuildTestRun()) return;
   save.essence += essence;
   save.highestClear = Math.max(save.highestClear, run.stagesCleared);
   addAccountStat("runsEnded", 1);
@@ -1298,11 +1306,11 @@ function getWizardBurnChance(hero) {
 }
 
 function getWizardBurnDamage(hero, enemy) {
-  return getBurnStatusDamage(hero, enemy, 4 + run.stage * 0.45);
+  return getBurnStatusDamage(hero, enemy, 4 + run.stage * 0.45 + (hero.runAbilityFlatDamage || 0));
 }
 
 function getRogueBurnAbilityDamage(hero, enemy) {
-  return getBurnStatusDamage(hero, enemy, 7 + run.stage * 0.55);
+  return getBurnStatusDamage(hero, enemy, 7 + run.stage * 0.55 + (hero.runAbilityFlatDamage || 0));
 }
 
 function getBurnStatusDamage(hero, enemy, baseDamage) {
@@ -1323,22 +1331,22 @@ function getHeroExecuteThreshold(hero) {
 }
 
 function getRogueAttackPoisonDamage(hero, effect = {}) {
-  return (effect.damage || 0) + run.stage * ROGUE_VENOM_BLADE_STAGE_SCALING + (hero.runPoisonAttackDamage || 0);
+  return (effect.damage || 0) + run.stage * ROGUE_VENOM_BLADE_STAGE_SCALING + (hero.runPoisonAttackDamage || 0) + (hero.runAbilityFlatDamage || 0);
 }
 
 function getRoguePoisonAbilityDamage(hero) {
-  return 9 + run.stage * 0.75 + (hero.runPoisonAbilityDamage || 0);
+  return 9 + run.stage * 0.75 + (hero.runPoisonAbilityDamage || 0) + (hero.runAbilityFlatDamage || 0);
 }
 
-function onHeroDodged(enemy, hero) {
-  const damageBonus = getPermanentEffectTotal("dodgeDamageBonus", hero.id);
+function onHeroEvaded(enemy, hero) {
+  const damageBonus = getPermanentEffectTotal("evasionDamageBonus", hero.id);
   if (damageBonus) {
     hero.battleDamageBonus = Math.min(0.4, (hero.battleDamageBonus || 0) + damageBonus);
     addFloat(hero.x, hero.y - 62, "Opportunist", "#bbf7d0");
     triggerSkillVfx(hero.x, hero.y, "Opportunist", "rogue");
   }
 
-  const counter = getPermanentEffectTotal("dodgeCounter", hero.id);
+  const counter = getPermanentEffectTotal("evasionCounter", hero.id) + (hero.runEvasionCounter || 0);
   if (counter) {
     const amount = hero.damage * counter;
     damageEnemy(enemy, amount, "#bae6fd");
@@ -1384,9 +1392,9 @@ function applyLifeSteal(damageDone) {
 }
 
 function onEnemyDeath(enemy) {
-  const killAttackSpeed = getPermanentEffectTotal("killAttackSpeed", run.hero.id);
+  const killAttackSpeed = getPermanentEffectTotal("killAttackSpeed", run.hero.id) + (run.hero.runKillAttackSpeed || 0);
   if (killAttackSpeed) {
-    const max = getPermanentEffectTotal("killAttackSpeedMax", run.hero.id) || 0.35;
+    const max = run.hero.runKillAttackSpeedMax || getPermanentEffectTotal("killAttackSpeedMax", run.hero.id) || 0.35;
     run.hero.battleAttackSpeedBonus = Math.min(max, (run.hero.battleAttackSpeedBonus || 0) + killAttackSpeed);
     addFloat(run.hero.x, run.hero.y - 60, "Finishing Dash", "#bbf7d0");
     triggerSkillVfx(run.hero.x, run.hero.y, "Finishing Dash", "rogue");
@@ -1470,7 +1478,10 @@ function getTalent(id) {
 
 function getTalentEffectValue(type) {
   if (!run) return 0;
-  return run.talents.reduce((total, talent) => talent.effect.type === type ? total + talent.effect.value : total, 0);
+  return run.talents.reduce((total, talent) => {
+    if (talent.effect.type === type) return total + talent.effect.value;
+    return total;
+  }, 0);
 }
 
 function hasRelic(id) {
@@ -1480,13 +1491,21 @@ function hasRelic(id) {
 function getRelicEffectTotal(type) {
   if (!run) return 0;
   return run.relics.reduce((total, relic) => {
+    if (relic.effects) return total;
     if (relic.effect.type === type) return total + relic.effect.value;
+    if (relic.effect.type === "flatBundle" && type === "critBonus") return total + (relic.effect.flat?.critDamage || 0);
+    if (relic.effect.type === "flatBundle" && type === "firstHitReduction") return total + (relic.effect.flat?.firstHitReduction || 0);
+    if (relic.effect.type === "flatBundle" && type === "essenceMultiplier") return total + (relic.effect.flat?.essenceMultiplier || 0);
     if (relic.effect[type] !== undefined) return total + relic.effect[type];
     return total;
   }, 0);
 }
 
 function applyAfterBattleRelics() {
+  if (run.hero?.runAfterBattleGold) {
+    run.gold += run.hero.runAfterBattleGold;
+    log(`Run bonuses grant ${run.hero.runAfterBattleGold} gold.`);
+  }
   run.relics.forEach(relic => {
   if (relic.effect.type === "afterBattleGold") {
       run.gold += relic.effect.value;
