@@ -270,12 +270,12 @@
       <div class="game-layout">
         <aside class="side-panel side-panel-left">
           <div class="panel"><h3 class="section-title">Hero</h3><div id="heroStats" class="subtle"></div><div id="activeSkills" class="active-skill-list"></div></div>
-          <div class="panel"><h3 class="section-title">Extra Stats</h3><div id="heroFullStats" class="full-stat-list"></div></div>
+          <details id="extraStatsDropdown" class="panel mobile-battle-dropdown" open><summary class="mobile-battle-summary"><span>Extra Stats</span></summary><h3 class="section-title">Extra Stats</h3><div id="heroFullStats" class="full-stat-list"></div></details>
         </aside>
-        <div class="panel battle-center-panel"><div id="battlefield" class="battlefield"><div class="arena-line"></div></div><div id="buildTestFightHud" class="build-test-fight-hud"><button id="buildTestPauseButton" onclick="toggleBuildTestPause()">Pause</button><div><small>Damage</small><strong id="buildTestDamageCounter">0</strong></div><div><small>Timer</small><strong id="buildTestTimer">0:00</strong></div></div><div id="specialSkills" class="special-skill-list"></div><div class="battle-loadout-lists"><div id="heroUpgrades" class="ability-list"></div><div id="heroRelics" class="relic-list"></div><div id="heroTalents" class="talent-list"></div></div></div>
+        <div class="panel battle-center-panel"><div id="battlefield" class="battlefield"><div class="arena-line"></div></div><div id="buildTestFightHud" class="build-test-fight-hud"><button id="buildTestPauseButton" onclick="toggleBuildTestPause()">Pause</button><div><small>Damage</small><strong id="buildTestDamageCounter">0</strong></div><div><small>Timer</small><strong id="buildTestTimer">0:00</strong></div></div><div id="specialSkills" class="special-skill-list"></div><details id="loadoutDropdown" class="mobile-battle-dropdown battle-loadout-dropdown" open><summary class="mobile-battle-summary"><span>Upgrades / Relics / Talents</span></summary><div class="battle-loadout-lists"><div id="heroUpgrades" class="ability-list"></div><div id="heroRelics" class="relic-list"></div><div id="heroTalents" class="talent-list"></div></div></details></div>
         <aside class="side-panel side-panel-right">
           <div class="panel enemy-stat-panel"><h3 class="section-title">Enemies</h3><div id="enemyStats" class="enemy-stat-list"></div></div>
-          <div class="panel"><h3 class="section-title">Battle Log</h3><div id="battleLog" class="log"></div></div>
+          <details id="battleLogDropdown" class="panel mobile-battle-dropdown" open><summary class="mobile-battle-summary"><span>Battle Log</span></summary><h3 class="section-title">Battle Log</h3><div id="battleLog" class="log"></div></details>
         </aside>
       </div>
     </section>

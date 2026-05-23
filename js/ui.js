@@ -41,6 +41,9 @@ let lastHudRenderAt = 0;
 const EQUIPMENT_SHOP_REFRESH_COOLDOWN_MS = 60000;
 const BUILD_TEST_ATTACK_SOUND_INTERVAL = 0.1;
 const BUILD_TEST_STACK_LIMIT = 100;
+const TREE_COST_GROWTH = 1.75;
+const GLOBAL_TREE_COST_MULTIPLIER = 0.75;
+const GLOBAL_TREE_COST_GROWTH = 1.5;
 const TREE_TAB_ROOTS = { global: "crown_legacy", knight: "knight_root", rogue: "rogue_root", wizard: "wizard_root" };
 const BUILD_TEST_EFFECT_LIMITS = {
   ".attack-vfx": 10,
@@ -66,6 +69,7 @@ function showScreen(id) {
   if (id === "statsScreen") renderAccountStats();
   if (id === "achievementScreen") renderAchievements();
   if (id === "gauntletScreen") renderGauntletScreen();
+  if (id === "battleScreen") syncMobileBattleDropdowns();
   if (id === "runEndScreen") resetRunEndActions();
 }
 
@@ -74,6 +78,21 @@ function resetRunEndActions() {
   if (gauntletFightAgainButton) gauntletFightAgainButton.style.display = "none";
   if (runEndStartButton) runEndStartButton.style.display = "";
   if (runEndEssenceButton) runEndEssenceButton.style.display = "";
+}
+
+function syncMobileBattleDropdowns() {
+  const dropdowns = document.querySelectorAll(".mobile-battle-dropdown");
+  const mobile = window.matchMedia("(max-width: 650px)").matches;
+  dropdowns.forEach(dropdown => {
+    if (!mobile) {
+      dropdown.open = true;
+      dropdown.dataset.mobileCollapsed = "";
+      return;
+    }
+    if (dropdown.dataset.mobileCollapsed === "true") return;
+    dropdown.open = false;
+    dropdown.dataset.mobileCollapsed = "true";
+  });
 }
 
 function applyRunTheme() {
@@ -1987,7 +2006,7 @@ function createTreeMenuItemHtml(node) {
 }
 function createTreeNodeButtonHtml(node) { const level = getTreeLevel(node.id), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, cost = getTreeUpgradeCost(node, level), available = !locked && !maxed && save.essence >= cost; return `<button class="skill-node skill-node-${node.type} skill-node-${node.classId} ${locked ? "skill-node-locked" : ""} ${maxed ? "skill-node-complete" : ""} ${available ? "skill-node-available" : ""} ${selectedTreeNodeId === node.id ? "skill-node-selected" : ""}" style="left:${node.x}px;top:${node.y}px" data-node="${node.id}"><span>${getTreeNodeInitials(node)}</span><small>${level}/${node.maxLevel}</small></button>`; }
 function renderTreeDetails(node) { const level = getTreeLevel(node.id), cost = getTreeUpgradeCost(node, level), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, prereqs = (node.prerequisites || []).map(id => TREE[id]?.name).filter(Boolean); treeDetails.innerHTML = `<div class="tree-detail-kicker">${node.branch}</div><h3>${node.name}</h3><p>${node.description}</p><div class="tree-detail-row"><span>Level</span><strong>${level}/${node.maxLevel}</strong></div><div class="tree-detail-row"><span>Cost</span><strong>${maxed ? "Maxed" : `${cost} Essence`}</strong></div>${prereqs.length ? `<div class="tree-detail-prereqs"><strong>Requires</strong><br>${prereqs.map(escapeHtml).join(", ")}</div>` : ""}<button ${locked || maxed || save.essence < cost ? "disabled" : ""}>${locked ? "Locked" : maxed ? "Completed" : "Purchase"}</button>`; treeDetails.querySelector("button").onclick = () => purchaseTreeNode(node.id); treeCards.querySelectorAll("[data-node]").forEach(button => button.onclick = () => { selectedTreeNodeId = button.dataset.node; renderTree(); }); }
-function getTreeUpgradeCost(node, level) { if (node.type === "unlock" || node.type === "ability") return TREE_UNLOCK_ESSENCE_COST; if (node.costs) return node.costs[Math.min(level, node.costs.length - 1)]; return Math.ceil((node.cost * (node.classId === "global" ? GLOBAL_TREE_COST_MULTIPLIER : 1) * Math.pow(node.classId === "global" ? GLOBAL_TREE_COST_GROWTH : TREE_COST_GROWTH, level)) / 10) * 10; }
+function getTreeUpgradeCost(node, level) { if (node.costs) return node.costs[Math.min(level, node.costs.length - 1)]; if (node.type === "ability") return node.cost; return Math.ceil((node.cost * (node.classId === "global" ? GLOBAL_TREE_COST_MULTIPLIER : 1) * Math.pow(node.classId === "global" ? GLOBAL_TREE_COST_GROWTH : TREE_COST_GROWTH, level)) / 10) * 10; }
 function isTreeNodeLocked(node) { return node.prerequisites.some(id => getTreeLevel(id) <= 0); }
 function getTreeNodeInitials(node) { return node.name.split(/\s+/).map(word => word[0]).join("").slice(0, 2).toUpperCase(); }
 function purchaseTreeNode(id) { const node = TREE[id], level = getTreeLevel(id), cost = getTreeUpgradeCost(node, level); if (isTreeNodeLocked(node) || level >= node.maxLevel || save.essence < cost) return; save.essence -= cost; save.tree[id] = level + 1; selectedTreeNodeId = id; saveGame(); renderTree(); }

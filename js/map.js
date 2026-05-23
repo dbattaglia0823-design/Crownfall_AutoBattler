@@ -1,3 +1,9 @@
+const SANCTUARY_BASE_HP_GAIN = 100;
+const SANCTUARY_LAYER_HP_GAIN = 50;
+const SANCTUARY_BASE_REGEN_GAIN = 1;
+const SANCTUARY_LAYER_REGEN_GAIN = 1;
+const MAP_BACKGROUND_IMAGE = "";
+
 function generateRunMap(themeIds, stages = STAGE_COUNT) {
   const rows = [[{ id: "s1-start", stage: 1, type: "Battle", connectsTo: [] }]];
 

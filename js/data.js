@@ -1,14 +1,3 @@
-const SAVE_KEY = "crownfall_autobattler_save_v5";
-const STAGE_COUNT = 30;
-const MAP_LAYER_SIZE = 10;
-const FINAL_BOSS_STAGE = STAGE_COUNT + 1;
-const BASE_BATTLE_SPEED = 1;
-const SANCTUARY_BASE_HP_GAIN = 100;
-const SANCTUARY_LAYER_HP_GAIN = 50;
-const SANCTUARY_BASE_REGEN_GAIN = 1;
-const SANCTUARY_LAYER_REGEN_GAIN = 1;
-const MAP_BACKGROUND_IMAGE = "";
-
 const BATTLEFIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 430" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#40264f"/><stop offset=".45" stop-color="#a9553f"/><stop offset="1" stop-color="#3c2a25"/></linearGradient><linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8b6438"/><stop offset="1" stop-color="#3e2a1b"/></linearGradient><radialGradient id="glow" cx="50%" cy="42%" r="42%"><stop offset="0" stop-color="#ffe28a" stop-opacity=".95"/><stop offset=".25" stop-color="#f59e45" stop-opacity=".45"/><stop offset="1" stop-color="#1b1120" stop-opacity="0"/></radialGradient></defs><rect width="900" height="430" fill="url(#sky)"/><rect width="900" height="430" fill="url(#glow)"/><circle cx="450" cy="180" r="34" fill="#ffd874"/><path d="M0 188 L64 132 L118 187 L164 112 L229 190 L292 120 L349 188 L406 96 L480 190 L548 118 L618 190 L684 99 L758 190 L825 126 L900 187 L900 250 L0 250 Z" fill="#33294b"/><path d="M0 238 L80 199 L170 235 L258 196 L350 238 L450 203 L536 238 L637 194 L722 238 L812 201 L900 238 L900 288 L0 288 Z" fill="#4f3a37"/><path d="M318 201 V150 H332 V126 H346 V154 H358 V110 H374 V154 H388 V132 H402 V201 Z" fill="#2a2434"/><rect x="309" y="194" width="104" height="20" fill="#33283a"/><path d="M620 205 V150 H636 V118 H652 V158 H668 V136 H684 V205 Z" fill="#302337"/><rect x="606" y="198" width="96" height="20" fill="#3a2a34"/><path d="M92 215 V92 H132 V204 H152 V222 H68 V204 H92 Z" fill="#322d31"/><path d="M768 215 V96 H810 V204 H832 V222 H746 V204 H768 Z" fill="#322d31"/><rect x="99" y="118" width="24" height="72" fill="#273558"/><rect x="779" y="120" width="25" height="74" fill="#6d2020"/><rect y="250" width="900" height="180" fill="url(#ground)"/><path d="M110 310 C208 286 348 282 452 288 C572 295 690 288 804 310 C704 331 584 342 455 338 C318 334 202 330 110 310 Z" fill="#9a7142" opacity=".72"/><rect x="83" y="292" width="34" height="12" fill="#b09369"/><rect x="242" y="301" width="44" height="11" fill="#a4885e"/><rect x="510" y="302" width="42" height="10" fill="#b08c5c"/><rect x="734" y="294" width="38" height="11" fill="#a68961"/><rect x="18" y="392" width="132" height="38" fill="#201711"/><rect x="732" y="392" width="150" height="38" fill="#201711"/></svg>`;
 
 function createBiomeBattlefieldSvg(theme) {
@@ -54,7 +43,7 @@ const GAUNTLET_UNRANKED_OPPONENTS = {
     baseEnemyId: "bandit",
     className: "bandit",
     spriteSheet: "",
-    stats: { maxHp: 430, damage: 29, attackSpeed: 0.95, armor: 6, armorPiercing: 2 }
+    stats: { maxHp: 430, damage: 29, attackSpeed: 0.75, armor: 6, armorPiercing: 2 }
   },
   iron_contender: {
     id: "iron_contender",
@@ -62,7 +51,7 @@ const GAUNTLET_UNRANKED_OPPONENTS = {
     baseEnemyId: "armored_knight",
     className: "armored-knight",
     spriteSheet: "",
-    stats: { maxHp: 900, damage: 45, attackSpeed: 1.05, armor: 12, armorPiercing: 4 }
+    stats: { maxHp: 900, damage: 45, attackSpeed: 0.85, armor: 12, armorPiercing: 4 }
   },
   grave_veteran: {
     id: "grave_veteran",
@@ -70,7 +59,7 @@ const GAUNTLET_UNRANKED_OPPONENTS = {
     baseEnemyId: "wraith",
     className: "wraith",
     spriteSheet: "",
-    stats: { maxHp: 1500, damage: 68, attackSpeed: 1.08, armor: 10, armorPiercing: 4 }
+    stats: { maxHp: 1500, damage: 68, attackSpeed: 0.88, armor: 10, armorPiercing: 4 }
   },
   crown_champion: {
     id: "crown_champion",
@@ -78,36 +67,36 @@ const GAUNTLET_UNRANKED_OPPONENTS = {
     baseEnemyId: "fallen_knight",
     className: "fallen-knight",
     spriteSheet: "",
-    stats: { maxHp: 3000, damage: 88, attackSpeed: 1.1, armor: 15, armorPiercing: 6 }
+    stats: { maxHp: 3000, damage: 88, attackSpeed: 0.9, armor: 15, armorPiercing: 6 }
   }
 };
 
 // Edit these arrays to customize the ranked Gauntlet top 10.
 // Hero leader spriteSheet is optional; enemy leader spriteSheet uses the normal 6-frame enemy layout.
 const GAUNTLET_HERO_LEADER_CONFIGS = [
-  { id: "hero_aurelia", name: "Aurelia", classId: "knight", rank: 1, spriteSheet: "", stats: { maxHp: 6400, damage: 330, attackSpeed: 1.12, armor: 60 } },
-  { id: "hero_brom", name: "Brom", classId: "wizard", rank: 2, spriteSheet: "", stats: { maxHp: 5600, damage: 360, attackSpeed: 0.95, armor: 48 } },
-  { id: "hero_caldus", name: "Ser Caldus", classId: "knight", rank: 3, spriteSheet: "", stats: { maxHp: 5000, damage: 285, attackSpeed: 1.04, armor: 52 } },
-  { id: "hero_nyra", name: "Nyra", classId: "rogue", rank: 4, spriteSheet: "", stats: { maxHp: 4300, damage: 245, attackSpeed: 1.62, armor: 34 } },
-  { id: "hero_vey", name: "Vey", classId: "wizard", rank: 5, spriteSheet: "", stats: { maxHp: 3800, damage: 265, attackSpeed: 1.02, armor: 32 } },
-  { id: "hero_merek", name: "Merek", classId: "knight", rank: 6, spriteSheet: "", stats: { maxHp: 3400, damage: 205, attackSpeed: 1.02, armor: 35 } },
-  { id: "hero_iris", name: "Iris", classId: "rogue", rank: 7, spriteSheet: "", stats: { maxHp: 3000, damage: 190, attackSpeed: 1.48, armor: 24 } },
-  { id: "hero_tor", name: "Tor", classId: "knight", rank: 8, spriteSheet: "", stats: { maxHp: 2600, damage: 165, attackSpeed: 0.94, armor: 28 } },
-  { id: "hero_sable", name: "Sable", classId: "rogue", rank: 9, spriteSheet: "", stats: { maxHp: 2200, damage: 145, attackSpeed: 1.34, armor: 18 } },
-  { id: "hero_rowan", name: "Rowan", classId: "wizard", rank: 10, spriteSheet: "", stats: { maxHp: 1900, damage: 135, attackSpeed: 0.92, armor: 16 } }
+  { id: "hero_aurelia", name: "Aurelia", classId: "knight", rank: 1, spriteSheet: "", stats: { maxHp: 6400, damage: 330, attackSpeed: 0.92, armor: 60 } },
+  { id: "hero_brom", name: "Brom", classId: "wizard", rank: 2, spriteSheet: "", stats: { maxHp: 5600, damage: 360, attackSpeed: 0.75, armor: 48 } },
+  { id: "hero_caldus", name: "Ser Caldus", classId: "knight", rank: 3, spriteSheet: "", stats: { maxHp: 5000, damage: 285, attackSpeed: 0.84, armor: 52 } },
+  { id: "hero_nyra", name: "Nyra", classId: "rogue", rank: 4, spriteSheet: "", stats: { maxHp: 4300, damage: 245, attackSpeed: 1.42, armor: 34 } },
+  { id: "hero_vey", name: "Vey", classId: "wizard", rank: 5, spriteSheet: "", stats: { maxHp: 3800, damage: 265, attackSpeed: 0.82, armor: 32 } },
+  { id: "hero_merek", name: "Merek", classId: "knight", rank: 6, spriteSheet: "", stats: { maxHp: 3400, damage: 205, attackSpeed: 0.82, armor: 35 } },
+  { id: "hero_iris", name: "Iris", classId: "rogue", rank: 7, spriteSheet: "", stats: { maxHp: 3000, damage: 190, attackSpeed: 1.28, armor: 24 } },
+  { id: "hero_tor", name: "Tor", classId: "knight", rank: 8, spriteSheet: "", stats: { maxHp: 2600, damage: 165, attackSpeed: 0.74, armor: 28 } },
+  { id: "hero_sable", name: "Sable", classId: "rogue", rank: 9, spriteSheet: "", stats: { maxHp: 2200, damage: 145, attackSpeed: 1.14, armor: 18 } },
+  { id: "hero_rowan", name: "Rowan", classId: "wizard", rank: 10, spriteSheet: "", stats: { maxHp: 1900, damage: 135, attackSpeed: 0.72, armor: 16 } }
 ];
 
 const GAUNTLET_ENEMY_LEADER_CONFIGS = [
-  { id: "enemy_crown_tyrant", name: "Crown Tyrant", enemyId: "fallen_knight", className: "fallen-knight", rank: 1, spriteSheet: "", stats: { maxHp: 6900, damage: 320, attackSpeed: 1.08, armor: 58, armorPiercing: 18 } },
-  { id: "enemy_void_wraith", name: "Void Wraith", enemyId: "wraith", className: "wraith", rank: 2, spriteSheet: "", stats: { maxHp: 5600, damage: 345, attackSpeed: 1.22, armor: 40, armorPiercing: 15 } },
-  { id: "enemy_crypt_lord", name: "Crypt Lord", enemyId: "necromancer", className: "necromancer", rank: 3, spriteSheet: "", stats: { maxHp: 5100, damage: 280, attackSpeed: 1.05, armor: 44, armorPiercing: 13 } },
-  { id: "enemy_iron_oath", name: "Iron Oath", enemyId: "armored_knight", className: "armored-knight", rank: 4, spriteSheet: "", stats: { maxHp: 4700, damage: 235, attackSpeed: 0.98, armor: 50, armorPiercing: 12 } },
-  { id: "enemy_blood_acolyte", name: "Blood Acolyte", enemyId: "cultist", className: "cultist", rank: 5, spriteSheet: "", stats: { maxHp: 3900, damage: 230, attackSpeed: 1.16, armor: 28, armorPiercing: 10 } },
-  { id: "enemy_marsh_stalker", name: "Marsh Stalker", enemyId: "plague_rat", className: "plague-rat", rank: 6, spriteSheet: "", stats: { maxHp: 3300, damage: 190, attackSpeed: 1.45, armor: 20, armorPiercing: 8 } },
-  { id: "enemy_dark_marksman", name: "Dark Marksman", enemyId: "dark_archer", className: "dark-archer", rank: 7, spriteSheet: "", stats: { maxHp: 2900, damage: 185, attackSpeed: 1.18, armor: 18, armorPiercing: 7 } },
-  { id: "enemy_war_troll", name: "War Troll", enemyId: "troll", className: "troll", rank: 8, spriteSheet: "", stats: { maxHp: 3600, damage: 155, attackSpeed: 0.72, armor: 30, armorPiercing: 6 } },
-  { id: "enemy_red_raider", name: "Red Raider", enemyId: "raider", className: "raider", rank: 9, spriteSheet: "", stats: { maxHp: 2400, damage: 150, attackSpeed: 1.1, armor: 16, armorPiercing: 5 } },
-  { id: "enemy_goblin_duke", name: "Goblin Duke", enemyId: "goblin", className: "goblin", rank: 10, spriteSheet: "", stats: { maxHp: 2000, damage: 125, attackSpeed: 1.24, armor: 12, armorPiercing: 4 } }
+  { id: "enemy_crown_tyrant", name: "Crown Tyrant", enemyId: "fallen_knight", className: "fallen-knight", rank: 1, spriteSheet: "", stats: { maxHp: 6900, damage: 320, attackSpeed: 0.88, armor: 58, armorPiercing: 18 } },
+  { id: "enemy_void_wraith", name: "Void Wraith", enemyId: "wraith", className: "wraith", rank: 2, spriteSheet: "", stats: { maxHp: 5600, damage: 345, attackSpeed: 1.02, armor: 40, armorPiercing: 15 } },
+  { id: "enemy_crypt_lord", name: "Crypt Lord", enemyId: "necromancer", className: "necromancer", rank: 3, spriteSheet: "", stats: { maxHp: 5100, damage: 280, attackSpeed: 0.85, armor: 44, armorPiercing: 13 } },
+  { id: "enemy_iron_oath", name: "Iron Oath", enemyId: "armored_knight", className: "armored-knight", rank: 4, spriteSheet: "", stats: { maxHp: 4700, damage: 235, attackSpeed: 0.78, armor: 50, armorPiercing: 12 } },
+  { id: "enemy_blood_acolyte", name: "Blood Acolyte", enemyId: "cultist", className: "cultist", rank: 5, spriteSheet: "", stats: { maxHp: 3900, damage: 230, attackSpeed: 0.96, armor: 28, armorPiercing: 10 } },
+  { id: "enemy_marsh_stalker", name: "Marsh Stalker", enemyId: "plague_rat", className: "plague-rat", rank: 6, spriteSheet: "", stats: { maxHp: 3300, damage: 190, attackSpeed: 1.25, armor: 20, armorPiercing: 8 } },
+  { id: "enemy_dark_marksman", name: "Dark Marksman", enemyId: "dark_archer", className: "dark-archer", rank: 7, spriteSheet: "", stats: { maxHp: 2900, damage: 185, attackSpeed: 0.98, armor: 18, armorPiercing: 7 } },
+  { id: "enemy_war_troll", name: "War Troll", enemyId: "troll", className: "troll", rank: 8, spriteSheet: "", stats: { maxHp: 3600, damage: 155, attackSpeed: 0.52, armor: 30, armorPiercing: 6 } },
+  { id: "enemy_red_raider", name: "Red Raider", enemyId: "raider", className: "raider", rank: 9, spriteSheet: "", stats: { maxHp: 2400, damage: 150, attackSpeed: 0.9, armor: 16, armorPiercing: 5 } },
+  { id: "enemy_goblin_duke", name: "Goblin Duke", enemyId: "goblin", className: "goblin", rank: 10, spriteSheet: "", stats: { maxHp: 2000, damage: 125, attackSpeed: 1.04, armor: 12, armorPiercing: 4 } }
 ];
 
 const GAUNTLET_SHOP_UPGRADES = [
@@ -226,8 +215,6 @@ const EQUIPMENT_TEMPLATES = {
   ]
 };
 
-const STARTER_INVENTORY_ITEMS = [];
-
 const SPRITE_SHEETS = {
   heroes: {
     knight: "assets/heroes/knight-sheet.png",
@@ -257,146 +244,23 @@ const SPRITE_SHEETS = {
 const SKIN_SPRITE_SHEETS = {
   heroes: {
     knight: {
-      royal_vanguard: "assets/heroes/skins/knight-royal-vanguard-sheet.png",
       crimson_champion: "assets/heroes/skins/crimson-champion-sheet.png",
       golden_oath: "assets/heroes/skins/knight-golden-oath-sheet.png"
     },
     rogue: {
       verdant_shade: "assets/heroes/skins/rogue-verdant-shade-sheet.png",
-      crimson_ghost: "assets/heroes/skins/rogue-crimson-ghost-sheet.png",
-      gilded_contract: "assets/heroes/skins/rogue-gilded-contract-sheet.png"
-    },
-    wizard: {
-      astral_scholar: "assets/heroes/skins/wizard-astral-scholar-sheet.png",
-      starfire_magus: "assets/heroes/skins/wizard-starfire-magus-sheet.png",
-      auric_arcana: "assets/heroes/skins/wizard-auric-arcana-sheet.png"
+      crimson_ghost: "assets/heroes/skins/rogue-crimson-ghost-sheet.png"
     }
   },
-  enemies: {
-    goblin: {
-      crownmark: "assets/enemies/skins/goblin-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/goblin-nemesis-sheet.png",
-      golden: "assets/enemies/skins/goblin-golden-sheet.png"
-    },
-    wolf: {
-      crownmark: "assets/enemies/skins/wolf-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/wolf-nemesis-sheet.png",
-      golden: "assets/enemies/skins/wolf-golden-sheet.png"
-    },
-    bandit: {
-      crownmark: "assets/enemies/skins/bandit-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/bandit-nemesis-sheet.png",
-      golden: "assets/enemies/skins/bandit-golden-sheet.png"
-    },
-    plague_rat: {
-      crownmark: "assets/enemies/skins/plague_rat-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/plague_rat-nemesis-sheet.png",
-      golden: "assets/enemies/skins/plague_rat-golden-sheet.png"
-    },
-    dark_archer: {
-      crownmark: "assets/enemies/skins/dark_archer-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/dark_archer-nemesis-sheet.png",
-      golden: "assets/enemies/skins/dark_archer-golden-sheet.png"
-    },
-    skeleton: {
-      crownmark: "assets/enemies/skins/skeleton-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/skeleton-nemesis-sheet.png",
-      golden: "assets/enemies/skins/skeleton-golden-sheet.png"
-    },
-    wraith: {
-      crownmark: "assets/enemies/skins/wraith-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/wraith-nemesis-sheet.png",
-      golden: "assets/enemies/skins/wraith-golden-sheet.png"
-    },
-    necromancer: {
-      crownmark: "assets/enemies/skins/necromancer-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/necromancer-nemesis-sheet.png",
-      golden: "assets/enemies/skins/necromancer-golden-sheet.png"
-    },
-    orc: {
-      crownmark: "assets/enemies/skins/orc-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/orc-nemesis-sheet.png",
-      golden: "assets/enemies/skins/orc-golden-sheet.png"
-    },
-    raider: {
-      crownmark: "assets/enemies/skins/raider-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/raider-nemesis-sheet.png",
-      golden: "assets/enemies/skins/raider-golden-sheet.png"
-    },
-    troll: {
-      crownmark: "assets/enemies/skins/troll-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/troll-nemesis-sheet.png",
-      golden: "assets/enemies/skins/troll-golden-sheet.png"
-    },
-    armored_knight: {
-      crownmark: "assets/enemies/skins/armored_knight-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/armored_knight-nemesis-sheet.png",
-      golden: "assets/enemies/skins/armored_knight-golden-sheet.png"
-    },
-    fallen_knight: {
-      crownmark: "assets/enemies/skins/fallen_knight-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/fallen_knight-nemesis-sheet.png",
-      golden: "assets/enemies/skins/fallen_knight-golden-sheet.png"
-    },
-    cultist: {
-      crownmark: "assets/enemies/skins/cultist-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/cultist-nemesis-sheet.png",
-      golden: "assets/enemies/skins/cultist-golden-sheet.png"
-    },
-    fallen_king_shade: {
-      crownmark: "assets/enemies/skins/fallen_king_shade-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/fallen_king_shade-nemesis-sheet.png",
-      golden: "assets/enemies/skins/fallen_king_shade-golden-sheet.png"
-    },
-    crown_hound: {
-      crownmark: "assets/enemies/skins/crown_hound-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/crown_hound-nemesis-sheet.png",
-      golden: "assets/enemies/skins/crown_hound-golden-sheet.png"
-    },
-    oathbreaker: {
-      crownmark: "assets/enemies/skins/oathbreaker-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/oathbreaker-nemesis-sheet.png",
-      golden: "assets/enemies/skins/oathbreaker-golden-sheet.png"
-    },
-    blood_acolyte: {
-      crownmark: "assets/enemies/skins/blood_acolyte-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/blood_acolyte-nemesis-sheet.png",
-      golden: "assets/enemies/skins/blood_acolyte-golden-sheet.png"
-    },
-    fallenKing: {
-      crownmark: "assets/enemies/skins/fallenKing-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/fallenKing-nemesis-sheet.png",
-      golden: "assets/enemies/skins/fallenKing-golden-sheet.png"
-    },
-    ashenRegent: {
-      crownmark: "assets/enemies/skins/ashenRegent-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/ashenRegent-nemesis-sheet.png",
-      golden: "assets/enemies/skins/ashenRegent-golden-sheet.png"
-    },
-    crownfallTyrant: {
-      crownmark: "assets/enemies/skins/crownfallTyrant-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/crownfallTyrant-nemesis-sheet.png",
-      golden: "assets/enemies/skins/crownfallTyrant-golden-sheet.png"
-    },
-    eternalCrown: {
-      crownmark: "assets/enemies/skins/eternalCrown-crownmark-sheet.png",
-      nemesis: "assets/enemies/skins/eternalCrown-nemesis-sheet.png",
-      golden: "assets/enemies/skins/eternalCrown-golden-sheet.png"
-    }
-  }
+  enemies: {}
 };
 
 const SKILL_SPRITE_SHEETS = {
   // Add custom skill sprites here. Skin-specific sprites override base sprites.
-  // Example:
-  // knight_heavy_attack: {
-  //   base: "assets/skills/knight_heavy_attack.png",
-  //   skins: { crimson_champion: "assets/skills/knight_heavy_attack_crimson_champion.png" }
-  // }
-  wizard_curse: { base: "" },
-  wizard_iceball: { base: "" },
-  wizard_lightning: { base: "" },
-  rogue_poison: { base: "" },
+  wizard_curse: { base: "assets/skills/wizard_curse.png" },
+  wizard_iceball: { base: "assets/skills/wizard_iceball.png" },
+  wizard_lightning: { base: "assets/skills/wizard_lightning.png" },
+  rogue_poison: { base: "assets/skills/rogue_poison.png" },
   rogue_bleed: { base: "" },
   rogue_burn: { base: "" },
   knight_heavy_attack: { base: "" },
@@ -435,27 +299,27 @@ function getEnemySkinSet(enemyId, enemyName) {
 }
 
 const ENEMY_ARCHETYPES = {
-  goblin: { id: "goblin", name: "Goblin", hp: 40, damage: 7, attackSpeed: 0.8, armor: 0, armorPiercing: 0, className: "goblin" },
-  wolf: { id: "wolf", name: "Wolf", hp: 46, damage: 10, attackSpeed: 0.98, armor: 0, armorPiercing: 0, className: "wolf" },
-  bandit: { id: "bandit", name: "Bandit", hp: 54, damage: 9, attackSpeed: 0.82, armor: 1, armorPiercing: 1, className: "bandit" },
-  plagueRat: { id: "plague_rat", name: "Plague Rat", hp: 32, damage: 6, attackSpeed: 1.09, armor: 0, armorPiercing: 0, className: "plague_rat" },
-  darkArcher: { id: "dark_archer", name: "Dark Archer", hp: 48, damage: 12, attackSpeed: 0.76, armor: 1, armorPiercing: 1, className: "dark_archer" },
+  goblin: { id: "goblin", name: "Goblin", hp: 40, damage: 7, attackSpeed: 0.6, armor: 0, armorPiercing: 0, className: "goblin" },
+  wolf: { id: "wolf", name: "Wolf", hp: 46, damage: 10, attackSpeed: 0.78, armor: 0, armorPiercing: 0, className: "wolf" },
+  bandit: { id: "bandit", name: "Bandit", hp: 54, damage: 9, attackSpeed: 0.62, armor: 1, armorPiercing: 1, className: "bandit" },
+  plagueRat: { id: "plague_rat", name: "Plague Rat", hp: 32, damage: 6, attackSpeed: 0.89, armor: 0, armorPiercing: 0, className: "plague_rat" },
+  darkArcher: { id: "dark_archer", name: "Dark Archer", hp: 48, damage: 12, attackSpeed: 0.56, armor: 1, armorPiercing: 1, className: "dark_archer" },
 
-  skeleton: { id: "skeleton", name: "Skeleton", hp: 46, damage: 11, attackSpeed: 0.66, armor: 1, armorPiercing: 1, className: "skeleton" },
-  wraith: { id: "wraith", name: "Wraith", hp: 52, damage: 13, attackSpeed: 0.84, armor: 2, armorPiercing: 2, className: "wraith" },
-  necromancer: { id: "necromancer", name: "Necromancer", hp: 58, damage: 17, attackSpeed: 0.54, armor: 2, armorPiercing: 2, className: "necromancer" },
+  skeleton: { id: "skeleton", name: "Skeleton", hp: 46, damage: 11, attackSpeed: 0.46, armor: 1, armorPiercing: 1, className: "skeleton" },
+  wraith: { id: "wraith", name: "Wraith", hp: 52, damage: 13, attackSpeed: 0.64, armor: 2, armorPiercing: 2, className: "wraith" },
+  necromancer: { id: "necromancer", name: "Necromancer", hp: 58, damage: 17, attackSpeed: 0.34, armor: 2, armorPiercing: 2, className: "necromancer" },
 
-  orc: { id: "orc", name: "Orc", hp: 76, damage: 11, attackSpeed: 0.54, armor: 3, armorPiercing: 2, className: "orc" },
-  raider: { id: "raider", name: "Raider", hp: 66, damage: 13, attackSpeed: 0.72, armor: 2, armorPiercing: 2, className: "raider" },
-  troll: { id: "troll", name: "Troll", hp: 112, damage: 17, attackSpeed: 0.28, armor: 4, armorPiercing: 3, className: "troll" },
-  armoredKnight: { id: "armored_knight", name: "Armored Knight", hp: 98, damage: 14, attackSpeed: 0.5, armor: 7, armorPiercing: 3, className: "armored_knight" },
+  orc: { id: "orc", name: "Orc", hp: 76, damage: 11, attackSpeed: 0.34, armor: 3, armorPiercing: 2, className: "orc" },
+  raider: { id: "raider", name: "Raider", hp: 66, damage: 13, attackSpeed: 0.52, armor: 2, armorPiercing: 2, className: "raider" },
+  troll: { id: "troll", name: "Troll", hp: 112, damage: 17, attackSpeed: 0.08, armor: 4, armorPiercing: 3, className: "troll" },
+  armoredKnight: { id: "armored_knight", name: "Armored Knight", hp: 98, damage: 14, attackSpeed: 0.3, armor: 7, armorPiercing: 3, className: "armored_knight" },
 
-  fallenKnight: { id: "fallen_knight", name: "Fallen Knight", hp: 108, damage: 17, attackSpeed: 0.53, armor: 7, armorPiercing: 4, className: "fallen_knight" },
-  cultist: { id: "cultist", name: "Cultist", hp: 72, damage: 18, attackSpeed: 0.62, armor: 2, armorPiercing: 2, className: "cultist" },
-  fallenKing: { id: "fallen_king_shade", name: "Fallen King", hp: 135, damage: 22, attackSpeed: 0.46, armor: 6, armorPiercing: 4, className: "boss" },
-  crownHound: { id: "crown_hound", name: "Crown Hound", hp: 82, damage: 15, attackSpeed: 0.92, armor: 2, armorPiercing: 2, className: "wolf", requiresNode: "unlock_enemies" },
-  oathbreaker: { id: "oathbreaker", name: "Oathbreaker", hp: 118, damage: 19, attackSpeed: 0.58, armor: 8, armorPiercing: 4, className: "fallen_knight", requiresNode: "unlock_enemies" },
-  bloodAcolyte: { id: "blood_acolyte", name: "Blood Acolyte", hp: 86, damage: 21, attackSpeed: 0.64, armor: 3, armorPiercing: 3, className: "cultist", requiresNode: "unlock_enemies" }
+  fallenKnight: { id: "fallen_knight", name: "Fallen Knight", hp: 108, damage: 17, attackSpeed: 0.33, armor: 7, armorPiercing: 4, className: "fallen_knight" },
+  cultist: { id: "cultist", name: "Cultist", hp: 72, damage: 18, attackSpeed: 0.42, armor: 2, armorPiercing: 2, className: "cultist" },
+  fallenKing: { id: "fallen_king_shade", name: "Fallen King", hp: 135, damage: 22, attackSpeed: 0.26, armor: 6, armorPiercing: 4, className: "boss" },
+  crownHound: { id: "crown_hound", name: "Crown Hound", hp: 82, damage: 15, attackSpeed: 0.72, armor: 2, armorPiercing: 2, className: "wolf", requiresNode: "unlock_enemies" },
+  oathbreaker: { id: "oathbreaker", name: "Oathbreaker", hp: 118, damage: 19, attackSpeed: 0.38, armor: 8, armorPiercing: 4, className: "fallen_knight", requiresNode: "unlock_enemies" },
+  bloodAcolyte: { id: "blood_acolyte", name: "Blood Acolyte", hp: 86, damage: 21, attackSpeed: 0.44, armor: 3, armorPiercing: 3, className: "cultist", requiresNode: "unlock_enemies" }
 };
 
 const ENEMY_AREAS = {
@@ -892,9 +756,9 @@ const DIFFICULTIES = {
 };
 
 const BOSSES = [
-  { id: "fallenKing", name: "The Fallen King", skillName: "Crownbreaker Slam", hp: 300, damage: 20, attackSpeed: 0.5, armor: 4, armorPiercing: 3, className: "boss", boss: true },
-  { id: "ashenRegent", name: "The Ashen Regent", skillName: "Ember Edict", hp: 420, damage: 28, attackSpeed: 0.46, armor: 6, armorPiercing: 4, className: "boss", boss: true },
-  { id: "crownfallTyrant", name: "The Crownfall Tyrant", skillName: "Imperial Ruin", hp: 620, damage: 34, attackSpeed: 0.45, armor: 8, armorPiercing: 5, className: "boss", boss: true }
+  { id: "fallenKing", name: "The Fallen King", skillName: "Crownbreaker Slam", hp: 300, damage: 20, attackSpeed: 0.3, armor: 4, armorPiercing: 3, className: "boss", boss: true },
+  { id: "ashenRegent", name: "The Ashen Regent", skillName: "Ember Edict", hp: 420, damage: 28, attackSpeed: 0.26, armor: 6, armorPiercing: 4, className: "boss", boss: true },
+  { id: "crownfallTyrant", name: "The Crownfall Tyrant", skillName: "Imperial Ruin", hp: 620, damage: 34, attackSpeed: 0.25, armor: 8, armorPiercing: 5, className: "boss", boss: true }
 ];
 
 const FINAL_BOSS = {
@@ -903,7 +767,7 @@ const FINAL_BOSS = {
   skillName: "Endless Decree",
   hp: 1000000,
   damage: 300,
-  attackSpeed: 1.0,
+  attackSpeed: 0.8,
   armor: 50,
   armorPiercing: 12,
   shield: 0,
