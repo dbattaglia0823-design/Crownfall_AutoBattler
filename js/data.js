@@ -932,6 +932,11 @@ function addRoundGrowth(hero, stat, value) {
   run.stageGrowthRelics.push({ id: `growth_${stat}_${run.stageGrowthRelics.length}`, stat, value, stages: 0 });
 }
 
+// Run upgrades still use this pool. Put stats directly on any non-Mythic upgrade to set exact values.
+// Example: { name: "Sharpened Blade", rarity: "Common", damage: 5 }
+// Growth exception example: { effect: { type: "stageGrowth", stat: "mainStatsMultiplier", value: 0.02 } }
+// Common keys: damage, maxHp, armor, attackSpeed, regen, luck, gold, shield, critChance,
+// blockChance, lifeSteal, abilityDamage, bleedMaxHpPercent, burnChance, evasion.
 const REWARDS = [
   { name: "Sharpened Blade", rarity: "Common", text: "+10% hero damage", apply: hero => hero.damage *= 1.1 },
   { name: "Battle Rhythm", rarity: "Common", text: "+10% attack speed", apply: hero => hero.attackSpeed *= 1.1 },
@@ -969,10 +974,10 @@ const REWARDS = [
   { name: "Chrono Spurs", rarity: "Legendary", text: "Time buckles under each step: +32% attack speed", apply: hero => hero.attackSpeed *= 1.32 },
   { name: "Storm Tempo", rarity: "Epic", text: "+22% attack speed", apply: hero => hero.attackSpeed *= 1.22 },
   { name: "Battle Renewal", rarity: "Epic", text: "+3 HP regen while in battle", apply: hero => hero.regen = (hero.regen || 0) + 3 },
-  { name: "Battle Momentum", rarity: "Epic", text: "Gain +2% damage after each stage defeated.", effect: { type: "stageGrowth", stat: "damageMultiplier", value: 0.02 } },
+  { name: "Battle Momentum", rarity: "Epic", text: "Gain +2% main stats after each round.", effect: { type: "stageGrowth", stat: "mainStatsMultiplier", value: 0.02 } },
   { name: "Sovereign Star", rarity: "Legendary", text: "A fate-lit royal charm: +4 Luck, +10% crit chance, +40 gold", apply: hero => { hero.luck = (hero.luck || 0) + 4; hero.crit += 0.1; run.gold += 40; } },
   { name: "Living Aegis", rarity: "Legendary", text: "A shield that remembers kings: +35% armor, +12% max HP, +1 HP regen", apply: hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.12, false); hero.regen = (hero.regen || 0) + 1; } },
-  { name: "Crown Momentum", rarity: "Legendary", text: "Gain +6% damage after each stage defeated.", effect: { type: "stageGrowth", stat: "damageMultiplier", value: 0.06 } },
+  { name: "Crown Momentum", rarity: "Legendary", text: "Gain +5% main stats after each round.", effect: { type: "stageGrowth", stat: "mainStatsMultiplier", value: 0.05 } },
 
   { classId: "knight", name: "Shield Drill", rarity: "Common", text: "Knight only: start each battle with +12 shield", apply: hero => hero.runStartShield = (hero.runStartShield || 0) + 12 },
   { classId: "knight", name: "Plate Fitting", rarity: "Common", text: "Knight only: +12% armor and +6% max HP", apply: hero => { multiplyArmor(hero, 1.12); multiplyMaxHp(hero, 1.06, false); } },
@@ -1115,6 +1120,16 @@ const RELICS = [
   { id: "kingbreaker_plate", name: "Kingbreaker Plate", description: "+9 armor and +95 max HP.", rarity: "Legendary", icon: "KP", unlockRequirement: { type: "bossKills", count: 15 }, effect: { type: "stat", stat: "armor", value: 9, maxHp: 95 } }
 ];
 
+const DIRECT_STAT_KEYS = [
+  "damage", "maxHp", "armor", "attackSpeed", "regen", "luck", "gold", "shield", "blockChance", "critChance",
+  "critDamage", "lifeSteal", "essenceMultiplier", "afterBattleGold", "firstHitReduction", "abilityDamage",
+  "retaliateBlock", "hitRetaliateChance", "lowHpDamage", "bleedMaxHpPercent", "bleedAttackSpeed", "burnChance",
+  "burnSpreadChance", "burnMaxHpPercent", "poisonChance", "poisonAttackDamage", "evasion", "evasionCounter",
+  "executeDamage", "executeThreshold", "killAttackSpeed", "killAttackSpeedMax", "slowChance", "slowValue",
+  "slowedEnemyDamage", "splashShield", "splashDamageMultiplier", "thirdAttackBonus", "meteorChance",
+  "meteorDamageMultiplier"
+];
+
 applyCharacterUnlockRequirements();
 rebalanceRunItems();
 
@@ -1197,16 +1212,18 @@ function rebalanceRunUpgrade(upgrade) {
     upgrade.apply = hero => applyItemEffects(hero, upgrade.effects);
     return;
   }
-  const growth = getRarityRoundGrowth();
-  const flat = getFlatUpgradeBonus(upgrade);
-  upgrade.effects = createItemEffects(flat, growth);
+  const directStats = getDirectStatBonus(upgrade);
+  const growth = upgrade.growth || getRarityRoundGrowth();
+  const stats = directStats || getFlatUpgradeBonus(upgrade);
+  upgrade.effects = createItemEffects(stats, growth, { normalize: !directStats });
   upgrade.text = formatItemEffects(upgrade.effects);
   upgrade.apply = hero => applyItemEffects(hero, upgrade.effects);
 }
 
 function rebalanceShopUpgrade(item) {
-  const flat = getFlatUpgradeBonus(item, 0.8);
-  item.effects = createItemEffects(flat, null);
+  const directStats = getDirectStatBonus(item);
+  const stats = directStats || getFlatUpgradeBonus(item, 0.8);
+  item.effects = createItemEffects(stats, item.growth || null, { normalize: !directStats });
   item.text = formatItemEffects(item.effects);
   item.apply = hero => applyItemEffects(hero, item.effects);
 }
@@ -1267,8 +1284,21 @@ function getRarityRoundGrowth() {
   return null;
 }
 
+function getDirectStatBonus(item) {
+  if (!item || typeof item !== "object") return null;
+  const stats = {};
+  DIRECT_STAT_KEYS.forEach(key => {
+    if (item[key] !== undefined && item[key] !== null && item[key] !== 0) stats[key] = item[key];
+  });
+  if (item.abilityStat && item.abilityValue) {
+    stats.abilityStat = item.abilityStat;
+    stats.abilityValue = item.abilityValue;
+  }
+  return Object.keys(stats).length ? stats : null;
+}
+
 function getFlatUpgradeBonus(item, scale = 1) {
-  const text = `${item.name || ""} ${item.text || ""}`.toLowerCase();
+  const text = `${item.name || ""}`.toLowerCase();
   const rarityScale = ({ Common: 1, Rare: 1.45, Epic: 1.75, Legendary: 2.25 })[item.rarity] || 1;
   const value = stat => normalizeGeneratedStatValue(stat, (({ damage: 6, maxHp: 28, armor: 2, gold: 24, shield: 16, regen: 2, luck: 2, attackSpeed: 0.08 })[stat] || 2) * rarityScale * scale);
   if (/glass canon/.test(text)) return { damage: value("damage"), maxHp: -Math.round(value("maxHp") * 0.35) };
@@ -1340,11 +1370,12 @@ function getFlatTalentBonus(talent) {
   return { damage: 5 * tierScale };
 }
 
-function createItemEffects(flat = {}, growth = null) {
+function createItemEffects(flat = {}, growth = null, options = {}) {
+  const normalize = options.normalize !== false;
   const effects = Object.entries(flat)
     .filter(([stat]) => stat !== "abilityStat" && stat !== "abilityValue")
     .filter(([, value]) => value !== undefined && value !== null && value !== 0)
-    .map(([stat, value]) => ({ type: "flat", stat, value: normalizeEffectValue(stat, value) }));
+    .map(([stat, value]) => ({ type: "flat", stat, value: normalize ? normalizeEffectValue(stat, value) : value }));
   if (flat.abilityStat && flat.abilityValue) effects.push({ type: "flat", stat: "abilityStat", targetStat: flat.abilityStat, value: flat.abilityValue });
   if (growth) effects.push({ type: "stageGrowth", stat: growth.stat, value: growth.value });
   return effects;
@@ -1368,17 +1399,9 @@ function applyItemEffects(hero, effects = []) {
 function applyItemEffect(hero, effect = {}) {
   if (!hero || !effect) return;
   if (effect.type === "stageGrowth") return addRoundGrowth(hero, effect.stat, effect.value);
-  if (effect.type === "percent") return applyPercentItemEffect(hero, effect.stat, effect.value);
   if (effect.type !== "flat") return;
   if (effect.stat === "abilityStat") return hero[effect.targetStat] = (hero[effect.targetStat] || 0) + effect.value;
   applyFlatUpgrade(hero, { [effect.stat]: effect.value });
-}
-
-function applyPercentItemEffect(hero, stat, value) {
-  if (stat === "damage") hero.damage *= 1 + value;
-  if (stat === "attackSpeed") hero.attackSpeed *= 1 + value;
-  if (stat === "armor") multiplyArmor(hero, 1 + value);
-  if (stat === "maxHp") multiplyMaxHp(hero, 1 + value, false);
 }
 
 function formatItemEffects(effects = []) {
@@ -1480,7 +1503,7 @@ function getFlatUpgradeText(flat = {}, growth = null) {
   if (flat.splashDamageMultiplier) parts.push(`${formatPercent(flat.splashDamageMultiplier)} splash damage`);
   if (flat.thirdAttackBonus) parts.push(`${formatPercent(flat.thirdAttackBonus)} third-attack bonus`);
   if (flat.meteorChance) parts.push(`${formatPercent(flat.meteorChance)} meteor chance`);
-  if (growth) parts.push(`${formatPercent(growth.value)} ${formatGrowthStat(growth.stat)} after each stage`);
+  if (growth) parts.push(`${formatPercent(growth.value)} ${formatGrowthStat(growth.stat)} after each round`);
   return parts.join(", ") || "Flat run bonus";
 }
 
@@ -1490,7 +1513,7 @@ function formatSigned(value) {
 }
 
 function formatEvenSigned(value) {
-  const rounded = roundEven(value);
+  const rounded = Math.round((Number(value) || 0) * 100) / 100;
   return `${rounded >= 0 ? "+" : ""}${rounded}`;
 }
 
@@ -1519,7 +1542,7 @@ function formatAbilityStatText(stat, value) {
 }
 
 function formatGrowthStat(stat = "") {
-  return ({ damageMultiplier: "damage", maxHpMultiplier: "max HP", attackSpeedMultiplier: "attack speed", armorMultiplier: "armor" })[stat] || stat.replace(/([A-Z])/g, " $1");
+  return ({ mainStatsMultiplier: "damage, max HP, armor, and attack speed", damageMultiplier: "damage", maxHpMultiplier: "max HP", attackSpeedMultiplier: "attack speed", armorMultiplier: "armor" })[stat] || stat.replace(/([A-Z])/g, " $1");
 }
 
 const TREE_CANVAS = { width: 3200, height: 2660 };

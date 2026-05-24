@@ -1516,9 +1516,7 @@ function applyRunItemToHero(item) {
 function getRelicDisplayDescription(relic) {
   if (relic.claimDescription) return relic.claimDescription;
   if (relic.effects) return formatItemEffects(relic.effects);
-  const effect = relic.effect || {};
-  const scaled = getRelicScaledDescription(effect);
-  return scaled ? `${relic.description || ""} Current: ${scaled}.` : relic.description || "";
+  return relic.description || "";
 }
 function getUpgradeTooltip(name) { return run?.rewardDescriptions?.[name] || getItemDisplayText(REWARDS.find(r => r.name === name) || SHOP_ITEMS.find(i => i.name === name) || {}); }
 
@@ -1572,61 +1570,11 @@ function continueAfterClassTalent() {
   return isEndlessRun() ? beginNextEndlessStage() : showMap();
 }
 function applyTalentToRun(talent) {
-  const hero = run.hero, effect = talent.effect;
-  if (talent.effects) return applyItemEffects(hero, talent.effects);
-  if (effect.type === "flatBundle") return applyFlatUpgrade(hero, effect.flat, effect.growth);
-  if (effect.armor) hero.armor += effect.armor; if (effect.regen) hero.regen = (hero.regen || 0) + effect.regen;
-  if (effect.armorMultiplier) multiplyArmor(hero, 1 + effect.armorMultiplier);
-  if (effect.bleedMaxHpPercent) hero.runBleedMaxHpPercent = (hero.runBleedMaxHpPercent || 0) + effect.bleedMaxHpPercent;
-  if (effect.attackSpeedMultiplier) hero.attackSpeed *= 1 + effect.attackSpeedMultiplier; if (effect.damageMultiplier) hero.damage *= 1 + effect.damageMultiplier;
-  if (effect.maxHpMultiplier) { const change = Math.round(hero.maxHp * effect.maxHpMultiplier); hero.maxHp = Math.max(1, hero.maxHp + change); hero.hp = Math.min(hero.hp, hero.maxHp); }
+  applyItemEffects(run.hero, talent.effects || []);
 }
 
 function applyRelicToRun(relic) {
-  const hero = run.hero, effect = relic.effect || {};
-  if (relic.effects) return applyItemEffects(hero, relic.effects);
-  if (effect.type === "flatBundle") return applyFlatUpgrade(hero, effect.flat, effect.growth);
-  if (effect.type === "stat") {
-    if (effect.stat === "damageMultiplier") hero.damage *= 1 + effect.value;
-    if (effect.stat === "attackSpeedMultiplier") hero.attackSpeed *= 1 + effect.value;
-    if (effect.stat === "maxHpMultiplier") multiplyMaxHp(hero, 1 + effect.value);
-    if (effect.stat === "armorMultiplier") multiplyArmor(hero, 1 + effect.value);
-    if (effect.stat === "damage") hero.damage += getRelicStatValue(effect, "damage");
-    if (effect.stat === "attackSpeed") hero.attackSpeed += getRelicStatValue(effect, "attackSpeed");
-    if (effect.stat === "armor") hero.armor += effect.value;
-    if (effect.stat === "regen") hero.regen = (hero.regen || 0) + effect.value;
-    if (effect.stat === "luck") hero.luck = (hero.luck || 0) + effect.value;
-    if (effect.stat === "lifeSteal") hero.lifeSteal = (hero.lifeSteal || 0) + effect.value;
-    if (effect.stat === "blockChance") hero.runBlockChance = (hero.runBlockChance || 0) + effect.value;
-    if (effect.stat === "maxHp") { const amount = getRelicStatValue(effect, "maxHp"); hero.maxHp += amount; hero.hp += amount; }
-    if (effect.maxHpMultiplier) multiplyMaxHp(hero, 1 + effect.maxHpMultiplier);
-    if (effect.maxHp) { const amount = effect.scalesMaxHpWithStage ? getScaledDungeonValue(effect.maxHp, "maxHp") : effect.maxHp; hero.maxHp += amount; hero.hp += amount; }
-    if (effect.critChance) hero.crit += effect.critChance; if (effect.regen) hero.regen = (hero.regen || 0) + effect.regen;
-    if (effect.essenceMultiplier) hero.runEssenceMultiplier = (hero.runEssenceMultiplier || 0) + effect.essenceMultiplier;
-    if (effect.battleStartShield) hero.runStartShield = (hero.runStartShield || 0) + effect.battleStartShield;
-  }
-  if (effect.type === "glassDagger") { hero.damage *= 1 + effect.damageMultiplier; multiplyMaxHp(hero, 1 + (effect.maxHpMultiplier || 0), false); }
-  if (effect.type === "gold") { run.gold += effect.value; if (run.summary) run.summary.goldEarned += effect.value; }
-  if (effect.type === "essenceMultiplier") hero.runEssenceMultiplier = (hero.runEssenceMultiplier || 0) + effect.value;
-  if (effect.type === "abilityStat") hero[effect.stat] = (hero[effect.stat] || 0) + effect.value;
-  if (effect.type === "stageGrowth") { run.stageGrowthRelics = run.stageGrowthRelics || []; run.stageGrowthRelics.push({ id: relic.id, stat: effect.stat, value: effect.value, stages: 0 }); }
-}
-
-function getRelicStatValue(effect, stat) {
-  if (!effect || effect.value === undefined) return 0;
-  return effect.scalesWithStage ? getScaledDungeonValue(effect.value, stat) : effect.value;
-}
-
-function getRelicScaledDescription(effect) {
-  if (!effect || effect.type !== "stat") return "";
-  const parts = [];
-  if (effect.scalesWithStage && ["damage", "attackSpeed", "maxHp"].includes(effect.stat)) {
-    parts.push(`+${getRelicStatValue(effect, effect.stat)} ${effect.stat === "maxHp" ? "max HP" : effect.stat === "attackSpeed" ? "attack speed" : "damage"}`);
-  }
-  if (effect.scalesMaxHpWithStage && effect.maxHp) {
-    parts.push(`+${getScaledDungeonValue(effect.maxHp, "maxHp")} max HP`);
-  }
-  return parts.join(", ");
+  applyItemEffects(run.hero, relic.effects || []);
 }
 
 function showShop() {
@@ -1765,7 +1713,7 @@ function renderHeroFullStats(hero) {
     ["Block", formatPercentCap(getHeroBlockChance(hero), STAT_CAPS.block)],
     ["Evasion", formatPercentCap(getHeroEvasionChance(hero), STAT_CAPS.evasion)],
     ["Execute", `${formatDisplayPercent(executeDamage)} <${formatDisplayPercent(executeThreshold)}`],
-    ["Crit Damage", formatDisplayPercent((hero.runCritDamage || 0) + getTalentEffectValue("critDamage") + getPermanentEffectTotal("critDamage", hero.id) + getRelicEffectTotal("critBonus"))],
+    ["Crit Damage", formatDisplayPercent((hero.runCritDamage || 0) + getPermanentEffectTotal("critDamage", hero.id))],
     ["Atk Bonus", formatPercentCap(hero.battleAttackSpeedBonus || 0, getHeroBattleAttackSpeedBonusCap(hero))],
     ["Dmg Bonus", formatPercentCap(hero.battleDamageBonus || 0, STAT_CAPS.battleDamageBonus)],
     ["Life Steal", formatDisplayPercent(hero.lifeSteal || 0)],

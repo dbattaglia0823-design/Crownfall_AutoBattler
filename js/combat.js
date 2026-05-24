@@ -437,7 +437,7 @@ function heroAttack(hero, enemy) {
   const crit = megaCrit || guaranteedCrit || Math.random() < Math.min(1, Math.max(0, hero.crit));
   if (crit) {
     playSound("crit");
-    damage *= 2 + getRelicEffectTotal("critBonus") + getTalentEffectValue("critDamage") + (hero.runCritDamage || 0) + getPermanentEffectTotal("critDamage", hero.id) + (megaCrit ? getPermanentEffectTotal("megaCritDamage", hero.id) : 0);
+    damage *= 2 + (hero.runCritDamage || 0) + getPermanentEffectTotal("critDamage", hero.id) + (megaCrit ? getPermanentEffectTotal("megaCritDamage", hero.id) : 0);
     const critSpeedBonus = getPermanentEffectTotal("critAttackSpeedBonus", hero.id);
     if (critSpeedBonus) {
       hero.battleAttackSpeedBonus = Math.min(0.35, (hero.battleAttackSpeedBonus || 0) + critSpeedBonus);
@@ -447,8 +447,10 @@ function heroAttack(hero, enemy) {
     triggerScreenShake("light");
   }
 
-  if (hasTalent("knight_last_stand") && hero.hp / hero.maxHp < getTalent("knight_last_stand").effect.threshold) {
-    damage *= 1 + getTalent("knight_last_stand").effect.value;
+  const lastStandThreshold = getTalentEffectNumber("knight_last_stand", "threshold");
+  const lastStandValue = getTalentEffectNumber("knight_last_stand", "value");
+  if (lastStandValue && hero.hp / hero.maxHp < lastStandThreshold) {
+    damage *= 1 + lastStandValue;
   }
   if (hero.hp / hero.maxHp < 0.4) {
     const lowHpDamage = getPermanentEffectTotal("lowHpDamage", hero.id) + (hero.runLowHpDamage || 0);
@@ -456,8 +458,10 @@ function heroAttack(hero, enemy) {
     if (lowHpDamage) triggerSkillVfx(hero.x, hero.y, "Unbroken", "knight");
   }
 
-  if (hasTalent("rogue_executioner") && enemy.hp / enemy.maxHp < getTalent("rogue_executioner").effect.threshold) {
-    damage *= 1 + getTalent("rogue_executioner").effect.value;
+  const executionerThreshold = getTalentEffectNumber("rogue_executioner", "threshold");
+  const executionerValue = getTalentEffectNumber("rogue_executioner", "value");
+  if (executionerValue && enemy.hp / enemy.maxHp < executionerThreshold) {
+    damage *= 1 + executionerValue;
   }
   const executeThreshold = getHeroExecuteThreshold(hero);
   if (enemy.hp / enemy.maxHp < executeThreshold) {
@@ -466,8 +470,9 @@ function heroAttack(hero, enemy) {
     if (executeDamage) triggerSkillVfx(enemy.x, enemy.y, "Execution", "rogue");
   }
 
-  if (hasTalent("wizard_mana_surge") && hero.attackCount % 3 === 0) {
-    const bonus = hero.damage * getTalent("wizard_mana_surge").effect.value;
+  const manaSurgeValue = getTalentEffectNumber("wizard_mana_surge", "value");
+  if (manaSurgeValue && hero.attackCount % 3 === 0) {
+    const bonus = hero.damage * manaSurgeValue;
     damage += bonus;
     addFloat(enemy.x, enemy.y - 58, "Mana Surge", "#c4b5fd");
   }
@@ -497,20 +502,21 @@ function heroAttack(hero, enemy) {
         damageEnemy(other, splash, "#93c5fd");
         addFloat(other.x, other.y - 35, Math.round(splash), "#93c5fd");
       });
-    if (hasTalent("wizard_arcane_ward")) addHeroShield(getTalent("wizard_arcane_ward").effect.value, "Arcane Ward");
+    const arcaneWardShield = getTalentEffectNumber("wizard_arcane_ward", "value");
+    if (arcaneWardShield) addHeroShield(arcaneWardShield, "Arcane Ward");
     const splashShield = getPermanentEffectTotal("splashShield", hero.id) + (hero.runSplashShield || 0);
     if (splashShield) addHeroShield(splashShield, "Mana Shield");
     if (getPermanentEffectTotal("splashDamageMultiplier", hero.id) || hero.runSplashDamageMultiplier || splashShield) triggerSkillVfx(hero.x, hero.y, "Arcane", "wizard");
   }
 
-  if (hasTalent("rogue_venom_blade") && Math.random() < getTalent("rogue_venom_blade").effect.chance) {
+  if (Math.random() < getTalentEffectNumber("rogue_venom_blade", "chance")) {
     const venom = getTalent("rogue_venom_blade").effect;
     applyEnemyStatus(enemy, "poison", {
       ...venom,
       damage: getRogueAttackPoisonDamage(hero, venom)
     });
   }
-  if (hasTalent("wizard_frostbite_hex") && Math.random() < getTalent("wizard_frostbite_hex").effect.chance) {
+  if (Math.random() < getTalentEffectNumber("wizard_frostbite_hex", "chance")) {
     applyEnemyStatus(enemy, "slow", getTalent("wizard_frostbite_hex").effect);
   }
   const slowChance = getPermanentEffectTotal("slowChance", hero.id) + (hero.runSlowChance || 0);
@@ -534,10 +540,10 @@ function heroAttack(hero, enemy) {
     addFloat(hero.x, hero.y - 65, "Inferno Crown", "#fb923c");
     triggerSkillVfx(hero.x, hero.y, "Inferno Crown", "wizard");
   }
-  const meteorChance = (hasTalent("wizard_meteor_spark") ? getTalent("wizard_meteor_spark").effect.chance : 0) + (hero.runMeteorChance || 0);
+  const meteorChance = getTalentEffectNumber("wizard_meteor_spark", "chance") + (hero.runMeteorChance || 0);
   if (meteorChance && Math.random() < meteorChance) {
     battle.enemies.filter(other => other.hp > 0).forEach(other => {
-      const meteorMultiplier = Math.max(hero.runMeteorDamageMultiplier || 0, hasTalent("wizard_meteor_spark") ? getTalent("wizard_meteor_spark").effect.damageMultiplier : 0.4);
+      const meteorMultiplier = Math.max(hero.runMeteorDamageMultiplier || 0, getTalentEffectNumber("wizard_meteor_spark", "damageMultiplier", 0.4));
       const meteor = Math.max(1, hero.damage * meteorMultiplier - other.armor);
       damageEnemy(other, meteor, "#fca5a5");
       addFloat(other.x, other.y - 54, "Meteor", "#fca5a5");
@@ -614,7 +620,7 @@ function enemyAttack(enemy, hero) {
     triggerSkillVfx(hero.x, hero.y, "Smoke Step", "rogue");
     return;
   }
-  if (hasTalent("rogue_evasion") && Math.random() < getTalent("rogue_evasion").effect.chance) {
+  if (Math.random() < getTalentEffectNumber("rogue_evasion", "chance")) {
     addFloat(hero.x, hero.y - 38, "Evade", "#bae6fd");
     log(`${hero.name} evaded ${enemy.name}'s attack.`, "hero");
     onHeroEvaded(enemy, hero);
@@ -627,7 +633,7 @@ function enemyAttack(enemy, hero) {
     onHeroEvaded(enemy, hero);
     return;
   }
-  const firstHitReduction = getRelicEffectTotal("firstHitReduction") + (hero.runFirstHitReduction || 0);
+  const firstHitReduction = hero.runFirstHitReduction || 0;
   if (firstHitReduction > 0 && !battle.guardianSealUsed) {
     damage *= 1 - firstHitReduction;
     battle.guardianSealUsed = true;
@@ -652,11 +658,13 @@ function enemyAttack(enemy, hero) {
     addFloat(hero.x, hero.y - 72, "BLOCK", "#bae6fd", { variant: "block" });
     log(`${hero.name} blocked ${Math.round(totalBlocked || damage - damageAfterShield)} damage from ${enemy.name}.`, "hero");
   }
-  hero.hp -= damageTaken;
-  battle.damageTaken += damageTaken;
-  if (damageTaken >= hero.maxHp * 0.18 || damageTaken >= 45) triggerScreenShake(enemy.boss ? "heavy" : "light");
-  if (totalBlocked > 0 && hasTalent("knight_retaliation")) {
-    const retaliate = totalBlocked * getTalent("knight_retaliation").effect.value;
+  const safeDamageTaken = getFiniteNumber(damageTaken);
+  hero.hp = Math.max(0, getFiniteNumber(hero.hp, hero.maxHp) - safeDamageTaken);
+  battle.damageTaken = getFiniteNumber(battle.damageTaken) + safeDamageTaken;
+  if (safeDamageTaken >= hero.maxHp * 0.18 || safeDamageTaken >= 45) triggerScreenShake(enemy.boss ? "heavy" : "light");
+  const knightRetaliation = getTalentEffectNumber("knight_retaliation", "value");
+  if (totalBlocked > 0 && knightRetaliation) {
+    const retaliate = totalBlocked * knightRetaliation;
     damageEnemy(enemy, retaliate, "#f8e7bb");
     addFloat(enemy.x, enemy.y - 58, "Retaliate", "#f8e7bb");
   }
@@ -674,10 +682,10 @@ function enemyAttack(enemy, hero) {
     addFloat(enemy.x, enemy.y - 58, "Counter", "#f8e7bb");
     triggerSkillVfx(hero.x, hero.y, "Counter", "knight");
   }
-  if (damageTaken > 0) markUnitHit(hero);
+  if (safeDamageTaken > 0) markUnitHit(hero);
   if (enemy.boss) triggerScreenShake("heavy");
-  if (damageTaken > 0) addFloat(hero.x, hero.y - 38, Math.round(damageTaken), "#ff8b8b", { variant: damageTaken >= hero.maxHp * 0.18 ? "heavy" : "" });
-  if (damageTaken >= hero.maxHp * 0.18 || damageTaken >= 45) log(`${enemy.name} lands a heavy hit for ${Math.round(damageTaken)} damage.`, "danger");
+  if (safeDamageTaken > 0) addFloat(hero.x, hero.y - 38, Math.round(safeDamageTaken), "#ff8b8b", { variant: safeDamageTaken >= hero.maxHp * 0.18 ? "heavy" : "" });
+  if (safeDamageTaken >= hero.maxHp * 0.18 || safeDamageTaken >= 45) log(`${enemy.name} lands a heavy hit for ${Math.round(safeDamageTaken)} damage.`, "danger");
 }
 
 function prepareBattleResult(victory) {
@@ -720,7 +728,7 @@ function prepareBattleResult(victory) {
   const encounterEssenceBonus = battle.nodeType === "Elite" || isBossStage(run.stage) || isFinalBossStage(run.stage) ? 0.2 : 0;
   if (eliteBonus) triggerSkillVfx(run.hero.x, run.hero.y, "Elite Bounty", run.classId);
   const layerRewardMultiplier = getLayerRewardMultiplier();
-  const rawEssence = Math.round(baseEssence * layerRewardMultiplier * DIFFICULTIES[run.difficultyId].essenceMultiplier * (1 + encounterEssenceBonus + getPermanentEffectTotal("essenceMultiplier", run.classId) + getAchievementBonusTotal("essenceMultiplier", run.classId) + eliteBonus + getRelicEffectTotal("essenceMultiplier") + (run.hero.runEssenceMultiplier || 0)));
+  const rawEssence = Math.round(baseEssence * layerRewardMultiplier * DIFFICULTIES[run.difficultyId].essenceMultiplier * (1 + encounterEssenceBonus + getPermanentEffectTotal("essenceMultiplier", run.classId) + getAchievementBonusTotal("essenceMultiplier", run.classId) + eliteBonus + (run.hero.runEssenceMultiplier || 0)));
   const earned = isEndlessRun() ? Math.min(ENDLESS_ESSENCE_CAP, rawEssence) : rawEssence;
   const goldBefore = run.gold;
   run.essenceEarned += earned;
@@ -784,6 +792,12 @@ function applyStageGrowthRelics() {
     if (growth.stat === "attackSpeedMultiplier") run.hero.attackSpeed *= 1 + growth.value;
     if (growth.stat === "armorMultiplier") multiplyArmor(run.hero, 1 + growth.value);
     if (growth.stat === "maxHpMultiplier") multiplyMaxHp(run.hero, 1 + growth.value);
+    if (growth.stat === "mainStatsMultiplier") {
+      run.hero.damage *= 1 + growth.value;
+      run.hero.attackSpeed *= 1 + growth.value;
+      multiplyArmor(run.hero, 1 + growth.value);
+      multiplyMaxHp(run.hero, 1 + growth.value);
+    }
   });
 }
 
@@ -1166,8 +1180,9 @@ function useRunAbility(ability, hero, target) {
 }
 
 function applyBattleStartTalents() {
-  if (hasTalent("knight_shield_wall")) {
-    addHeroShield(getTalent("knight_shield_wall").effect.value, "Shield Wall");
+  const shieldWall = getTalentEffectNumber("knight_shield_wall", "value");
+  if (shieldWall) {
+    addHeroShield(shieldWall, "Shield Wall");
   }
 }
 
@@ -1266,7 +1281,7 @@ function applyEnemyStatus(enemy, type, effect) {
     }
   }
 
-  const wildfireChance = (hasTalent("wizard_wildfire_spark") ? getTalent("wizard_wildfire_spark").effect.chance : 0) + getPermanentEffectTotal("burnSpreadChance", run.classId);
+  const wildfireChance = getTalentEffectNumber("wizard_wildfire_spark", "chance") + getPermanentEffectTotal("burnSpreadChance", run.classId);
   if (type === "burn" && wildfireChance && Math.random() < wildfireChance) {
     const spreadTarget = battle.enemies.find(other => other !== enemy && other.hp > 0 && !other.statusEffects.burn);
     if (spreadTarget) {
@@ -1358,9 +1373,10 @@ function onHeroEvaded(enemy, hero) {
 function damageEnemy(enemy, amount, color, options = {}) {
   if (!enemy || enemy.hp <= 0) return 0;
   const wasAlive = enemy.hp > 0;
-  const actualDamage = Math.min(enemy.hp, Math.max(0, amount));
-  enemy.hp -= amount;
-  if (battle) battle.damageDone += actualDamage;
+  const damageAmount = getFiniteNumber(amount);
+  const actualDamage = Math.min(enemy.hp, Math.max(0, damageAmount));
+  enemy.hp = Math.max(0, enemy.hp - actualDamage);
+  if (battle) battle.damageDone = getFiniteNumber(battle.damageDone) + actualDamage;
   if (!options.status) applyLifeSteal(actualDamage);
   if (!options.status) markUnitHit(enemy);
   if (options.heavy && !options.status) triggerScreenShake(enemy.boss ? "heavy" : "light");
@@ -1399,16 +1415,18 @@ function onEnemyDeath(enemy) {
     addFloat(run.hero.x, run.hero.y - 60, "Finishing Dash", "#bbf7d0");
     triggerSkillVfx(run.hero.x, run.hero.y, "Finishing Dash", "rogue");
   }
-  if (hasTalent("rogue_momentum")) {
-    const effect = getTalent("rogue_momentum").effect;
+  const momentumValue = getTalentEffectNumber("rogue_momentum", "value");
+  if (momentumValue) {
     const current = run.hero.battleAttackSpeedBonus || 0;
-    const next = Math.min(effect.max, current + effect.value);
+    const next = Math.min(getTalentEffectNumber("rogue_momentum", "max", 0.3), current + momentumValue);
     run.hero.battleAttackSpeedBonus = next;
     addFloat(run.hero.x, run.hero.y - 60, "Momentum", "#bbf7d0");
   }
 }
 
 function addHeroShield(amount, source) {
+  amount = getFiniteNumber(amount);
+  if (amount <= 0) return;
   const currentShield = run.hero.shield || 0;
   const shieldCap = getHeroShieldCap();
   const nextShield = Math.min(shieldCap, currentShield + amount);
@@ -1433,6 +1451,8 @@ function getHeroShieldCap() {
 }
 
 function absorbHeroShield(damage, armorReduction = 0) {
+  damage = getFiniteNumber(damage);
+  armorReduction = getFiniteNumber(armorReduction);
   const shield = run.hero.shield || 0;
   if (shield <= 0) return 0;
   const shieldDamage = Math.max(1, damage - Math.max(0, armorReduction));
@@ -1476,29 +1496,13 @@ function getTalent(id) {
   return run && run.talents.find(talent => talent.id === id);
 }
 
-function getTalentEffectValue(type) {
-  if (!run) return 0;
-  return run.talents.reduce((total, talent) => {
-    if (talent.effect.type === type) return total + talent.effect.value;
-    return total;
-  }, 0);
+function getTalentEffectNumber(id, key, fallback = 0) {
+  const value = getTalent(id)?.effect?.[key];
+  return Number.isFinite(value) ? value : fallback;
 }
 
-function hasRelic(id) {
-  return !!run && run.relics.some(relic => relic.id === id);
-}
-
-function getRelicEffectTotal(type) {
-  if (!run) return 0;
-  return run.relics.reduce((total, relic) => {
-    if (relic.effects) return total;
-    if (relic.effect.type === type) return total + relic.effect.value;
-    if (relic.effect.type === "flatBundle" && type === "critBonus") return total + (relic.effect.flat?.critDamage || 0);
-    if (relic.effect.type === "flatBundle" && type === "firstHitReduction") return total + (relic.effect.flat?.firstHitReduction || 0);
-    if (relic.effect.type === "flatBundle" && type === "essenceMultiplier") return total + (relic.effect.flat?.essenceMultiplier || 0);
-    if (relic.effect[type] !== undefined) return total + relic.effect[type];
-    return total;
-  }, 0);
+function getFiniteNumber(value, fallback = 0) {
+  return Number.isFinite(value) ? value : fallback;
 }
 
 function applyAfterBattleRelics() {
@@ -1506,10 +1510,4 @@ function applyAfterBattleRelics() {
     run.gold += run.hero.runAfterBattleGold;
     log(`Run bonuses grant ${run.hero.runAfterBattleGold} gold.`);
   }
-  run.relics.forEach(relic => {
-  if (relic.effect.type === "afterBattleGold") {
-      run.gold += relic.effect.value;
-      log(`${relic.name} grants ${relic.effect.value} gold.`);
-    }
-  });
 }
