@@ -1,4 +1,4 @@
-const CACHE_VERSION = "crownfall-v36";
+const CACHE_VERSION = "crownfall-v37";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -73,6 +73,21 @@ self.addEventListener("fetch", event => {
           return response;
         })
         .catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
+  if (["script", "style", "manifest"].includes(request.destination)) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then(cache => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }

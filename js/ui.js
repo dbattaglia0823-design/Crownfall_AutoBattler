@@ -13,6 +13,9 @@ const upgradeScreen = $("upgradeScreen"), treeCards = $("treeCards"), treeViewpo
 const upgradePoolSummary = $("upgradePoolSummary"), upgradePoolTabs = $("upgradePoolTabs"), upgradePoolGrid = $("upgradePoolGrid");
 const gauntletSummary = $("gauntletSummary"), gauntletOpponentCards = $("gauntletOpponentCards"), gauntletShopGrid = $("gauntletShopGrid"), gauntletHeroLeaderboard = $("gauntletHeroLeaderboard"), gauntletEnemyLeaderboard = $("gauntletEnemyLeaderboard");
 const battleSpeedSetting = $("battleSpeedSetting"), disableShakeSetting = $("disableShakeSetting"), reduceAnimationsSetting = $("reduceAnimationsSetting"), soundSetting = $("soundSetting"), musicVolumeSetting = $("musicVolumeSetting"), sfxVolumeSetting = $("sfxVolumeSetting"), damageNumbersSetting = $("damageNumbersSetting"), tooltipsSetting = $("tooltipsSetting"), equipmentAutosellRaritySetting = $("equipmentAutosellRaritySetting"), fullscreenHint = $("fullscreenHint"), settingsMainMenuButton = $("settingsMainMenuButton");
+const screens = [...document.querySelectorAll(".screen")];
+const runGoldLabel = runGold?.closest(".stat-box")?.querySelector("small");
+const runEssenceLabel = runEssence?.closest(".stat-box")?.querySelector("small");
 
 let settingsReturnScreen = "menuScreen";
 let selectedTreeNodeId = "crown_legacy";
@@ -41,9 +44,6 @@ let lastHudRenderAt = 0;
 const EQUIPMENT_SHOP_REFRESH_COOLDOWN_MS = 60000;
 const BUILD_TEST_ATTACK_SOUND_INTERVAL = 0.1;
 const BUILD_TEST_STACK_LIMIT = 100;
-const TREE_COST_GROWTH = 1.75;
-const GLOBAL_TREE_COST_MULTIPLIER = 0.75;
-const GLOBAL_TREE_COST_GROWTH = 1.5;
 const TREE_TAB_ROOTS = { global: "crown_legacy", knight: "knight_root", rogue: "rogue_root", wizard: "wizard_root" };
 const BUILD_TEST_EFFECT_LIMITS = {
   ".attack-vfx": 10,
@@ -58,8 +58,7 @@ function refreshTopbar() {
 }
 
 function showScreen(id) {
-  document.querySelectorAll(".screen").forEach(screen => screen.classList.remove("active"));
-  $(id).classList.add("active");
+  screens.forEach(screen => screen.classList.toggle("active", screen.id === id));
   document.body.classList.toggle("build-test-mode", id === "battleScreen" && isBuildTestRun());
   if (id === "upgradeScreen") {
     renderTree();
@@ -1004,7 +1003,7 @@ function formatEquipmentStatName(key) {
 
 function formatSignedEquipmentValue(key, value) {
   const number = Number(value) || 0;
-  if (key === "attackSpeed" || key.toLowerCase().includes("chance") || Math.abs(number) < 1) return `${number >= 0 ? "+" : ""}${formatPercent(Math.abs(number))}`;
+  if (key === "attackSpeed" || key.toLowerCase().includes("chance") || Math.abs(number) < 1) return `${number >= 0 ? "+" : ""}${formatDisplayPercent(Math.abs(number))}`;
   const rounded = Math.max(2, Math.round(Math.abs(number) / 2) * 2);
   return `${number >= 0 ? "+" : "-"}${rounded}`;
 }
@@ -1136,7 +1135,7 @@ function renderBuildTestStats() {
     ["Block", formatPercentCap(getHeroBlockChance(preview), STAT_CAPS.block)],
     ["Evasion", formatPercentCap(getHeroEvasionChance(preview), STAT_CAPS.evasion)],
     ["Regen", `${(preview.regen || 0).toFixed(1)}/s`],
-    ["Life Steal", formatPercent(preview.lifeSteal || 0)],
+    ["Life Steal", formatDisplayPercent(preview.lifeSteal || 0)],
     ["Luck", preview.luck || 0],
     ["Start Shield", Math.round((preview.runStartShield || 0) + getPermanentEffectTotal("battleStartShield", preview.id))],
     ["Skills", (preview.runAbilities || []).length]
@@ -1687,13 +1686,19 @@ function drawMapConnections() {
 }
 
 function updateRunHud(force = false) {
-  if (!run?.hero) return; const hero = run.hero;
+  if (!run?.hero) return;
+  const hero = run.hero;
   const now = performance.now();
   if (!force && battle && battle.state === "fighting" && now - lastHudRenderAt < 100) return;
   lastHudRenderAt = now;
-  runGold.closest(".stat-box").querySelector("small").textContent = isGauntletRun() ? "Coins" : "Gold";
-  runEssence.closest(".stat-box").querySelector("small").textContent = isGauntletRun() ? "Points" : "Essence";
-  runDifficulty.textContent = DIFFICULTIES[run.difficultyId].name; runClass.textContent = CLASSES[run.classId].name; runStage.textContent = getRunStageLabel(); runGold.textContent = isGauntletRun() ? Math.floor(save.gauntlet?.coins || 0) : Math.floor(run.gold); runEssence.textContent = isGauntletRun() ? Math.floor(save.gauntlet?.points || 0) : Math.floor(run.essenceEarned); if (battleSpeedSelect) battleSpeedSelect.value = String(getBattleSpeedPreference());
+  if (runGoldLabel) runGoldLabel.textContent = isGauntletRun() ? "Coins" : "Gold";
+  if (runEssenceLabel) runEssenceLabel.textContent = isGauntletRun() ? "Points" : "Essence";
+  runDifficulty.textContent = DIFFICULTIES[run.difficultyId].name;
+  runClass.textContent = CLASSES[run.classId].name;
+  runStage.textContent = getRunStageLabel();
+  runGold.textContent = isGauntletRun() ? Math.floor(save.gauntlet?.coins || 0) : Math.floor(run.gold);
+  runEssence.textContent = isGauntletRun() ? Math.floor(save.gauntlet?.points || 0) : Math.floor(run.essenceEarned);
+  if (battleSpeedSelect) battleSpeedSelect.value = String(getBattleSpeedPreference());
   if (!isHudTooltipHovered()) {
     heroStats.innerHTML = [["HP", `${Math.max(0, Math.ceil(hero.hp))}/${Math.ceil(hero.maxHp)}`], ["Armor", hero.armor], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Shield", `${Math.ceil(hero.shield || 0)}/${getHeroShieldCap()}`], ["Crit", formatPercentCap(hero.crit, STAT_CAPS.crit)], ["Regen", `${(hero.regen || 0).toFixed(1)}/s`], ["Luck", hero.luck || 0]].map(([l, v]) => statCell(l, v, getTermTooltip(l))).join("");
     heroStats.className = "hero-stat-grid"; renderHeroFullStats(hero);
@@ -1759,41 +1764,41 @@ function renderHeroFullStats(hero) {
   const rows = [
     ["Block", formatPercentCap(getHeroBlockChance(hero), STAT_CAPS.block)],
     ["Evasion", formatPercentCap(getHeroEvasionChance(hero), STAT_CAPS.evasion)],
-    ["Execute", `${formatPercent(executeDamage)} <${formatPercent(executeThreshold)}`],
-    ["Crit Damage", formatPercent((hero.runCritDamage || 0) + getTalentEffectValue("critDamage") + getPermanentEffectTotal("critDamage", hero.id) + getRelicEffectTotal("critBonus"))],
+    ["Execute", `${formatDisplayPercent(executeDamage)} <${formatDisplayPercent(executeThreshold)}`],
+    ["Crit Damage", formatDisplayPercent((hero.runCritDamage || 0) + getTalentEffectValue("critDamage") + getPermanentEffectTotal("critDamage", hero.id) + getRelicEffectTotal("critBonus"))],
     ["Atk Bonus", formatPercentCap(hero.battleAttackSpeedBonus || 0, getHeroBattleAttackSpeedBonusCap(hero))],
     ["Dmg Bonus", formatPercentCap(hero.battleDamageBonus || 0, STAT_CAPS.battleDamageBonus)],
-    ["Life Steal", formatPercent(hero.lifeSteal || 0)],
+    ["Life Steal", formatDisplayPercent(hero.lifeSteal || 0)],
     ["Start Shield", `${Math.round((hero.runStartShield || 0) + getPermanentEffectTotal("battleStartShield", hero.id))}`],
     ["Shield Cap", `${getHeroShieldCap()}`]
   ];
   if (hero.id === "rogue") {
-    rows.push(["Bleed", `${formatPercent(getHeroBleedMaxHpPercent(hero))} max HP/s (${Math.round(getHeroBleedDamage(hero))}/s)`]);
+    rows.push(["Bleed", `${formatDisplayPercent(getHeroBleedMaxHpPercent(hero))} max HP/s (${Math.round(getHeroBleedDamage(hero))}/s)`]);
     if ((hero.runAbilities || []).includes("rogue_poison") || hero.runPoisonAbilityDamage) rows.push(["Poison", `${Math.round(getRoguePoisonAbilityDamage(hero))}/s`]);
   }
   const burnPercent = getHeroBurnMaxHpPercent(hero);
   const burnParts = [];
-  if (hero.id === "wizard") burnParts.push(`${formatPercent(getWizardBurnChance(hero))} chance`);
+  if (hero.id === "wizard") burnParts.push(`${formatDisplayPercent(getWizardBurnChance(hero))} chance`);
   if (hero.runBurnDamage) burnParts.push(`+${Math.round(hero.runBurnDamage)} dmg/s`);
-  if (burnPercent) burnParts.push(`${formatPercent(burnPercent)} max HP/s`);
+  if (burnPercent) burnParts.push(`${formatDisplayPercent(burnPercent)} max HP/s`);
   if ((hero.runAbilities || []).includes("rogue_burn") && !burnParts.length) burnParts.push("Special stacks");
   if (burnParts.length) {
     rows.push(["Burn", burnParts.join(", ")]);
   }
-  if (hero.id === "wizard") rows.push(["Splash Damage", formatPercent(getHeroSplashDamageMultiplier(hero))]);
+  if (hero.id === "wizard") rows.push(["Splash Damage", formatDisplayPercent(getHeroSplashDamageMultiplier(hero))]);
   heroFullStats.innerHTML = rows.map(([l, v]) => {
     const scrollClass = l === "Bleed" ? " full-stat-row-scroll" : "";
     const value = l === "Bleed" ? `<span class="full-stat-scroll-text">${escapeHtml(v)}</span>` : escapeHtml(v);
     return `<div class="tooltip-item${scrollClass}" data-tooltip="${escapeHtml(getTermTooltip(l))}"><span>${escapeHtml(l)}</span><strong>${value}</strong></div>`;
   }).join("");
 }
-function formatPercent(value) {
+function formatDisplayPercent(value) {
   const percent = Math.abs(Number(value) || 0) * 100;
   if (!percent) return "0%";
   const rounded = Math.max(2, Math.round(percent / 2) * 2);
   return `${value < 0 ? "-" : ""}${rounded}%`;
 }
-function formatPercentCap(value, cap) { return `${formatPercent(Math.min(value || 0, cap))}/${formatPercent(cap)}`; }
+function formatPercentCap(value, cap) { return `${formatDisplayPercent(Math.min(value || 0, cap))}/${formatDisplayPercent(cap)}`; }
 const STAT_CAPS = { crit: 1, block: 0.85, evasion: 0.45, battleDamageBonus: 0.4 };
 const RARITY_SORT_RANK = { Mythic: 6, Legendary: 5, Epic: 4, Rare: 3, Uncommon: 2, Common: 1 };
 function getHeroEvasionChance(hero) { return Math.min(STAT_CAPS.evasion, getPermanentEffectTotal("evasion", hero.id) + (hero.runEvasion || 0)); }
@@ -1930,6 +1935,7 @@ function renderTree() {
   treeEssence.textContent = Math.floor(save.essence);
   renderTreeTabs();
   treeCards.innerHTML = createTreeMenuHtml(visibleNodes);
+  bindTreeNodeButtons();
   renderTreeDetails(TREE[selectedTreeNodeId] || TREE.crown_legacy);
   applyTreeCamera();
   refreshTopbar();
@@ -2004,9 +2010,30 @@ function createTreeMenuItemHtml(node) {
     <span class="skill-menu-meta"><b>${level}/${node.maxLevel}</b><em>${escapeHtml(status)}</em></span>
   </button>`;
 }
-function createTreeNodeButtonHtml(node) { const level = getTreeLevel(node.id), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, cost = getTreeUpgradeCost(node, level), available = !locked && !maxed && save.essence >= cost; return `<button class="skill-node skill-node-${node.type} skill-node-${node.classId} ${locked ? "skill-node-locked" : ""} ${maxed ? "skill-node-complete" : ""} ${available ? "skill-node-available" : ""} ${selectedTreeNodeId === node.id ? "skill-node-selected" : ""}" style="left:${node.x}px;top:${node.y}px" data-node="${node.id}"><span>${getTreeNodeInitials(node)}</span><small>${level}/${node.maxLevel}</small></button>`; }
-function renderTreeDetails(node) { const level = getTreeLevel(node.id), cost = getTreeUpgradeCost(node, level), locked = isTreeNodeLocked(node), maxed = level >= node.maxLevel, prereqs = (node.prerequisites || []).map(id => TREE[id]?.name).filter(Boolean); treeDetails.innerHTML = `<div class="tree-detail-kicker">${node.branch}</div><h3>${node.name}</h3><p>${node.description}</p><div class="tree-detail-row"><span>Level</span><strong>${level}/${node.maxLevel}</strong></div><div class="tree-detail-row"><span>Cost</span><strong>${maxed ? "Maxed" : `${cost} Essence`}</strong></div>${prereqs.length ? `<div class="tree-detail-prereqs"><strong>Requires</strong><br>${prereqs.map(escapeHtml).join(", ")}</div>` : ""}<button ${locked || maxed || save.essence < cost ? "disabled" : ""}>${locked ? "Locked" : maxed ? "Completed" : "Purchase"}</button>`; treeDetails.querySelector("button").onclick = () => purchaseTreeNode(node.id); treeCards.querySelectorAll("[data-node]").forEach(button => button.onclick = () => { selectedTreeNodeId = button.dataset.node; renderTree(); }); }
-function getTreeUpgradeCost(node, level) { if (node.costs) return node.costs[Math.min(level, node.costs.length - 1)]; if (node.type === "ability") return node.cost; return Math.ceil((node.cost * (node.classId === "global" ? GLOBAL_TREE_COST_MULTIPLIER : 1) * Math.pow(node.classId === "global" ? GLOBAL_TREE_COST_GROWTH : TREE_COST_GROWTH, level)) / 10) * 10; }
+function bindTreeNodeButtons() {
+  treeCards.querySelectorAll("[data-node]").forEach(button => {
+    button.onclick = () => {
+      selectedTreeNodeId = button.dataset.node;
+      renderTree();
+    };
+  });
+}
+function renderTreeDetails(node) {
+  const level = getTreeLevel(node.id);
+  const cost = getTreeUpgradeCost(node, level);
+  const locked = isTreeNodeLocked(node);
+  const maxed = level >= node.maxLevel;
+  const prereqs = (node.prerequisites || []).map(id => TREE[id]?.name).filter(Boolean);
+  treeDetails.innerHTML = `<div class="tree-detail-kicker">${node.branch}</div><h3>${node.name}</h3><p>${node.description}</p><div class="tree-detail-row"><span>Level</span><strong>${level}/${node.maxLevel}</strong></div><div class="tree-detail-row"><span>Cost</span><strong>${maxed ? "Maxed" : `${cost} Essence`}</strong></div>${prereqs.length ? `<div class="tree-detail-prereqs"><strong>Requires</strong><br>${prereqs.map(escapeHtml).join(", ")}</div>` : ""}<button ${locked || maxed || save.essence < cost ? "disabled" : ""}>${locked ? "Locked" : maxed ? "Completed" : "Purchase"}</button>`;
+  treeDetails.querySelector("button").onclick = () => purchaseTreeNode(node.id);
+}
+function getTreeUpgradeCost(node, level) {
+  if (node.costs) return node.costs[Math.min(level, node.costs.length - 1)];
+  if (node.type === "ability") return node.cost;
+  const multiplier = node.classId === "global" ? GLOBAL_TREE_COST_MULTIPLIER : 1;
+  const growth = node.classId === "global" ? GLOBAL_TREE_COST_GROWTH : TREE_COST_GROWTH;
+  return Math.ceil((node.cost * multiplier * Math.pow(growth, level)) / 10) * 10;
+}
 function isTreeNodeLocked(node) { return node.prerequisites.some(id => getTreeLevel(id) <= 0); }
 function getTreeNodeInitials(node) { return node.name.split(/\s+/).map(word => word[0]).join("").slice(0, 2).toUpperCase(); }
 function purchaseTreeNode(id) { const node = TREE[id], level = getTreeLevel(id), cost = getTreeUpgradeCost(node, level); if (isTreeNodeLocked(node) || level >= node.maxLevel || save.essence < cost) return; save.essence -= cost; save.tree[id] = level + 1; selectedTreeNodeId = id; saveGame(); renderTree(); }
