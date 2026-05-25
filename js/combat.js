@@ -428,6 +428,8 @@ function heroAttack(hero, enemy) {
   spawnHeroAttackEffect(hero, enemy);
 
   let damage = Math.max(1, hero.damage * (1 + (hero.battleDamageBonus || 0)) - enemy.armor);
+  const goldDamageMultiplier = getHeroGoldDamageMultiplier(hero);
+  if (goldDamageMultiplier) damage *= 1 + goldDamageMultiplier;
   hero.attackCount = (hero.attackCount || 0) + 1;
   const guaranteedCritEvery = getPermanentEffectTotal("guaranteedCritEvery", hero.id);
   const guaranteedCrit = guaranteedCritEvery > 0 && hero.attackCount % guaranteedCritEvery === 0;

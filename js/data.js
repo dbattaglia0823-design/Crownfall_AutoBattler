@@ -932,197 +932,209 @@ function addRoundGrowth(hero, stat, value) {
   run.stageGrowthRelics.push({ id: `growth_${stat}_${run.stageGrowthRelics.length}`, stat, value, stages: 0 });
 }
 
-// Run upgrades still use this pool. Put stats directly on any non-Mythic upgrade to set exact values.
-// Example: { name: "Sharpened Blade", rarity: "Common", damage: 5 }
-// Growth exception example: { effect: { type: "stageGrowth", stat: "mainStatsMultiplier", value: 0.02 } }
+// Run upgrades, shop items, and relics use explicit stat data.
+// Put values in `stats` or directly on the item to set exact values.
+// Example: { name: "Sharpened Blade", rarity: "Common", stats: { damage: 5 } }
+// Ability/run-only stat example: { stats: { abilityStats: { runBurnDamage: 5 } } }
+// Growth exception example: { effects: [{ type: "stageGrowth", stat: "damageMultiplier", value: 0.02 }] }
 // Common keys: damage, maxHp, armor, attackSpeed, regen, luck, gold, shield, critChance,
 // blockChance, lifeSteal, abilityDamage, bleedMaxHpPercent, burnChance, evasion.
 const REWARDS = [
-  { name: "Sharpened Blade", rarity: "Common", text: "+10% hero damage", apply: hero => hero.damage *= 1.1 },
-  { name: "Battle Rhythm", rarity: "Common", text: "+10% attack speed", apply: hero => hero.attackSpeed *= 1.1 },
-  { name: "Iron Skin", rarity: "Common", text: "+10% armor", apply: hero => multiplyArmor(hero, 1.1) },
-  { name: "Leeching Edge", rarity: "Rare", text: "+2% life steal", apply: hero => hero.lifeSteal = (hero.lifeSteal || 0) + 0.02 },
-  { name: "Balanced Blade", rarity: "Common", text: "+10% damage", apply: hero => hero.damage *= 1.1 },
-  { name: "Hardy Bread", rarity: "Common", text: "+8% max HP", apply: hero => multiplyMaxHp(hero, 1.08) },
-  { name: "Quick Buckle", rarity: "Common", text: "+8% attack speed", apply: hero => hero.attackSpeed *= 1.08 },
-  { name: "Scout's Dice", rarity: "Common", text: "+2 Luck", apply: hero => hero.luck = (hero.luck || 0) + 2 },
-  { requiresNode: "unlock_starting_bonuses", name: "Prepared Camp", rarity: "Common", text: "Start future battles this run with +10 shield", apply: hero => hero.runStartShield = (hero.runStartShield || 0) + 10 },
-  { requiresNode: "unlock_starting_bonuses", name: "Opening Gambit", rarity: "Rare", text: "Gain +20 gold and +2 Luck", apply: hero => { run.gold += 20; hero.luck = (hero.luck || 0) + 2; } },
-  { name: "Triage Kit", rarity: "Common", text: "+8% max HP and +1 HP regen", apply: hero => { multiplyMaxHp(hero, 1.08, false); hero.regen = (hero.regen || 0) + 1; } },
-  { name: "Risky Footwork", rarity: "Common", text: "+15% attack speed, -15% armor", apply: hero => { hero.attackSpeed *= 1.15; multiplyArmor(hero, 0.85); } },
-  { name: "Vitality Draught", rarity: "Rare", text: "+14% max HP", apply: hero => multiplyMaxHp(hero, 1.14, false) },
-  { name: "Lucky Charm", rarity: "Rare", text: "+6% crit chance", apply: hero => hero.crit += 0.06 },
-  { name: "Knightly Edge", rarity: "Rare", text: "+15% damage", apply: hero => hero.damage *= 1.15 },
-  { name: "Oakheart Tonic", rarity: "Rare", text: "+16% max HP", apply: hero => multiplyMaxHp(hero, 1.16) },
-  { name: "Clockwork Grip", rarity: "Rare", text: "+14% attack speed", apply: hero => hero.attackSpeed *= 1.14 },
-  { name: "Royal Purse", rarity: "Common", text: "+35 gold", apply: () => run.gold += 35 },
-  { name: "Field Medic", rarity: "Rare", text: "+8% max HP and +10% armor", apply: hero => { multiplyMaxHp(hero, 1.08, false); multiplyArmor(hero, 1.1); } },
-  { name: "Gilded Compass", rarity: "Rare", text: "+2 Luck and +20 gold", apply: hero => { hero.luck = (hero.luck || 0) + 2; run.gold += 20; } },
-  { name: "Barbed Buckler", rarity: "Rare", text: "+15% armor and +5% crit chance", apply: hero => { multiplyArmor(hero, 1.15); hero.crit += 0.05; } },
-  { name: "Glass Canon", rarity: "Rare", text: "+20% damage, -12% max HP", apply: hero => { hero.damage *= 1.2; multiplyMaxHp(hero, 0.88, false); } },
-  { name: "War Training", rarity: "Epic", text: "+14% damage and +8% max HP", apply: hero => { hero.damage *= 1.14; multiplyMaxHp(hero, 1.08, false); } },
-  { name: "Runed Greatblade", rarity: "Epic", text: "+24% damage", apply: hero => hero.damage *= 1.24 },
-  { name: "Giant's Supper", rarity: "Epic", text: "+24% max HP", apply: hero => multiplyMaxHp(hero, 1.24) },
-  { name: "Silver Reflexes", rarity: "Epic", text: "+20% attack speed", apply: hero => hero.attackSpeed *= 1.2 },
-  { name: "Fortune's Edge", rarity: "Epic", text: "+14% damage, +5% crit chance, +1 Luck", apply: hero => { hero.damage *= 1.14; hero.crit += 0.05; hero.luck = (hero.luck || 0) + 1; } },
-  { name: "Iron Momentum", rarity: "Epic", text: "+16% armor and +12% attack speed", apply: hero => { multiplyArmor(hero, 1.16); hero.attackSpeed *= 1.12; } },
-  { name: "Vampiric Training", rarity: "Epic", text: "+15% damage and +1 HP regen", apply: hero => { hero.damage *= 1.15; hero.regen = (hero.regen || 0) + 1; } },
-  { name: "Kingslayer Edge", rarity: "Legendary", text: "Crown-forged: +35% damage and +6% crit chance", apply: hero => { hero.damage *= 1.35; hero.crit += 0.06; } },
-  { name: "Titan Plate", rarity: "Legendary", text: "Ancient royal plate: +35% armor and +16% max HP", apply: hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.16, false); } },
-  { name: "Eternal Edge", rarity: "Legendary", text: "A blade with a name of its own: +35% damage", apply: hero => hero.damage *= 1.35 },
-  { name: "Colossus Heart", rarity: "Legendary", text: "A thunderous second heartbeat: +35% max HP", apply: hero => multiplyMaxHp(hero, 1.35) },
-  { name: "Chrono Spurs", rarity: "Legendary", text: "Time buckles under each step: +32% attack speed", apply: hero => hero.attackSpeed *= 1.32 },
-  { name: "Storm Tempo", rarity: "Epic", text: "+22% attack speed", apply: hero => hero.attackSpeed *= 1.22 },
-  { name: "Battle Renewal", rarity: "Epic", text: "+3 HP regen while in battle", apply: hero => hero.regen = (hero.regen || 0) + 3 },
-  { name: "Battle Momentum", rarity: "Epic", text: "Gain +2% main stats after each round.", effect: { type: "stageGrowth", stat: "mainStatsMultiplier", value: 0.02 } },
-  { name: "Sovereign Star", rarity: "Legendary", text: "A fate-lit royal charm: +4 Luck, +10% crit chance, +40 gold", apply: hero => { hero.luck = (hero.luck || 0) + 4; hero.crit += 0.1; run.gold += 40; } },
-  { name: "Living Aegis", rarity: "Legendary", text: "A shield that remembers kings: +35% armor, +12% max HP, +1 HP regen", apply: hero => { multiplyArmor(hero, 1.35); multiplyMaxHp(hero, 1.12, false); hero.regen = (hero.regen || 0) + 1; } },
-  { name: "Crown Momentum", rarity: "Legendary", text: "Gain +5% main stats after each round.", effect: { type: "stageGrowth", stat: "mainStatsMultiplier", value: 0.05 } },
+  // General Upgrades
+  { name: "Sharpened Blade", rarity: "Common", stats: { damage: 8 } },
+  { name: "Battle Rhythm", rarity: "Common", stats: { attackSpeed: 0.12 } },
+  { name: "Iron Skin", rarity: "Common", stats: { armor: 2 } },
+  { name: "Balanced Blade", rarity: "Common", stats: { damage: 10 } },
+  { name: "Hardy Bread", rarity: "Common", stats: { maxHp: 35 } },
+  { name: "Quick Buckle", rarity: "Common", stats: { attackSpeed: 0.08 } },
+  { name: "Scout's Dice", rarity: "Common", stats: { luck: 2 } },
+  { requiresNode: "unlock_starting_bonuses", name: "Prepared Camp", rarity: "Common", stats: { shield: 10 } },
+  { name: "Triage Kit", rarity: "Common", stats: { maxHp: 28, regen: 1 } },
+  { name: "Risky Footwork", rarity: "Common", stats: { attackSpeed: 0.14, armor: -2 } },
+  { name: "Royal Purse", rarity: "Common", stats: { gold: 50 } },
+  { name: "Leeching Edge", rarity: "Rare", stats: { lifeSteal: 0.03 } },
+  { requiresNode: "unlock_starting_bonuses", name: "Opening Gambit", rarity: "Rare", stats: { gold: 60, luck: 2 } },
+  { name: "Vitality Draught", rarity: "Rare", stats: { maxHp: 65 } },
+  { name: "Lucky Charm", rarity: "Rare", stats: { critChance: 0.06 } },
+  { name: "Knightly Edge", rarity: "Rare", stats: { damage: 28 } },
+  { name: "Oakheart Tonic", rarity: "Rare", stats: { maxHp: 45 } },
+  { name: "Clockwork Grip", rarity: "Rare", stats: { attackSpeed: 0.16 } },
+  { name: "Field Medic", rarity: "Rare", stats: { maxHp: 32, armor: 2 } },
+  { name: "Gilded Compass", rarity: "Rare", stats: { luck: 3, gold: 30 } },
+  { name: "Barbed Buckler", rarity: "Rare", stats: { armor: 3, critChance: 0.08 } },
+  { name: "Glass Canon", rarity: "Rare", stats: { damage: 40, maxHp: -80 } },
+  { name: "War Training", rarity: "Epic", stats: { damage: 25, maxHp: 32 } },
+  { name: "Runed Greatblade", rarity: "Epic", stats: { damage: 42 } },
+  { name: "Giant's Supper", rarity: "Epic", stats: { maxHp: 150 } },
+  { name: "Silver Reflexes", rarity: "Epic", stats: { attackSpeed: 0.20 } },
+  { name: "Fortune's Edge", rarity: "Epic", stats: { damage: 30, critChance: 0.08, luck: 2 } },
+  { name: "Iron Momentum", rarity: "Epic", stats: { armor: 9, attackSpeed: 0.1 } },
+  { name: "Vampiric Training", rarity: "Epic", stats: { damage: 20, regen: 3, lifeSteal: 0.05 } },
+  { name: "Storm Tempo", rarity: "Epic", stats: { attackSpeed: 0.28 } },
+  { name: "Battle Renewal", rarity: "Epic", stats: { regen: 12 } },
+  { name: "Battle Edge", rarity: "Epic", unlockRequirement: { type: "stat", stat: "stagesCleared", count: 20 }, effects: [{ type: "stageGrowth", stat: "damageMultiplier", value: 0.03 }] },
+  { name: "Battle Heart", rarity: "Epic", unlockRequirement: { type: "bossKills", count: 2 }, effects: [{ type: "stageGrowth", stat: "maxHpMultiplier", value: 0.03 }] },
+  { name: "Battle Plate", rarity: "Epic", unlockRequirement: { type: "stat", stat: "totalDamageTaken", count: 2500 }, effects: [{ type: "stageGrowth", stat: "armorMultiplier", value: 0.03 }] },
+  { name: "Battle Tempo", rarity: "Epic", unlockRequirement: { type: "stat", stat: "battlesWon", count: 30 }, effects: [{ type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.03 }] },
+  { name: "Goblin Breaker", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "goblin", count: 50 }, stats: { damage: 50 } },
+  { name: "Wolfhunter Stride", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "wolf", count: 50 }, stats: { attackSpeed: 0.24 } },
+  { name: "Bonecrusher Guard", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "skeleton", count: 50 }, stats: { armor: 16 } },
+  { name: "Ratcatcher's Draught", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "plague_rat", count: 50 }, stats: { maxHp: 180 } },
+  { name: "Archer's Tempo", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "dark_archer", count: 50 }, stats: { attackSpeed: 0.18, critChance: 0.05 } },
+  { name: "Orc Splitter", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "orc", count: 50 }, stats: { damage: 50 } },
+  { name: "Kingslayer Edge", rarity: "Legendary", stats: { damage: 80, critChance: 0.12 } },
+  { name: "Titan Plate", rarity: "Legendary", stats: { armor: 16, maxHp: 125 } },
+  { name: "Eternal Edge", rarity: "Legendary", stats: { damage: 100 } },
+  { name: "Colossus Heart", rarity: "Legendary", stats: { maxHp: 200 } },
+  { name: "Chrono Spurs", rarity: "Legendary", stats: { attackSpeed: 0.24 } },
+  { name: "Sovereign Star", rarity: "Legendary", stats: { luck: 10, critChance: 0.1, gold: 200 } },
+  { name: "Living Aegis", rarity: "Legendary", stats: { armor: 16, maxHp: 240, regen: 3 } },
+  { name: "Crown Edge", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 12 }, effects: [{ type: "stageGrowth", stat: "damageMultiplier", value: 0.05 }] },
+  { name: "Crown Heart", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 14 }, effects: [{ type: "stageGrowth", stat: "maxHpMultiplier", value: 0.05 }] },
+  { name: "Crown Plate", rarity: "Legendary", unlockRequirement: { type: "stat", stat: "totalDamageTaken", count: 15000 }, effects: [{ type: "stageGrowth", stat: "armorMultiplier", value: 0.05 }] },
+  { name: "Crown Tempo", rarity: "Legendary", unlockRequirement: { type: "stat", stat: "battlesWon", count: 100 }, effects: [{ type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.05 }] },
+  { name: "Regent's Drill", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 8 }, stats: { damage: 150, maxHp: 80 } },
+  { name: "Tyrant's Answer", rarity: "Legendary", unlockRequirement: { type: "enemyKills", enemyId: "crownfallTyrant", count: 3 }, stats: { damage: 220 } },
+  { name: "Crown Duelist", rarity: "Legendary", unlockRequirement: { type: "finalBossKills", count: 1 }, stats: { attackSpeed: 0.50, critChance: 0.16 } },
 
-  { classId: "knight", name: "Shield Drill", rarity: "Common", text: "Knight only: start each battle with +12 shield", apply: hero => hero.runStartShield = (hero.runStartShield || 0) + 12 },
-  { classId: "knight", name: "Plate Fitting", rarity: "Common", text: "Knight only: +12% armor and +6% max HP", apply: hero => { multiplyArmor(hero, 1.12); multiplyMaxHp(hero, 1.06, false); } },
-  { classId: "knight", name: "Guard Stance", rarity: "Rare", text: "Knight only: +5% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.05 },
-  { classId: "knight", name: "Shield Timing", rarity: "Common", text: "Knight only: +3% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.03 },
-  { classId: "knight", name: "Bulwark Drill", rarity: "Rare", text: "Knight only: +6% block chance and +10 shield each battle", apply: hero => { hero.runBlockChance = (hero.runBlockChance || 0) + 0.06; hero.runStartShield = (hero.runStartShield || 0) + 10; } },
-  { classId: "knight", name: "Spiked Shield", rarity: "Rare", text: "Knight only: blocked damage retaliates for 12%", apply: hero => hero.runRetaliateBlock = (hero.runRetaliateBlock || 0) + 0.12 },
-  { classId: "knight", name: "Unbroken Vow", rarity: "Epic", text: "Knight only: +14% max HP and +15 shield each battle", apply: hero => { multiplyMaxHp(hero, 1.14, false); hero.runStartShield = (hero.runStartShield || 0) + 15; } },
-  { classId: "knight", name: "Castle Guard", rarity: "Epic", text: "Knight only: +10% block chance", apply: hero => hero.runBlockChance = (hero.runBlockChance || 0) + 0.1 },
-  { classId: "knight", name: "Royal Bastion", rarity: "Legendary", text: "Knight only: +28% armor, +2 armor, and +16% max HP", apply: hero => { multiplyArmor(hero, 1.28); hero.armor += 2; multiplyMaxHp(hero, 1.16, false); } },
+  // Hero Upgrades
+  { classId: "knight", name: "Shield Drill", rarity: "Common", stats: { shield: 20 } },
+  { classId: "knight", name: "Plate Fitting", rarity: "Common", stats: { armor: 3, maxHp: 30 } },
+  { classId: "knight", name: "Shield Timing", rarity: "Common", stats: { blockChance: 0.04 } },
+  { classId: "rogue", name: "Serrated Oil", rarity: "Common", stats: { bleedMaxHpPercent: 0.003 } },
+  { classId: "rogue", name: "Quickstep", rarity: "Common", stats: { attackSpeed: 0.1, evasion: 0.03 } },
+  { classId: "wizard", name: "Kindling Rune", rarity: "Common", stats: { burnChance: 0.15 } },
+  { classId: "wizard", name: "Arcane Focus", rarity: "Common", stats: { damage: 9, splashDamageMultiplier: 0.1 } },
+  { classId: "knight", name: "Guard Stance", rarity: "Rare", stats: { blockChance: 0.07 } },
+  { classId: "knight", name: "Bulwark Drill", rarity: "Rare", stats: { blockChance: 0.04, shield: 30 } },
+  { classId: "knight", name: "Spiked Shield", rarity: "Rare", stats: { retaliateBlock: 0.15 } },
+  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", stats: { bleedMaxHpPercent: 0.004 } },
+  { classId: "rogue", name: "Assassin's Eye", rarity: "Rare", stats: { critChance: 0.1, executeDamage: 0.1 } },
+  { classId: "wizard", name: "Frost Thread", rarity: "Rare", stats: { slowChance: 0.2, slowValue: 0.2 } },
+  { classId: "wizard", name: "Mana Ward", rarity: "Rare", stats: { splashShield: 12 } },
+  { classId: "wizard", name: "Scorching Brand", rarity: "Rare", stats: { burnMaxHpPercent: 0.004 } },
+  { classId: "knight", name: "Unbroken Vow", rarity: "Epic", stats: { maxHp: 90, shield: 40 } },
+  { classId: "knight", name: "Castle Guard", rarity: "Epic", stats: { blockChance: 0.15 } },
+  { classId: "rogue", name: "Blood Rush", rarity: "Epic", stats: { bleedMaxHpPercent: 0.008, bleedAttackSpeed: 0.08 } },
+  { classId: "wizard", name: "Chain Spell", rarity: "Epic", stats: { splashDamageMultiplier: 0.20 } },
+  { classId: "knight", name: "Oathbreaker Lessons", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "oathbreaker", count: 20 }, stats: { armor: 8, shield: 10 } },
+  { classId: "rogue", name: "Acolyte's Black Oil", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "blood_acolyte", count: 20 }, stats: { abilityDamage: 12 } },
+  { classId: "wizard", name: "Necromancer's Margin", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "necromancer", count: 20 }, stats: { splashDamageMultiplier: 0.2, abilityStats: { runBurnDamage: 10 } } },
+  { classId: "knight", name: "Royal Bastion", rarity: "Legendary", stats: { armor: 14, maxHp: 170 } },
+  { classId: "rogue", name: "Deathblow Contract", rarity: "Legendary", stats: { executeDamage: 0.4, executeThreshold: 0.4 } },
+  { classId: "wizard", name: "Inferno Thesis", rarity: "Legendary", stats: { abilityStats: { runBurnDamage: 15, runBurningEnemyDamage: 0.16 } } },
 
-  { classId: "rogue", name: "Serrated Oil", rarity: "Common", text: "Rogue only: +0.2% max HP bleed damage per second", apply: hero => hero.runBleedMaxHpPercent = (hero.runBleedMaxHpPercent || 0) + 0.002 },
-  { classId: "rogue", name: "Quickstep", rarity: "Common", text: "Rogue only: +8% attack speed and +2% evasion", apply: hero => { hero.attackSpeed *= 1.08; hero.runEvasion = (hero.runEvasion || 0) + 0.02; } },
-  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", text: "Rogue only: +0.35% max HP bleed damage per second", apply: hero => hero.runBleedMaxHpPercent = (hero.runBleedMaxHpPercent || 0) + 0.0035 },
-  { classId: "rogue", name: "Assassin's Eye", rarity: "Rare", text: "Rogue only: +8% crit chance and +10% execute damage", apply: hero => { hero.crit += 0.08; hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.1; } },
-  { classId: "rogue", name: "Blood Rush", rarity: "Epic", text: "Rogue only: +0.5% max HP bleed damage per second and +5% attack speed after bleeding a new target", apply: hero => { hero.runBleedMaxHpPercent = (hero.runBleedMaxHpPercent || 0) + 0.005; hero.runBleedAttackSpeed = (hero.runBleedAttackSpeed || 0) + 0.05; } },
-  { classId: "rogue", name: "Deathblow Contract", rarity: "Legendary", text: "Rogue only: enemies below 40% HP take +30% execute damage", apply: hero => { hero.runExecuteDamage = (hero.runExecuteDamage || 0) + 0.3; hero.runExecuteThreshold = Math.max(hero.runExecuteThreshold || 0, 0.4); } },
+  // Ability Upgrades
+  { requiresAbility: "wizard_curse", name: "Cruel Hex", rarity: "Rare", stats: { abilityStats: { runCurseDuration: 1.5, runCurseDamageTaken: 0.06 } } },
+  { requiresAbility: "wizard_iceball", name: "Packed Ice", rarity: "Rare", stats: { abilityStats: { runIceballDamage: 0.2, runIceballDuration: 1 } } },
+  { requiresAbility: "rogue_poison", name: "Toxic Reservoir", rarity: "Rare", stats: { abilityStat: "runPoisonAbilityDamage", abilityValue: 6 } },
+  { requiresAbility: "rogue_bleed", name: "Barbed Trap", rarity: "Rare", stats: { abilityStat: "runTrapSlow", abilityValue: 0.08 } },
+  { requiresAbility: "rogue_burn", name: "Pitch Powder", rarity: "Rare", stats: { abilityStat: "runBurnAbilityDuration", abilityValue: 1.5 } },
+  { requiresAbility: "rogue_burn", name: "Charcoal Powder", rarity: "Rare", stats: { abilityStat: "runBurnDamage", abilityValue: 4, burnMaxHpPercent: 0.0025 } },
+  { requiresAbility: "knight_heavy_attack", name: "Crushing Windup", rarity: "Rare", stats: { abilityStat: "runHeavyAttackMaxHpDamage", abilityValue: 0.06 } },
+  { requiresAbility: "knight_holy_shield", name: "Consecrated Guard", rarity: "Rare", stats: { abilityStat: "runHolyShieldHits", abilityValue: 1 } },
+  { requiresAbility: "wizard_lightning", name: "Forked Storm", rarity: "Epic", stats: { abilityStat: "runLightningTargets", abilityValue: 1 } },
+  { requiresAbility: "knight_holy_sword", name: "Long Benediction", rarity: "Epic", stats: { abilityStat: "runHolySwordHits", abilityValue: 1 } },
 
-  { classId: "wizard", name: "Kindling Rune", rarity: "Common", text: "Wizard only: +10% burn chance", apply: hero => hero.runBurnChance = (hero.runBurnChance || 0) + 0.1 },
-  { classId: "wizard", name: "Arcane Focus", rarity: "Common", text: "Wizard only: +10% damage and +5% splash damage", apply: hero => { hero.damage *= 1.1; hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.05; } },
-  { classId: "wizard", name: "Frost Thread", rarity: "Rare", text: "Wizard only: attacks gain +10% chance to slow by 20% for 3.5s", apply: hero => hero.runSlowChance = (hero.runSlowChance || 0) + 0.1 },
-  { classId: "wizard", name: "Mana Ward", rarity: "Rare", text: "Wizard only: splash grants +9 shield", apply: hero => hero.runSplashShield = (hero.runSplashShield || 0) + 9 },
-  { classId: "wizard", name: "Scorching Brand", rarity: "Rare", text: "Wizard only: burn deals +0.25% max HP damage per second", apply: hero => hero.runBurnMaxHpPercent = (hero.runBurnMaxHpPercent || 0) + 0.0025 },
-  { classId: "wizard", name: "Chain Spell", rarity: "Epic", text: "Wizard only: +12% splash damage", apply: hero => hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.12 },
-  { classId: "wizard", name: "Inferno Thesis", rarity: "Legendary", text: "Wizard only: +5 burn damage per second and burning enemies take +16% damage", apply: hero => { hero.runBurnDamage = (hero.runBurnDamage || 0) + 5; hero.runBurningEnemyDamage = (hero.runBurningEnemyDamage || 0) + 0.16; } },
-
-  { requiresAbility: "wizard_curse", name: "Cruel Hex", rarity: "Rare", text: "Curse lasts +1.5s and cursed enemies take an extra +6% damage.", apply: hero => { hero.runCurseDuration = (hero.runCurseDuration || 0) + 1.5; hero.runCurseDamageTaken = (hero.runCurseDamageTaken || 0) + 0.06; } },
-  { requiresAbility: "wizard_iceball", name: "Packed Ice", rarity: "Rare", text: "Iceball deals +20% damage and lasts +1s longer.", apply: hero => { hero.runIceballDamage = (hero.runIceballDamage || 0) + 0.2; hero.runIceballDuration = (hero.runIceballDuration || 0) + 1; } },
-  { requiresAbility: "wizard_lightning", name: "Forked Storm", rarity: "Epic", text: "Lightning reaches one more enemy.", apply: hero => hero.runLightningTargets = (hero.runLightningTargets || 0) + 1 },
-  { requiresAbility: "rogue_poison", name: "Toxic Reservoir", rarity: "Rare", text: "Poison special deals +6 damage per second.", apply: hero => hero.runPoisonAbilityDamage = (hero.runPoisonAbilityDamage || 0) + 6 },
-  { requiresAbility: "rogue_bleed", name: "Barbed Trap", rarity: "Rare", text: "Trap slow increases from 28% to 36%.", apply: hero => hero.runTrapSlow = (hero.runTrapSlow || 0) + 0.08 },
-  { requiresAbility: "rogue_burn", name: "Pitch Powder", rarity: "Rare", text: "Burn special lasts +1.5s longer.", apply: hero => hero.runBurnAbilityDuration = (hero.runBurnAbilityDuration || 0) + 1.5 },
-  { requiresAbility: "rogue_burn", name: "Charcoal Powder", rarity: "Rare", text: "Burn special deals +4 damage and +0.25% max HP damage per second.", apply: hero => { hero.runBurnDamage = (hero.runBurnDamage || 0) + 4; hero.runBurnMaxHpPercent = (hero.runBurnMaxHpPercent || 0) + 0.0025; } },
-  { requiresAbility: "knight_heavy_attack", name: "Crushing Windup", rarity: "Rare", text: "Heavy Attack deals +6% max HP damage.", apply: hero => hero.runHeavyAttackMaxHpDamage = (hero.runHeavyAttackMaxHpDamage || 0) + 0.06 },
-  { requiresAbility: "knight_holy_sword", name: "Long Benediction", rarity: "Epic", text: "Holy Sword empowers +1 additional hit.", apply: hero => hero.runHolySwordHits = (hero.runHolySwordHits || 0) + 1 },
-  { requiresAbility: "knight_holy_shield", name: "Consecrated Guard", rarity: "Rare", text: "Holy Shield protects against +1 additional enemy hit.", apply: hero => hero.runHolyShieldHits = (hero.runHolyShieldHits || 0) + 1 },
-
-  { name: "Goblin Breaker", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "goblin", count: 25 }, text: "+18 damage after hunting goblins.", apply: hero => hero.damage += 18 },
-  { name: "Wolfhunter Stride", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "wolf", count: 25 }, text: "+0.24 attack speed after hunting wolves.", apply: hero => hero.attackSpeed += 0.24 },
-  { name: "Bonecrusher Guard", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "skeleton", count: 25 }, text: "+6 armor after breaking skeleton ranks.", apply: hero => hero.armor += 6 },
-  { name: "Ratcatcher's Draught", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "plague_rat", count: 30 }, text: "+75 max HP after clearing plague rats.", apply: hero => addFlatMaxHp(hero, 75) },
-  { name: "Archer's Tempo", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "dark_archer", count: 20 }, text: "+0.18 attack speed and +5% crit chance.", apply: hero => { hero.attackSpeed += 0.18; hero.crit += 0.05; } },
-  { name: "Orc Splitter", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "orc", count: 20 }, text: "+20 damage after defeating orcs.", apply: hero => hero.damage += 20 },
-  { classId: "knight", name: "Oathbreaker Lessons", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "oathbreaker", count: 12 }, text: "Knight only: +6 armor and +8 shield each battle.", apply: hero => { hero.armor += 6; hero.runStartShield = (hero.runStartShield || 0) + 8; } },
-  { classId: "rogue", name: "Acolyte's Black Oil", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "blood_acolyte", count: 12 }, text: "Rogue only: poison and bleed effects gain flat damage.", apply: hero => hero.runAbilityFlatDamage = (hero.runAbilityFlatDamage || 0) + 8 },
-  { classId: "wizard", name: "Necromancer's Margin", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "necromancer", count: 15 }, text: "Wizard only: splash and burn magic hit harder.", apply: hero => { hero.runSplashDamageMultiplier = (hero.runSplashDamageMultiplier || 0) + 0.1; hero.runBurnDamage = (hero.runBurnDamage || 0) + 5; } },
-  { name: "Regent's Drill", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 8 }, text: "Boss-proven training: +24 damage and +80 max HP.", apply: hero => { hero.damage += 24; addFlatMaxHp(hero, 80); } },
-  { name: "Tyrant's Answer", rarity: "Legendary", unlockRequirement: { type: "enemyKills", enemyId: "crownfallTyrant", count: 3 }, text: "A practiced answer to royal ruin: +30 damage.", apply: hero => hero.damage += 30 },
-  { name: "Crown Duelist", rarity: "Legendary", unlockRequirement: { type: "finalBossKills", count: 1 }, text: "Final-boss mastery: +0.32 attack speed and +8% crit chance.", apply: hero => { hero.attackSpeed += 0.32; hero.crit += 0.08; } },
-
+  // Ability Unlocks
   { classId: "wizard", requiresNode: "wizard_curse_unlock", abilityId: "wizard_curse", name: "Forbidden Curse", rarity: "Mythic", text: "Unlock Curse: 2.5s cooldown, 4s duration, cursed enemy takes +22% damage", apply: hero => grantRunAbility(hero, "wizard_curse") },
   { classId: "wizard", requiresNode: "wizard_iceball_unlock", abilityId: "wizard_iceball", name: "Frozen Orb", rarity: "Mythic", text: "Unlock Iceball: 2.5s cooldown, 75% damage, 38% slow for 3.5s", apply: hero => grantRunAbility(hero, "wizard_iceball") },
   { classId: "wizard", requiresNode: "wizard_lightning_unlock", abilityId: "wizard_lightning", name: "Storm Sigil", rarity: "Mythic", text: "Unlock Lightning: 2s cooldown, hits 3 enemies for 90%/75%/60% damage", apply: hero => grantRunAbility(hero, "wizard_lightning") },
   { classId: "rogue", requiresNode: "rogue_poison_unlock", abilityId: "rogue_poison", name: "Poison Vials", rarity: "Mythic", text: "Unlock Poison: 2.8s cooldown, 4.5s duration, 9 + 0.75 per stage DPS", apply: hero => grantRunAbility(hero, "rogue_poison") },
   { classId: "rogue", requiresNode: "rogue_bleed_unlock", abilityId: "rogue_bleed", name: "Snare Kit", rarity: "Mythic", text: "Unlock Trap: 2.5s cooldown, slows all enemies by 28% for 4s and makes Rogue deal +8% damage to slowed enemies", apply: hero => grantRunAbility(hero, "rogue_bleed") },
   { classId: "rogue", requiresNode: "rogue_burn_unlock", abilityId: "rogue_burn", name: "Fire Powder", rarity: "Mythic", text: "Unlock Burn: 2.2s cooldown, 3.5s duration, stacks on one enemy, 7 + 0.55 per stage DPS", apply: hero => grantRunAbility(hero, "rogue_burn") },
-  { classId: "knight", requiresNode: "knight_heavy_attack_unlock", abilityId: "knight_heavy_attack", name: "Weighted Pommel", rarity: "Mythic", text: "Unlock Heavy Attack: 3s cooldown, deals 25% max HP damage", apply: hero => grantRunAbility(hero, "knight_heavy_attack") },
+  { classId: "knight", requiresNode: "knight_heavy_attack_unlock", abilityId: "knight_heavy_attack", name: "Weighted Pommel", rarity: "Mythic", text: "Unlock Heavy Attack: 3s cooldown, deals 15% max HP damage", apply: hero => grantRunAbility(hero, "knight_heavy_attack") },
   { classId: "knight", requiresNode: "knight_holy_sword_unlock", abilityId: "knight_holy_sword", name: "Blessed Oil", rarity: "Mythic", text: "Unlock Holy Sword: 4s cooldown, next 3 hits deal +50% damage", apply: hero => grantRunAbility(hero, "knight_holy_sword") },
   { classId: "knight", requiresNode: "knight_holy_shield_unlock", abilityId: "knight_holy_shield", name: "Sunlit Bulwark", rarity: "Mythic", text: "Unlock Holy Shield: 5s cooldown, +50% armor for next 2 enemy hits", apply: hero => grantRunAbility(hero, "knight_holy_shield") }
 ];
 
 const SHOP_ITEMS = [
-  { name: "Mercenary's Whetstone", rarity: "Common", text: "+15% hero damage", cost: 40, apply: hero => hero.damage *= 1.15 },
-  { name: "Swiftsteel Charm", rarity: "Common", text: "+15% attack speed", cost: 40, apply: hero => hero.attackSpeed *= 1.15 },
-  { name: "Apothecary Flask", rarity: "Common", text: "+15% max HP", cost: 40, apply: hero => multiplyMaxHp(hero, 1.15, false) },
-  { name: "Tempered Plates", rarity: "Common", text: "+20% armor", cost: 50, apply: hero => multiplyArmor(hero, 1.2) },
-  { name: "Keen-Eye Talisman", rarity: "Rare", text: "+15% crit chance", cost: 50, apply: hero => hero.crit += 0.1 },
-  { name: "Knight's Ration", rarity: "Common", text: "+6% max HP and +10 gold", cost: 35, apply: hero => { multiplyMaxHp(hero, 1.06, false); run.gold += 10; } },
-  { name: "Duelist's Oil", rarity: "Rare", text: "+15% damage and +5% crit chance", cost: 60, apply: hero => { hero.damage *= 1.1; hero.crit += 0.05; } },
-  { name: "Loaded Dice", rarity: "Rare", text: "+4 Luck", cost: 55, apply: hero => hero.luck = (hero.luck || 0) + 4 },
-  { requiresNode: "unlock_merchants", name: "Black Market Contract", rarity: "Rare", text: "+20% damage and +40 gold", cost: 80, apply: hero => { hero.damage *= 1.2; run.gold += 40; } },
-  { requiresNode: "unlock_merchants", name: "Relic Broker's Map", rarity: "Epic", text: "+6 Luck and +12% Essence earned", cost: 105, apply: hero => { hero.luck = (hero.luck || 0) + 6; hero.runEssenceMultiplier = (hero.runEssenceMultiplier || 0) + 0.12; } },
-  { name: "Spiked Greaves", rarity: "Rare", text: "+15% armor and +12% attack speed", cost: 65, apply: hero => { multiplyArmor(hero, 1.15); hero.attackSpeed *= 1.12; } },
-  { name: "Bloodletter Kit", rarity: "Epic", text: "+20% damage and +10% crit chance, -10% max HP", cost: 90, apply: hero => { hero.damage *= 1.2; hero.crit += 0.1; multiplyMaxHp(hero, 0.9, false); } },
-  { name: "Crown Insurance", rarity: "Epic", text: "+22% max HP and +2 HP regen", cost: 95, apply: hero => { multiplyMaxHp(hero, 1.22, false); hero.regen = (hero.regen || 0) + 2; } },
-  { name: "Merchant's Star Chart", rarity: "Epic", text: "+4 Luck and +12% max HP", cost: 85, apply: hero => { hero.luck = (hero.luck || 0) + 4; multiplyMaxHp(hero, 1.12, false); } },
-  { name: "Royal Armament", rarity: "Legendary", text: "A masterwork from the king's vault: +25% damage, +35% armor, +8% crit chance", cost: 130, apply: hero => { hero.damage *= 1.25; multiplyArmor(hero, 1.35); hero.crit += 0.08; } },
-  { name: "Fatebound Crown", rarity: "Legendary", text: "A crown that bends chance: +7 Luck and +25% attack speed", cost: 120, apply: hero => { hero.luck = (hero.luck || 0) + 7; hero.attackSpeed *= 1.25; } }
+  { name: "Mercenary's Whetstone", rarity: "Common", cost: 40, stats: { damage: 8 } },
+  { name: "Swiftsteel Charm", rarity: "Common", cost: 40, stats: { attackSpeed: 0.1 } },
+  { name: "Apothecary Flask", rarity: "Common", cost: 40, stats: { maxHp: 36 } },
+  { name: "Tempered Plates", rarity: "Common", cost: 50, stats: { armor: 3 } },
+  { name: "Keen-Eye Talisman", rarity: "Rare", cost: 50, stats: { critChance: 0.1 } },
+  { name: "Knight's Ration", rarity: "Common", cost: 35, stats: { maxHp: 20, regen: 1 } },
+  { name: "Duelist's Oil", rarity: "Rare", cost: 60, stats: { damage: 10, critChance: 0.05 } },
+  { name: "Loaded Dice", rarity: "Rare", cost: 55, stats: { luck: 4 } },
+  { requiresNode: "unlock_merchants", name: "Black Market Contract", rarity: "Rare", cost: 80, stats: { damage: 14, critChance: 0.06 } },
+  { requiresNode: "unlock_merchants", name: "Relic Broker's Map", rarity: "Epic", cost: 105, stats: { luck: 6, essenceMultiplier: 0.12 } },
+  { name: "Spiked Greaves", rarity: "Rare", cost: 65, stats: { armor: 3, attackSpeed: 0.1 } },
+  { name: "Bloodletter Kit", rarity: "Epic", cost: 90, stats: { damage: 16, critChance: 0.1, maxHp: -30 } },
+  { name: "Crown Insurance", rarity: "Epic", cost: 95, stats: { maxHp: 65, regen: 2 } },
+  { name: "Merchant's Star Chart", rarity: "Epic", cost: 85, stats: { luck: 4, maxHp: 36 } },
+  { name: "Royal Armament", rarity: "Legendary", cost: 130, stats: { damage: 20, armor: 6, critChance: 0.08 } },
+  { name: "Fatebound Crown", rarity: "Legendary", cost: 120, stats: { luck: 7, attackSpeed: 0.2 } }
 ];
 
 const RELICS = [
-  { id: "wolf_fang", name: "Wolf Fang", description: "+15% damage.", rarity: "Common", icon: "WF", effect: { type: "stat", stat: "damageMultiplier", value: 0.15 } },
-  { id: "plain_whetstone", name: "Plain Whetstone", description: "+15% damage.", rarity: "Common", icon: "PW", effect: { type: "stat", stat: "damageMultiplier", value: 0.15 } },
-  { id: "traveler_brooch", name: "Traveler Brooch", description: "+12% max HP.", rarity: "Common", icon: "TB", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.12 } },
-  { id: "quick_clasp", name: "Quick Clasp", description: "+15% attack speed.", rarity: "Common", icon: "QC", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.15 } },
-  { id: "iron_crown", name: "Iron Crown", description: "+20% armor.", rarity: "Common", icon: "IC", effect: { type: "stat", stat: "armorMultiplier", value: 0.2 } },
-  { id: "blood_chalice", name: "Blood Chalice", description: "+5 HP regen while in battle.", rarity: "Rare", icon: "BC", effect: { type: "stat", stat: "regen", value: 5 } },
-  { id: "duelist_charm", name: "Duelist Charm", description: "+25% damage.", rarity: "Rare", icon: "DC", effect: { type: "stat", stat: "damageMultiplier", value: 0.25 } },
-  { id: "lion_cloak", name: "Lion Cloak", description: "+24% max HP.", rarity: "Rare", icon: "LC", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.24 } },
-  { id: "silver_gear", name: "Silver Gear", description: "+22% attack speed.", rarity: "Rare", icon: "SG", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.22 } },
-  { id: "ember_ring", name: "Ember Ring", description: "Critical hits deal +75% damage.", rarity: "Rare", icon: "ER", effect: { type: "critBonus", value: 0.75 } },
-  { id: "war_drum", name: "War Drum", description: "+15% attack speed.", rarity: "Common", icon: "WD", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.15 } },
-  { id: "old_coin", name: "Old Coin", description: "Gain +30 gold after each battle.", rarity: "Common", icon: "OC", effect: { type: "afterBattleGold", value: 30 } },
-  { id: "clover_pin", name: "Clover Pin", description: "+3 Luck.", rarity: "Common", icon: "CP", effect: { type: "stat", stat: "luck", value: 3 } },
-  { id: "glass_dagger", name: "Glass Dagger", description: "+32% damage, -10% max HP.", rarity: "Rare", icon: "GD", effect: { type: "glassDagger", damageMultiplier: 0.32, maxHpMultiplier: -0.1 } },
-  { id: "guardian_seal", name: "Guardian Seal", description: "First enemy hit each battle deals 40% less damage.", rarity: "Rare", icon: "GS", effect: { type: "firstHitReduction", value: 0.4 } },
-  { id: "red_crown_splinter", requiresNode: "unlock_relics", name: "Red Crown Splinter", description: "+35% damage.", rarity: "Epic", icon: "RC", effect: { type: "stat", stat: "damageMultiplier", value: 0.35 } },
-  { id: "merchant_seal", requiresNode: "unlock_relics", name: "Merchant Seal", description: "Gain +50 gold after each battle.", rarity: "Rare", icon: "MS", effect: { type: "afterBattleGold", value: 50 } },
-  { id: "dawn_banner", requiresNode: "unlock_relics", name: "Dawn Banner", description: "Start each battle with +50 shield.", rarity: "Epic", icon: "DB", effect: { type: "stat", stat: "blockChance", value: 0, battleStartShield: 50 } },
-  { id: "scholars_rune", name: "Scholar's Rune", description: "+15% Essence earned.", rarity: "Rare", icon: "SR", effect: { type: "essenceMultiplier", value: 0.15 } },
-  { id: "oracle_lens", name: "Oracle Lens", description: "+6 Luck and +8% crit chance.", rarity: "Rare", icon: "OL", effect: { type: "stat", stat: "luck", value: 6, critChance: 0.08 } },
-  { id: "hunters_mark", name: "Hunter's Mark", description: "+30% damage.", rarity: "Epic", icon: "HM", effect: { type: "stat", stat: "damageMultiplier", value: 0.3 } },
-  { id: "executioners_file", name: "Executioner's File", description: "+40% damage.", rarity: "Epic", icon: "EF", effect: { type: "stat", stat: "damageMultiplier", value: 0.4 } },
-  { id: "giant_knot", name: "Giant Knot", description: "+35% max HP.", rarity: "Epic", icon: "GK", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.35 } },
-  { id: "storm_buckle", name: "Storm Buckle", description: "+32% attack speed.", rarity: "Epic", icon: "SB", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.32 } },
-  { id: "silver_spur", name: "Silver Spur", description: "+100 gold immediately.", rarity: "Common", icon: "SS", effect: { type: "gold", value: 100 } },
-  { id: "sun_amulet", name: "Sun Amulet", description: "+35% max HP.", rarity: "Epic", icon: "SA", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.35 } },
-  { id: "fate_deck", name: "Fate Deck", description: "+8 Luck.", rarity: "Epic", icon: "FD", effect: { type: "stat", stat: "luck", value: 8 } },
-  { id: "dragon_heart", name: "Dragon Heart", description: "A living ember beats in your chest. +45% max HP and +3 HP regen.", rarity: "Legendary", icon: "DH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.45, regen: 3 } },
-  { id: "sunforged_edge", name: "Sunforged Edge", description: "A royal killing edge. +50% damage.", rarity: "Legendary", icon: "SE", effect: { type: "stat", stat: "damageMultiplier", value: 0.5 } },
-  { id: "titan_heart", name: "Titan Heart", description: "A mountain's pulse. +55% max HP.", rarity: "Legendary", icon: "TH", effect: { type: "stat", stat: "maxHpMultiplier", value: 0.55 } },
-  { id: "hourglass_chain", name: "Hourglass Chain", description: "The second hand snaps forward. +55% attack speed.", rarity: "Legendary", icon: "HC", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.55 } },
-  { id: "starforged_blade", name: "Starforged Blade", description: "A weapon bright enough to cut fate. +55% damage.", rarity: "Legendary", icon: "SB", effect: { type: "stat", stat: "damageMultiplier", value: 0.55 } },
-  { id: "crown_of_chance", name: "Crown of Chance", description: "The crown smiles on impossible odds. +9 Luck and +15% Essence earned.", rarity: "Legendary", icon: "CC", effect: { type: "stat", stat: "luck", value: 9, essenceMultiplier: 0.15 } },
-  { id: "phoenix_ember", name: "Phoenix Ember", description: "A reborn flame drives your strikes. +40% attack speed and +12% crit chance.", rarity: "Legendary", icon: "PE", effect: { type: "stat", stat: "attackSpeedMultiplier", value: 0.4, critChance: 0.12 } },
-  { id: "blood_grail", name: "Blood Grail", description: "+8% life steal.", rarity: "Epic", icon: "BG", effect: { type: "stat", stat: "lifeSteal", value: 0.08 } },
-  { id: "tower_shield", classId: "knight", name: "Tower Shield", description: "+10% block chance.", rarity: "Rare", icon: "TS", effect: { type: "stat", stat: "blockChance", value: 0.1 } },
-  { id: "oathguard_emblem", classId: "knight", name: "Oathguard Emblem", description: "+16% block chance and +15% max HP.", rarity: "Epic", icon: "OE", effect: { type: "stat", stat: "blockChance", value: 0.16, maxHpMultiplier: 0.15 } },
-  { id: "kingwall_sigil", classId: "knight", name: "Kingwall Sigil", description: "A royal ward for standing firm. +22% block chance.", rarity: "Legendary", icon: "KS", effect: { type: "stat", stat: "blockChance", value: 0.22 } },
-  { id: "storm_capacitor", name: "Storm Capacitor", description: "Lightning special deals +35% damage.", rarity: "Epic", icon: "SC", requiresAbility: "wizard_lightning", effect: { type: "abilityStat", stat: "runLightningDamage", value: 0.35 } },
-  { id: "frost_core", name: "Frost Core", description: "Iceball special slows enemies by an extra 12%.", rarity: "Rare", icon: "FC", requiresAbility: "wizard_iceball", effect: { type: "abilityStat", stat: "runIceballSlow", value: 0.12 } },
-  { id: "trapwire_spool", name: "Trapwire Spool", description: "Trap special lasts +2.5s longer.", rarity: "Rare", icon: "TS", requiresAbility: "rogue_bleed", effect: { type: "abilityStat", stat: "runTrapDuration", value: 2.5 } },
-  { id: "holy_reliquary", name: "Holy Reliquary", description: "Holy Sword and Holy Shield cooldowns are 20% shorter.", rarity: "Epic", icon: "HR", requiresAnyAbility: ["knight_holy_sword", "knight_holy_shield"], effect: { type: "abilityStat", stat: "runHolyCooldownReduction", value: 0.2 } },
-  { id: "campaign_heart", name: "Campaign Heart", description: "Gain +5% max HP after each stage defeated.", rarity: "Legendary", icon: "CH", unlockRequirement: { type: "bossKills", count: 10 }, effect: { type: "stageGrowth", stat: "maxHpMultiplier", value: 0.05 } },
-  { id: "campaign_blade", name: "Campaign Blade", description: "Gain +5% damage after each stage defeated.", rarity: "Legendary", icon: "CB", unlockRequirement: { type: "enemyKills", enemyId: "fallenKing", count: 4 }, effect: { type: "stageGrowth", stat: "damageMultiplier", value: 0.05 } },
-  { id: "campaign_spurs", name: "Campaign Spurs", description: "Gain +3% attack speed after each stage defeated.", rarity: "Legendary", icon: "CS", unlockRequirement: { type: "enemyKills", enemyId: "wolf", count: 50 }, effect: { type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.03 } },
-  { id: "campaign_plate", name: "Campaign Plate", description: "Gain +5% armor after each stage defeated.", rarity: "Legendary", icon: "CP", unlockRequirement: { type: "enemyKills", enemyId: "armored_knight", count: 30 }, effect: { type: "stageGrowth", stat: "armorMultiplier", value: 0.05 } },
-  { id: "moonlit_armor", name: "Moonlit Armor", description: "+35% armor and +15% max HP.", rarity: "Epic", icon: "MA", effect: { type: "stat", stat: "armorMultiplier", value: 0.35, maxHpMultiplier: 0.15 } },
-  { id: "goblin_lantern", name: "Goblin Lantern", description: "+18 damage.", rarity: "Epic", icon: "GL", unlockRequirement: { type: "enemyKills", enemyId: "goblin", count: 35 }, effect: { type: "stat", stat: "damage", value: 18 } },
-  { id: "wolfhide_lace", name: "Wolfhide Lace", description: "+0.22 attack speed.", rarity: "Epic", icon: "WL", unlockRequirement: { type: "enemyKills", enemyId: "wolf", count: 35 }, effect: { type: "stat", stat: "attackSpeed", value: 0.22 } },
-  { id: "bandit_map", name: "Bandit Map", description: "+45 gold after each battle.", rarity: "Epic", icon: "BM", unlockRequirement: { type: "enemyKills", enemyId: "bandit", count: 30 }, effect: { type: "afterBattleGold", value: 45 } },
-  { id: "wraith_glass", name: "Wraith Glass", description: "+7 Luck and +5% crit chance.", rarity: "Epic", icon: "WG", unlockRequirement: { type: "enemyKills", enemyId: "wraith", count: 20 }, effect: { type: "stat", stat: "luck", value: 7, critChance: 0.05 } },
-  { id: "raider_spaulder", name: "Raider Spaulder", description: "+6 armor.", rarity: "Epic", icon: "RS", unlockRequirement: { type: "enemyKills", enemyId: "raider", count: 25 }, effect: { type: "stat", stat: "armor", value: 6 } },
-  { id: "trollblood_vial", name: "Trollblood Vial", description: "+70 max HP and +2 regen.", rarity: "Epic", icon: "TV", unlockRequirement: { type: "enemyKills", enemyId: "troll", count: 15 }, effect: { type: "stat", stat: "maxHp", value: 70, regen: 2 } },
-  { id: "cultist_candle", name: "Cultist Candle", description: "+10 ability damage.", rarity: "Epic", icon: "CC", unlockRequirement: { type: "enemyKills", enemyId: "cultist", count: 25 }, effect: { type: "abilityStat", stat: "runAbilityFlatDamage", value: 10 } },
-  { id: "crown_hound_collar", name: "Crown Hound Collar", description: "+0.2 attack speed and +4 armor.", rarity: "Epic", icon: "CH", unlockRequirement: { type: "enemyKills", enemyId: "crown_hound", count: 15 }, effect: { type: "stat", stat: "attackSpeed", value: 0.2, armor: 4 } },
-  { id: "fallen_knight_banner", name: "Fallen Knight Banner", description: "+8 armor and +20 shield.", rarity: "Legendary", icon: "FB", unlockRequirement: { type: "enemyKills", enemyId: "fallen_knight", count: 35 }, effect: { type: "stat", stat: "armor", value: 8, battleStartShield: 20 } },
-  { id: "ashen_regent_coal", name: "Ashen Regent Coal", description: "+32 damage.", rarity: "Legendary", icon: "AR", unlockRequirement: { type: "enemyKills", enemyId: "ashenRegent", count: 3 }, effect: { type: "stat", stat: "damage", value: 32 } },
-  { id: "eternal_crown_shard", name: "Eternal Crown Shard", description: "+5% damage after each stage defeated.", rarity: "Legendary", icon: "EC", unlockRequirement: { type: "finalBossKills", count: 1 }, effect: { type: "stageGrowth", stat: "damageMultiplier", value: 0.05 } },
-  { id: "kingbreaker_plate", name: "Kingbreaker Plate", description: "+9 armor and +95 max HP.", rarity: "Legendary", icon: "KP", unlockRequirement: { type: "bossKills", count: 15 }, effect: { type: "stat", stat: "armor", value: 9, maxHp: 95 } }
+  { id: "wolf_fang", name: "Wolf Fang", rarity: "Common", icon: "WF", stats: { damage: 15 } },
+  { id: "plain_whetstone", name: "Plain Whetstone", rarity: "Common", icon: "PW", stats: { damage: 12 } },
+  { id: "traveler_brooch", name: "Traveler Brooch", rarity: "Common", icon: "TB", stats: { maxHp: 60 } },
+  { id: "quick_clasp", name: "Quick Clasp", rarity: "Common", icon: "QC", stats: { attackSpeed: 0.12 } },
+  { id: "iron_crown", name: "Iron Crown", rarity: "Common", icon: "IC", stats: { armor: 3 } },
+  { id: "war_drum", name: "War Drum", rarity: "Common", icon: "WD", stats: { attackSpeed: 0.14 } },
+  { id: "old_coin", name: "Old Coin", rarity: "Common", icon: "OC", stats: { afterBattleGold: 30 } },
+  { id: "clover_pin", name: "Clover Pin", rarity: "Common", icon: "CP", stats: { luck: 3 } },
+  { id: "silver_spur", name: "Silver Spur", rarity: "Common", icon: "SS", stats: { gold: 120 } },
+  { id: "blood_chalice", name: "Blood Chalice", rarity: "Rare", icon: "BC", stats: { regen: 6 } },
+  { id: "duelist_charm", name: "Duelist Charm", rarity: "Rare", icon: "DC", stats: { damage: 22 } },
+  { id: "lion_cloak", name: "Lion Cloak", rarity: "Rare", icon: "LC", stats: { maxHp: 90 } },
+  { id: "silver_gear", name: "Silver Gear", rarity: "Rare", icon: "SG", stats: { attackSpeed: 0.2 } },
+  { id: "ember_ring", name: "Ember Ring", rarity: "Rare", icon: "ER", stats: { critDamage: 0.75 } },
+  { id: "glass_dagger", name: "Glass Dagger", rarity: "Rare", icon: "GD", stats: { damage: 30, maxHp: -38 } },
+  { id: "guardian_seal", name: "Guardian Seal", rarity: "Rare", icon: "GS", stats: { firstHitReduction: 0.5 } },
+  { id: "merchant_seal", requiresNode: "unlock_relics", name: "Merchant Seal", rarity: "Rare", icon: "MS", stats: { afterBattleGold: 75 } },
+  { id: "coin_edge", name: "Coin Edge", rarity: "Rare", icon: "CE", stats: { goldDamageMultiplier: 0.00008 } },
+  { id: "scholars_rune", name: "Scholar's Rune", rarity: "Rare", icon: "SR", stats: { essenceMultiplier: 0.20 } },
+  { id: "oracle_lens", name: "Oracle Lens", rarity: "Rare", icon: "OL", stats: { luck: 6, critChance: 0.12 } },
+  { id: "tower_shield", classId: "knight", name: "Tower Shield", rarity: "Rare", icon: "TS", stats: { blockChance: 0.12 } },
+  { id: "frost_core", name: "Frost Core", rarity: "Rare", icon: "FC", requiresAbility: "wizard_iceball", stats: { abilityStat: "runIceballSlow", abilityValue: 0.15 } },
+  { id: "trapwire_spool", name: "Trapwire Spool", rarity: "Rare", icon: "TS", requiresAbility: "rogue_bleed", stats: { abilityStat: "runTrapDuration", abilityValue: 2.5 } },
+  { id: "red_crown_splinter", requiresNode: "unlock_relics", name: "Red Crown Splinter", rarity: "Epic", icon: "RC", stats: { damage: 45 } },
+  { id: "dawn_banner", requiresNode: "unlock_relics", name: "Dawn Banner", rarity: "Epic", icon: "DB", stats: { shield: 120 } },
+  { id: "gilded_edge", name: "Gilded Edge", rarity: "Epic", icon: "GE", stats: { goldDamageMultiplier: 0.00010 } },
+  { id: "hunters_mark", name: "Hunter's Mark", rarity: "Epic", icon: "HM", stats: { damage: 65 } },
+  { id: "executioners_file", name: "Executioner's File", rarity: "Epic", icon: "EF", stats: { damage: 72 } },
+  { id: "giant_knot", name: "Giant Knot", rarity: "Epic", icon: "GK", stats: { maxHp: 180 } },
+  { id: "storm_buckle", name: "Storm Buckle", rarity: "Epic", icon: "SB", stats: { attackSpeed: 0.26 } },
+  { id: "sun_amulet", name: "Sun Amulet", rarity: "Epic", icon: "SA", stats: { maxHp: 195 } },
+  { id: "fate_deck", name: "Fate Deck", rarity: "Epic", icon: "FD", stats: { luck: 10 } },
+  { id: "blood_grail", name: "Blood Grail", rarity: "Epic", icon: "BG", stats: { lifeSteal: 0.08 } },
+  { id: "oathguard_emblem", classId: "knight", name: "Oathguard Emblem", rarity: "Epic", icon: "OE", stats: { blockChance: 0.16, maxHp: 105 } },
+  { id: "storm_capacitor", name: "Storm Capacitor", rarity: "Epic", icon: "SC", requiresAbility: "wizard_lightning", stats: { abilityStat: "runLightningDamage", abilityValue: 0.4 } },
+  { id: "holy_reliquary", name: "Holy Reliquary", rarity: "Epic", icon: "HR", requiresAnyAbility: ["knight_holy_sword", "knight_holy_shield"], stats: { abilityStat: "runHolyCooldownReduction", abilityValue: 0.3 } },
+  { id: "moonlit_armor", name: "Moonlit Armor", rarity: "Epic", icon: "MA", stats: { armor: 7, maxHp: 80 } },
+  { id: "goblin_lantern", name: "Goblin Lantern", rarity: "Epic", icon: "GL", unlockRequirement: { type: "enemyKills", enemyId: "goblin", count: 75 }, stats: { damage: 45 } },
+  { id: "wolfhide_lace", name: "Wolfhide Lace", rarity: "Epic", icon: "WL", unlockRequirement: { type: "enemyKills", enemyId: "wolf", count: 75 }, stats: { attackSpeed: 0.3 } },
+  { id: "bandit_map", name: "Bandit Map", rarity: "Epic", icon: "BM", unlockRequirement: { type: "enemyKills", enemyId: "bandit", count: 75 }, stats: { afterBattleGold: 100 } },
+  { id: "wraith_glass", name: "Wraith Glass", rarity: "Epic", icon: "WG", unlockRequirement: { type: "enemyKills", enemyId: "wraith", count: 75 }, stats: { luck: 7, critChance: 0.15 } },
+  { id: "raider_spaulder", name: "Raider Spaulder", rarity: "Epic", icon: "RS", unlockRequirement: { type: "enemyKills", enemyId: "raider", count: 75 }, stats: { armor: 13 } },
+  { id: "trollblood_vial", name: "Trollblood Vial", rarity: "Epic", icon: "TV", unlockRequirement: { type: "enemyKills", enemyId: "troll", count: 75 }, stats: { maxHp: 170, regen: 8 } },
+  { id: "cultist_candle", name: "Cultist Candle", rarity: "Epic", icon: "CC", unlockRequirement: { type: "enemyKills", enemyId: "cultist", count: 75 }, stats: { abilityDamage: 15 } },
+  { id: "crown_hound_collar", name: "Crown Hound Collar", rarity: "Epic", icon: "CH", unlockRequirement: { type: "enemyKills", enemyId: "crown_hound", count: 75 }, stats: { attackSpeed: 0.4, armor: 6 } },
+  { id: "dragon_heart", name: "Dragon Heart", rarity: "Legendary", icon: "DH", stats: { maxHp: 300, regen: 10 } },
+  { id: "sunforged_edge", name: "Sunforged Edge", rarity: "Legendary", icon: "SE", stats: { damage: 90} },
+  { id: "titan_heart", name: "Titan Heart", rarity: "Legendary", icon: "TH", stats: { maxHp: 400 } },
+  { id: "hourglass_chain", name: "Hourglass Chain", rarity: "Legendary", icon: "HC", stats: { attackSpeed: 0.6 } },
+  { id: "starforged_blade", name: "Starforged Blade", rarity: "Legendary", icon: "SB", stats: { damage: 110 } },
+  { id: "crown_of_chance", name: "Crown of Chance", rarity: "Legendary", icon: "CC", stats: { luck: 12, essenceMultiplier: 0.20 } },
+  { id: "phoenix_ember", name: "Phoenix Ember", rarity: "Legendary", icon: "PE", stats: { attackSpeed: 0.36, critChance: 0.20 } },
+  { id: "kingwall_sigil", classId: "knight", name: "Kingwall Sigil", rarity: "Legendary", icon: "KS", stats: { blockChance: 0.25 } },
+  { id: "campaign_heart", name: "Campaign Heart", rarity: "Legendary", icon: "CH", unlockRequirement: { type: "bossKills", count: 10 }, effects: [{ type: "stageGrowth", stat: "maxHpMultiplier", value: 0.06 }] },
+  { id: "campaign_blade", name: "Campaign Blade", rarity: "Legendary", icon: "CB", unlockRequirement: { type: "enemyKills", enemyId: "fallenKing", count: 4 }, effects: [{ type: "stageGrowth", stat: "damageMultiplier", value: 0.06 }] },
+  { id: "campaign_spurs", name: "Campaign Spurs", rarity: "Legendary", icon: "CS", unlockRequirement: { type: "enemyKills", enemyId: "wolf", count: 100 }, effects: [{ type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.06 }] },
+  { id: "campaign_plate", name: "Campaign Plate", rarity: "Legendary", icon: "CP", unlockRequirement: { type: "enemyKills", enemyId: "armored_knight", count: 100 }, effects: [{ type: "stageGrowth", stat: "armorMultiplier", value: 0.06 }] },
+  { id: "fallen_knight_banner", name: "Fallen Knight Banner", rarity: "Legendary", icon: "FB", unlockRequirement: { type: "enemyKills", enemyId: "fallen_knight", count: 100 }, stats: { armor: 8, shield: 20 } },
+  { id: "ashen_regent_coal", name: "Ashen Regent Coal", rarity: "Legendary", icon: "AR", unlockRequirement: { type: "enemyKills", enemyId: "ashenRegent", count: 15 }, stats: { damage: 133 } },
+  { id: "eternal_crown_shard", name: "Eternal Crown Shard", rarity: "Legendary", icon: "EC", unlockRequirement: { type: "finalBossKills", count: 3 }, effects: [{ type: "stageGrowth", stat: "damageMultiplier", value: 0.06 }] },
+  { id: "kingbreaker_plate", name: "Kingbreaker Plate", rarity: "Legendary", icon: "KP", unlockRequirement: { type: "bossKills", count: 15 }, stats: { armor: 12, maxHp: 235 } }
 ];
 
 const DIRECT_STAT_KEYS = [
   "damage", "maxHp", "armor", "attackSpeed", "regen", "luck", "gold", "shield", "blockChance", "critChance",
   "critDamage", "lifeSteal", "essenceMultiplier", "afterBattleGold", "firstHitReduction", "abilityDamage",
+  "goldDamageMultiplier",
   "retaliateBlock", "hitRetaliateChance", "lowHpDamage", "bleedMaxHpPercent", "bleedAttackSpeed", "burnChance",
   "burnSpreadChance", "burnMaxHpPercent", "poisonChance", "poisonAttackDamage", "evasion", "evasionCounter",
   "executeDamage", "executeThreshold", "killAttackSpeed", "killAttackSpeedMax", "slowChance", "slowValue",
@@ -1139,10 +1151,6 @@ function applyCharacterUnlockRequirements() {
     "Battle Renewal": { type: "heroMaxHp", classId: "knight", count: 2500 },
     "Storm Tempo": { type: "heroEnemyKills", classId: "rogue", count: 150 },
     "Fortune's Edge": { type: "heroEnemyKills", classId: "rogue", count: 125 },
-    "Kingslayer Edge": { type: "heroEnemyKills", classId: "knight", count: 250 },
-    "Titan Plate": { type: "heroMaxHp", classId: "knight", count: 5000 },
-    "Colossus Heart": { type: "heroMaxHp", classId: "knight", count: 5000 },
-    "Chrono Spurs": { type: "heroEnemyKills", classId: "rogue", count: 250 },
     "Sovereign Star": { type: "heroEnemyKills", classId: "wizard", count: 200 },
     "Living Aegis": { type: "heroMaxHp", classId: "knight", count: 4500 }
   };
@@ -1171,122 +1179,84 @@ const CLASS_TALENT_STAGES = [5, 15, 25];
 
 const CLASS_TALENTS = {
   knight: [
-    { id: "knight_shield_wall", classId: "knight", name: "Shield Wall", description: "Gain a 100 HP shield at the start of each battle.", icon: "SW", tier: 1, effect: { type: "battleStartShield", value: 100 } },
-    { id: "knight_retaliation", classId: "knight", name: "Retaliation", description: "When blocking, deal 35% of blocked damage back.", icon: "RT", tier: 1, effect: { type: "retaliateBlock", value: 0.35 } },
-    { id: "knight_heavy_armor", classId: "knight", name: "Heavy Armor", description: "+45% armor, -10% attack speed.", icon: "HA", tier: 2, effect: { type: "stat", armorMultiplier: 0.45, attackSpeedMultiplier: -0.1 } },
-    { id: "knight_royal_guard", classId: "knight", name: "Royal Guard", description: "+20% armor.", icon: "RG", tier: 2, effect: { armorMultiplier: 0.2 } },
-    { id: "knight_unshaken", classId: "knight", name: "Unshaken", description: "+25% armor and +3 HP regen.", icon: "US", tier: 3, effect: { type: "stat", armorMultiplier: 0.25, regen: 3 } },
-    { id: "knight_last_stand", classId: "knight", name: "Last Stand", description: "Deal 30% more damage while below 35% HP.", icon: "LS", tier: 3, effect: { type: "lowHpDamage", threshold: 0.35, value: 0.3 } }
+    { id: "knight_shield_wall", classId: "knight", name: "Shield Wall", icon: "SW", tier: 1, stats: { shield: 40 } },
+    { id: "knight_retaliation", classId: "knight", name: "Retaliation", icon: "RT", tier: 1, stats: { blockChance: 0.04 } },
+    { id: "knight_heavy_armor", classId: "knight", name: "Heavy Armor", icon: "HA", tier: 2, stats: { armor: 4 } },
+    { id: "knight_royal_guard", classId: "knight", name: "Royal Guard", icon: "RG", tier: 2, stats: { armor: 4, shield: 24 } },
+    { id: "knight_unshaken", classId: "knight", name: "Unshaken", icon: "US", tier: 3, stats: { maxHp: 80, regen: 2 } },
+    { id: "knight_last_stand", classId: "knight", name: "Last Stand", icon: "LS", tier: 3, stats: { maxHp: 60, damage: 8 } }
   ],
   rogue: [
-    { id: "rogue_deep_cuts", classId: "rogue", name: "Deep Cuts", description: "Rogue bleed gains +0.75% max HP damage per second.", icon: "DC", tier: 1, effect: { type: "bleedMaxHpPercent", value: 0.0075 } },
-    { id: "rogue_venom_blade", classId: "rogue", name: "Venom Blade", description: "Attacks have a 22% chance to poison for 4 seconds. Poison scales with stage.", icon: "VB", tier: 1, effect: { type: "poisonChance", chance: 0.22, damage: 4, duration: 4 } },
-    { id: "rogue_backstab", classId: "rogue", name: "Shadow Backstab", description: "Critical hits deal 40% more damage.", icon: "SB", tier: 2, effect: { type: "critDamage", value: 0.4 } },
-    { id: "rogue_evasion", classId: "rogue", name: "Evasion", description: "Gain a 15% chance to avoid enemy attacks.", icon: "EV", tier: 2, effect: { type: "evasion", chance: 0.15 } },
-    { id: "rogue_momentum", classId: "rogue", name: "Momentum", description: "Gain 10% attack speed after kills, up to 30% per battle.", icon: "MO", tier: 3, effect: { type: "killAttackSpeed", value: 0.1, max: 0.3 } },
-    { id: "rogue_executioner", classId: "rogue", name: "Executioner", description: "Deal 35% more damage to enemies below 40% HP.", icon: "EX", tier: 3, effect: { type: "executeDamage", threshold: 0.4, value: 0.35 } }
+    { id: "rogue_deep_cuts", classId: "rogue", name: "Deep Cuts", icon: "DC", tier: 1, stats: { bleedMaxHpPercent: 0.004 } },
+    { id: "rogue_venom_blade", classId: "rogue", name: "Venom Blade", icon: "VB", tier: 1, stats: { poisonAttackDamage: 4 } },
+    { id: "rogue_backstab", classId: "rogue", name: "Shadow Backstab", icon: "SB", tier: 2, stats: { critDamage: 0.24 } },
+    { id: "rogue_evasion", classId: "rogue", name: "Evasion", icon: "EV", tier: 2, stats: { evasion: 0.06 } },
+    { id: "rogue_momentum", classId: "rogue", name: "Momentum", icon: "MO", tier: 3, stats: { attackSpeed: 0.12 } },
+    { id: "rogue_executioner", classId: "rogue", name: "Executioner", icon: "EX", tier: 3, stats: { damage: 10, critChance: 0.06 } }
   ],
   wizard: [
-    { id: "wizard_wildfire_spark", classId: "wizard", name: "Wildfire Spark", description: "Attacks gain +10% burn chance. Burn has a 35% chance to spread to another enemy.", icon: "WS", tier: 1, effect: { type: "burnSpread", chance: 0.35, igniteChance: 0.1 } },
-    { id: "wizard_arcane_ward", classId: "wizard", name: "Arcane Ward", description: "Gain an 20 HP shield when splash magic triggers.", icon: "AW", tier: 1, effect: { type: "splashShield", value: 20 } },
-    { id: "wizard_frostbite_hex", classId: "wizard", name: "Frostbite Hex", description: "Attacks have an 20% chance to slow enemy attacks by 24% for 3s.", icon: "FH", tier: 2, effect: { type: "slowChance", chance: 0.2, value: 0.24, duration: 3 } },
-    { id: "wizard_mana_surge", classId: "wizard", name: "Mana Surge", description: "Every third attack deals +40% damage.", icon: "MS", tier: 2, effect: { type: "thirdAttackBonus", value: 0.4 } },
-    { id: "wizard_runic_focus", classId: "wizard", name: "Runic Focus", description: "+20% damage, -10% max HP.", icon: "RF", tier: 3, effect: { type: "stat", damageMultiplier: 0.2, maxHpMultiplier: -0.1 } },
-    { id: "wizard_meteor_spark", classId: "wizard", name: "Meteor Spark", description: "Attacks have a 25% chance to hit all enemies for 50% damage.", icon: "MT", tier: 3, effect: { type: "meteorChance", chance: 0.25, damageMultiplier: 0.5 } }
+    { id: "wizard_wildfire_spark", classId: "wizard", name: "Wildfire Spark", icon: "WS", tier: 1, stats: { burnChance: 0.08 } },
+    { id: "wizard_arcane_ward", classId: "wizard", name: "Arcane Ward", icon: "AW", tier: 1, stats: { shield: 32 } },
+    { id: "wizard_frostbite_hex", classId: "wizard", name: "Frostbite Hex", icon: "FH", tier: 2, stats: { slowChance: 0.08, slowValue: 0.08 } },
+    { id: "wizard_mana_surge", classId: "wizard", name: "Mana Surge", icon: "MS", tier: 2, stats: { abilityDamage: 8 } },
+    { id: "wizard_runic_focus", classId: "wizard", name: "Runic Focus", icon: "RF", tier: 3, stats: { splashDamageMultiplier: 0.12 } },
+    { id: "wizard_meteor_spark", classId: "wizard", name: "Meteor Spark", icon: "MT", tier: 3, stats: { damage: 12, abilityDamage: 6 } }
   ]
 };
 
 rebalanceClassTalents();
 
 function rebalanceRunItems() {
-  REWARDS.forEach(rebalanceRunUpgrade);
-  SHOP_ITEMS.forEach(rebalanceShopUpgrade);
-  RELICS.forEach(rebalanceRelic);
+  REWARDS.forEach(configureRunUpgrade);
+  SHOP_ITEMS.forEach(configureShopUpgrade);
+  RELICS.forEach(configureRelic);
 }
 
-function rebalanceRunUpgrade(upgrade) {
+function configureRunUpgrade(upgrade) {
   if (upgrade.abilityId || upgrade.rarity === "Mythic") return;
-  if (upgrade.effect?.type === "stageGrowth") {
-    upgrade.effects = [{ type: "stageGrowth", stat: upgrade.effect.stat, value: upgrade.effect.value }];
-    upgrade.text = formatItemEffects(upgrade.effects);
-    upgrade.apply = hero => applyItemEffects(hero, upgrade.effects);
-    return;
-  }
-  const directStats = getDirectStatBonus(upgrade);
-  const growth = upgrade.growth || getRarityRoundGrowth();
-  const stats = directStats || getFlatUpgradeBonus(upgrade);
-  upgrade.effects = createItemEffects(stats, growth, { normalize: !directStats });
-  upgrade.text = formatItemEffects(upgrade.effects);
-  upgrade.apply = hero => applyItemEffects(hero, upgrade.effects);
+  configureExplicitItemEffects(upgrade, "text");
 }
 
-function rebalanceShopUpgrade(item) {
-  const directStats = getDirectStatBonus(item);
-  const stats = directStats || getFlatUpgradeBonus(item, 0.8);
-  item.effects = createItemEffects(stats, item.growth || null, { normalize: !directStats });
-  item.text = formatItemEffects(item.effects);
-  item.apply = hero => applyItemEffects(hero, item.effects);
+function configureShopUpgrade(item) {
+  configureExplicitItemEffects(item, "text");
 }
 
-function rebalanceRelic(relic) {
-  const effect = relic.effect || {};
-  if (effect.type === "stageGrowth") {
-    if (relic.rarity === "Legendary") {
-      effect.value = 0.06;
-      relic.description = `Gain +6% ${formatGrowthStat(effect.stat)} after each stage defeated.`;
+function configureRelic(relic) {
+  configureExplicitItemEffects(relic, "description");
+}
+
+function configureExplicitItemEffects(item, displayKey) {
+  if (!item || item.effects) {
+    if (item?.effects?.length) {
+      item[displayKey] = formatItemEffects(item.effects);
+      item.apply = hero => applyItemEffects(hero, item.effects);
     }
-    relic.effects = [{ type: "stageGrowth", stat: effect.stat, value: effect.value }];
     return;
   }
-  const growth = getRarityRoundGrowth(relic.rarity);
-  const flat = getFlatRelicBonus(relic);
-  relic.effects = createItemEffects(flat, growth);
-  relic.description = formatItemEffects(relic.effects);
-  relic.effect = { type: "flatBundle", flat, growth };
+  if (item.effect?.type === "stageGrowth") {
+    item.effects = [{ type: "stageGrowth", stat: item.effect.stat, value: item.effect.value }];
+  } else {
+    const stats = getDirectStatBonus(item);
+    if (!stats) return;
+    item.effects = createItemEffects(stats, item.growth || null, { normalize: false });
+  }
+  item[displayKey] = formatItemEffects(item.effects);
+  item.apply = hero => applyItemEffects(hero, item.effects);
 }
 
 function rebalanceClassTalents() {
   Object.values(CLASS_TALENTS).flat().forEach(talent => {
-    const tuned = getTailoredTalentConfig(talent);
-    if (!tuned) return;
-    talent.description = tuned.description;
-    talent.effects = createItemEffects(tuned.flat || {}, tuned.growth || null);
-    talent.effect = { type: "flatBundle", flat: tuned.flat || {}, growth: tuned.growth || null, ...tuned.effect };
+    const stats = getDirectStatBonus(talent);
+    if (!stats) return;
+    talent.effects = createItemEffects(stats, talent.growth || null, { normalize: false });
+    talent.description = formatItemEffects(talent.effects);
+    talent.effect = { type: "flatBundle", flat: stats, growth: talent.growth || null };
   });
-}
-
-function getTailoredTalentConfig(talent) {
-  return ({
-    knight_shield_wall: { description: "A simple defensive Knight talent focused on starting shields.", flat: { shield: 40 } },
-    knight_retaliation: { description: "A simple defensive Knight talent focused on blocking more often.", flat: { blockChance: 0.04 } },
-    knight_heavy_armor: { description: "A simple defensive Knight talent focused on armor.", flat: { armor: 4 } },
-    knight_royal_guard: { description: "A simple defensive Knight talent focused on armor and shields.", flat: { armor: 4, shield: 24 } },
-    knight_unshaken: { description: "A simple defensive Knight talent focused on health and recovery.", flat: { maxHp: 80, regen: 2 } },
-    knight_last_stand: { description: "A simple defensive Knight talent focused on staying power and damage.", flat: { maxHp: 60, damage: 8 } },
-
-    rogue_deep_cuts: { description: "A simple Rogue talent focused on stronger bleed.", flat: { bleedMaxHpPercent: 0.004 } },
-    rogue_venom_blade: { description: "A simple Rogue talent focused on poison damage.", flat: { poisonAttackDamage: 4 } },
-    rogue_backstab: { description: "A simple Rogue talent focused on critical damage.", flat: { critDamage: 0.24 } },
-    rogue_evasion: { description: "A simple Rogue talent focused on avoiding hits.", flat: { evasion: 0.06 } },
-    rogue_momentum: { description: "A simple Rogue talent focused on attacking faster.", flat: { attackSpeed: 0.12 } },
-    rogue_executioner: { description: "A simple Rogue talent focused on finishing enemies.", flat: { damage: 10, critChance: 0.06 } },
-
-    wizard_wildfire_spark: { description: "A simple Wizard talent focused on burn chance.", flat: { burnChance: 0.08 } },
-    wizard_arcane_ward: { description: "A simple Wizard talent focused on magical shielding.", flat: { shield: 32 } },
-    wizard_frostbite_hex: { description: "A simple Wizard talent focused on slowing enemies.", flat: { slowChance: 0.08, slowValue: 0.08 } },
-    wizard_mana_surge: { description: "A simple Wizard talent focused on spell damage.", flat: { abilityDamage: 8 } },
-    wizard_runic_focus: { description: "A simple Wizard talent focused on splash damage.", flat: { splashDamageMultiplier: 0.12 } },
-    wizard_meteor_spark: { description: "A simple Wizard talent focused on raw magic damage.", flat: { damage: 12, abilityDamage: 6 } }
-  })[talent.id];
-}
-
-function getRarityRoundGrowth() {
-  return null;
 }
 
 function getDirectStatBonus(item) {
   if (!item || typeof item !== "object") return null;
-  const stats = {};
+  const stats = { ...(item.stats || {}) };
   DIRECT_STAT_KEYS.forEach(key => {
     if (item[key] !== undefined && item[key] !== null && item[key] !== 0) stats[key] = item[key];
   });
@@ -1295,49 +1265,6 @@ function getDirectStatBonus(item) {
     stats.abilityValue = item.abilityValue;
   }
   return Object.keys(stats).length ? stats : null;
-}
-
-function getFlatUpgradeBonus(item, scale = 1) {
-  const text = `${item.name || ""}`.toLowerCase();
-  const rarityScale = ({ Common: 1, Rare: 1.45, Epic: 1.75, Legendary: 2.25 })[item.rarity] || 1;
-  const value = stat => normalizeGeneratedStatValue(stat, (({ damage: 6, maxHp: 28, armor: 2, gold: 24, shield: 16, regen: 2, luck: 2, attackSpeed: 0.08 })[stat] || 2) * rarityScale * scale);
-  if (/glass canon/.test(text)) return { damage: value("damage"), maxHp: -Math.round(value("maxHp") * 0.35) };
-  if (/risky footwork/.test(text)) return { attackSpeed: value("attackSpeed"), armor: -Math.max(1, Math.round(value("armor") * 0.75)) };
-  if (/life steal|leech|vampiric/.test(text)) return { lifeSteal: item.rarity === "Epic" ? 0.05 : 0.03, damage: /training/.test(text) ? value("damage") : 0 };
-  if (/gold|purse|gambit|compass|star/.test(text)) return { gold: value("gold") };
-  if (/hp|health|bread|supper|heart|tonic|medic|ration|vitality|colossus|insurance/.test(text)) return { maxHp: value("maxHp"), regen: /regen|renewal|insurance|aegis/.test(text) ? value("regen") : 0 };
-  if (/armor|plate|skin|buckler|bastion|guard|shield/.test(text)) return { armor: value("armor"), maxHp: /fitting|bastion|aegis/.test(text) ? Math.round(value("maxHp") * 0.5) : 0 };
-  if (/speed|rhythm|buckle|reflex|spurs|tempo|quick/.test(text)) return { attackSpeed: value("attackSpeed") };
-  if (/luck|dice|charm|fortune|fate|star/.test(text)) return { luck: value("luck"), critChance: 0.02 };
-  if (/crit|eye|edge|blade|oil|canon|training|greatblade|kingslayer|whetstone/.test(text)) return { damage: value("damage"), critChance: /crit|eye|edge|kingslayer/.test(text) ? 0.04 : 0 };
-  if (/block/.test(text)) return { blockChance: item.rarity === "Rare" ? 0.04 : 0.03 };
-  if (/bleed/.test(text)) return { bleedMaxHpPercent: item.rarity === "Rare" ? 0.0035 : 0.002 };
-  if (/burn|poison|toxic|inferno/.test(text)) return { abilityDamage: Math.round(value("damage") * 0.8) };
-  return { damage: value("damage") };
-}
-
-function getFlatRelicBonus(relic) {
-  const effect = relic.effect || {};
-  const rarityScale = ({ Common: 1.1, Rare: 1.65, Epic: 2.05, Legendary: 2.55 })[relic.rarity] || 1;
-  const nameText = `${relic.name || ""} ${relic.description || ""}`.toLowerCase();
-  if (effect.type === "afterBattleGold") return { afterBattleGold: effect.value };
-  if (effect.type === "gold") return { gold: effect.value };
-  if (effect.type === "essenceMultiplier") return { essenceMultiplier: effect.value };
-  if (effect.type === "abilityStat") return { abilityStat: effect.stat, abilityValue: effect.value };
-  if (effect.type === "critBonus") return { critDamage: effect.value };
-  if (effect.type === "firstHitReduction") return { firstHitReduction: effect.value };
-  if (effect.type === "glassDagger") return { damage: roundEven(9 * rarityScale), maxHp: -18 };
-  if (/hp|heart|cloak|knot|amulet|brooch/.test(nameText)) return { maxHp: roundEven(32 * rarityScale), regen: effect.regen ? roundEven(effect.regen) : 0 };
-  if (/armor|crown|shield|seal|emblem/.test(nameText)) return { armor: roundEven(2 * rarityScale), blockChance: effect.stat === "blockChance" ? normalizePercentValue(effect.value) : 0 };
-  if (/speed|gear|clasp|drum|spur|buckle|chain|ember/.test(nameText)) return { attackSpeed: normalizeGeneratedStatValue("attackSpeed", 0.1 * rarityScale) };
-  if (/luck|fate|chance|clover|lens|deck/.test(nameText)) return { luck: roundEven(2 * rarityScale), critChance: effect.critChance ? normalizePercentValue(effect.critChance) : 0 };
-  if (/life steal|grail/.test(nameText)) return { lifeSteal: 0.04 };
-  return { damage: roundEven(6 * rarityScale) };
-}
-
-function normalizeGeneratedStatValue(stat, value) {
-  if (stat === "attackSpeed") return normalizePercentValue(value);
-  return roundEven(value);
 }
 
 function roundEven(value) {
@@ -1354,29 +1281,16 @@ function normalizePercentValue(value) {
   return sign * Math.max(0.02, Math.round(percent / 2) * 2 / 100);
 }
 
-function getFlatTalentBonus(talent) {
-  const text = `${talent.name || ""} ${talent.description || ""}`.toLowerCase();
-  const tierScale = talent.tier || 1;
-  if (/shield|ward/.test(text)) return { shield: 35 * tierScale };
-  if (/armor|guard|unshaken/.test(text)) return { armor: 2 * tierScale, regen: /regen|unshaken/.test(text) ? 1 : 0 };
-  if (/crit|backstab/.test(text)) return { critChance: 0.04 * tierScale, critDamage: 0.2 };
-  if (/evasion/.test(text)) return { evasion: 0.05 * tierScale };
-  if (/burn|wildfire|meteor|spark/.test(text)) return { abilityDamage: 4 * tierScale, burnChance: 0.04 };
-  if (/slow|frost/.test(text)) return { slowChance: 0.05, slowValue: 0.08 };
-  if (/bleed|cuts/.test(text)) return { bleedMaxHpPercent: 0.0025 * tierScale };
-  if (/poison/.test(text)) return { poisonChance: 0.08, abilityDamage: 3 * tierScale };
-  if (/execute|last stand/.test(text)) return { executeDamage: 0.08 * tierScale };
-  if (/speed|momentum/.test(text)) return { attackSpeed: 0.08 * tierScale };
-  return { damage: 5 * tierScale };
-}
-
 function createItemEffects(flat = {}, growth = null, options = {}) {
   const normalize = options.normalize !== false;
   const effects = Object.entries(flat)
-    .filter(([stat]) => stat !== "abilityStat" && stat !== "abilityValue")
+    .filter(([stat]) => stat !== "abilityStat" && stat !== "abilityValue" && stat !== "abilityStats")
     .filter(([, value]) => value !== undefined && value !== null && value !== 0)
     .map(([stat, value]) => ({ type: "flat", stat, value: normalize ? normalizeEffectValue(stat, value) : value }));
   if (flat.abilityStat && flat.abilityValue) effects.push({ type: "flat", stat: "abilityStat", targetStat: flat.abilityStat, value: flat.abilityValue });
+  Object.entries(flat.abilityStats || {}).forEach(([targetStat, value]) => {
+    if (value !== undefined && value !== null && value !== 0) effects.push({ type: "flat", stat: "abilityStat", targetStat, value });
+  });
   if (growth) effects.push({ type: "stageGrowth", stat: growth.stat, value: growth.value });
   return effects;
 }
@@ -1410,8 +1324,8 @@ function formatItemEffects(effects = []) {
   (effects || []).forEach(effect => {
     if (effect.type === "stageGrowth") growth = { stat: effect.stat, value: effect.value };
     if (effect.type === "flat" && effect.stat === "abilityStat") {
-      flat.abilityStat = effect.targetStat;
-      flat.abilityValue = effect.value;
+      flat.abilityStats = flat.abilityStats || {};
+      flat.abilityStats[effect.targetStat] = effect.value;
     } else if (effect.type === "flat") flat[effect.stat] = effect.value;
   });
   return getFlatUpgradeText(flat, growth);
@@ -1435,6 +1349,7 @@ function applyFlatUpgrade(hero, flat = {}, growth = null) {
   if (flat.firstHitReduction) hero.runFirstHitReduction = (hero.runFirstHitReduction || 0) + flat.firstHitReduction;
   if (flat.abilityStat) hero[flat.abilityStat] = (hero[flat.abilityStat] || 0) + flat.abilityValue;
   if (flat.abilityDamage) hero.runAbilityFlatDamage = (hero.runAbilityFlatDamage || 0) + flat.abilityDamage;
+  if (flat.goldDamageMultiplier) hero.runGoldDamageMultiplier = (hero.runGoldDamageMultiplier || 0) + flat.goldDamageMultiplier;
   if (flat.retaliateBlock) hero.runRetaliateBlock = (hero.runRetaliateBlock || 0) + flat.retaliateBlock;
   if (flat.hitRetaliateChance) hero.runHitRetaliateChance = (hero.runHitRetaliateChance || 0) + flat.hitRetaliateChance;
   if (flat.lowHpDamage) hero.runLowHpDamage = (hero.runLowHpDamage || 0) + flat.lowHpDamage;
@@ -1480,7 +1395,9 @@ function getFlatUpgradeText(flat = {}, growth = null) {
   if (flat.afterBattleGold) parts.push(`${formatEvenSigned(flat.afterBattleGold)} gold after each battle`);
   if (flat.firstHitReduction) parts.push(`${formatPercent(flat.firstHitReduction)} first-hit damage reduction`);
   if (flat.abilityStat) parts.push(formatAbilityStatText(flat.abilityStat, flat.abilityValue));
+  Object.entries(flat.abilityStats || {}).forEach(([stat, value]) => parts.push(formatAbilityStatText(stat, value)));
   if (flat.abilityDamage) parts.push(`${formatEvenSigned(flat.abilityDamage)} skill damage`);
+  if (flat.goldDamageMultiplier) parts.push(`${formatPercent(flat.goldDamageMultiplier * 100)} damage per 100 gold`);
   if (flat.retaliateBlock) parts.push(`${formatPercent(flat.retaliateBlock)} block retaliation`);
   if (flat.hitRetaliateChance) parts.push(`${formatPercent(flat.hitRetaliateChance)} hit retaliation chance`);
   if (flat.lowHpDamage) parts.push(`${formatPercent(flat.lowHpDamage)} low-HP damage`);
@@ -1503,8 +1420,14 @@ function getFlatUpgradeText(flat = {}, growth = null) {
   if (flat.splashDamageMultiplier) parts.push(`${formatPercent(flat.splashDamageMultiplier)} splash damage`);
   if (flat.thirdAttackBonus) parts.push(`${formatPercent(flat.thirdAttackBonus)} third-attack bonus`);
   if (flat.meteorChance) parts.push(`${formatPercent(flat.meteorChance)} meteor chance`);
-  if (growth) parts.push(`${formatPercent(growth.value)} ${formatGrowthStat(growth.stat)} after each round`);
+  if (growth) parts.push(`${formatPercent(growth.value)} ${formatGrowthStat(growth.stat)} after each stage`);
   return parts.join(", ") || "Flat run bonus";
+}
+
+function getHeroGoldDamageMultiplier(hero) {
+  const rate = hero?.runGoldDamageMultiplier || 0;
+  if (!rate || typeof run === "undefined" || !run) return 0;
+  return Math.max(0, Math.floor(run.gold || 0) * rate);
 }
 
 function formatSigned(value) {
@@ -1518,8 +1441,7 @@ function formatEvenSigned(value) {
 }
 
 function formatPercent(value) {
-  const rounded = normalizePercentValue(value);
-  return `${rounded >= 0 ? "+" : ""}${Math.round(rounded * 100)}%`;
+  return formatExactPercent(value);
 }
 
 function formatExactPercent(value) {
@@ -1533,10 +1455,24 @@ function formatAbilityStatText(stat, value) {
     runLightningDamage: "Lightning damage",
     runIceballSlow: "Iceball slow",
     runTrapDuration: "Trap duration",
-    runHolyCooldownReduction: "Holy cooldown reduction"
+    runHolyCooldownReduction: "Holy cooldown reduction",
+    runBurnDamage: "burn damage",
+    runBurningEnemyDamage: "damage to burning enemies",
+    runCurseDuration: "Curse duration",
+    runCurseDamageTaken: "Curse damage taken",
+    runIceballDamage: "Iceball damage",
+    runIceballDuration: "Iceball duration",
+    runLightningTargets: "Lightning targets",
+    runPoisonAbilityDamage: "Poison damage",
+    runTrapSlow: "Trap slow",
+    runBurnAbilityDuration: "Burn duration",
+    runHeavyAttackMaxHpDamage: "Heavy Attack max HP damage",
+    runHolySwordHits: "Holy Sword hits",
+    runHolyShieldHits: "Holy Shield hits"
   };
   const label = labels[stat] || stat.replace(/^run/, "").replace(/([A-Z])/g, " $1").trim().toLowerCase();
   if (/duration$/.test(label)) return `${formatSigned(value)}s ${label}`;
+  if (/targets?$|hits?$/.test(label)) return `${formatSigned(value)} ${label}`;
   if (/damage$/.test(label) && Math.abs(value) >= 1) return `${formatSigned(value)} ${label}`;
   return `${formatExactPercent(value)} ${label}`;
 }
@@ -1583,11 +1519,11 @@ const TREE_NODES = [
   { id: "rogue_root", classId: "rogue", branch: "Rogue", name: "Rogue Branch", description: "Unlocks Rogue upgrades. +1 starting damage and +0.03 attack speed.", cost: 50, maxLevel: 1, effect: { damage: 1, attackSpeed: 0.03 }, x: 1300, y: 1320, prerequisites: ["crown_legacy"], type: "class" },
 
   { id: "knight_plate", classId: "knight", branch: "Armor/Health", name: "Plate Training", description: "+2 starting armor per level.", cost: 55, maxLevel: 4, effect: { armor: 2 }, x: 780, y: 780, prerequisites: ["knight_root"], type: "stat" },
-  { id: "knight_vigor", classId: "knight", branch: "Armor/Health", name: "Oathbound Vigor", description: "+10 starting HP per level.", cost: 70, maxLevel: 4, effect: { maxHp: 14 }, x: 580, y: 720, prerequisites: ["knight_plate"], type: "stat" },
+  { id: "knight_vigor", classId: "knight", branch: "Armor/Health", name: "Oathbound Vigor", description: "+14 starting HP per level.", cost: 70, maxLevel: 4, effect: { maxHp: 14 }, x: 580, y: 720, prerequisites: ["knight_plate"], type: "stat" },
   { id: "knight_iron_will", classId: "knight", branch: "Armor/Health", name: "Iron Will", description: "+1 armor and +1 HP regen per level.", cost: 120, maxLevel: 3, effect: { armor: 1, regen: 1 }, x: 380, y: 660, prerequisites: ["knight_vigor"], type: "notable" },
   { id: "knight_iron_bastion", classId: "knight", branch: "Armor/Health", name: "Iron Bastion", description: "Capstone: +6 armor, +60 starting HP, and +3 HP regen.", cost: 285, maxLevel: 1, effect: { armor: 6, maxHp: 60, regen: 3 }, x: 180, y: 600, prerequisites: ["knight_iron_will"], type: "capstone" },
 
-  { id: "knight_bulwark", classId: "knight", branch: "Shield", name: "Bulwark", description: "+12 battle-start shield per level.", cost: 60, maxLevel: 4, effect: { battleStartShield: 14 }, x: 760, y: 960, prerequisites: ["knight_root"], type: "stat" },
+  { id: "knight_bulwark", classId: "knight", branch: "Shield", name: "Bulwark", description: "+14 battle-start shield per level.", cost: 60, maxLevel: 4, effect: { battleStartShield: 14 }, x: 760, y: 960, prerequisites: ["knight_root"], type: "stat" },
   { id: "knight_guard", classId: "knight", branch: "Shield", name: "Shield Guard", description: "+10 battle-start shield and blocked damage retaliates for +8% per level.", cost: 105, maxLevel: 3, effect: { battleStartShield: 10, retaliateBlock: 0.08 }, x: 560, y: 960, prerequisites: ["knight_bulwark"], type: "notable" },
   { id: "knight_sanctuary", classId: "knight", branch: "Shield", name: "Sanctuary Aegis", description: "+18 battle-start shield per level.", cost: 150, maxLevel: 3, effect: { battleStartShield: 18 }, x: 360, y: 960, prerequisites: ["knight_guard"], type: "notable" },
   { id: "knight_aegis_eternal", classId: "knight", branch: "Shield", name: "Eternal Aegis", description: "Capstone: +85 battle-start shield and +3 armor.", cost: 285, maxLevel: 1, effect: { battleStartShield: 85, armor: 3 }, x: 160, y: 960, prerequisites: ["knight_sanctuary"], type: "capstone" },
@@ -1602,7 +1538,7 @@ const TREE_NODES = [
   { id: "knight_banner", classId: "knight", branch: "Crown Guard", name: "Battle Banner", description: "+8% damage and +5% elite rewards per level.", cost: 155, maxLevel: 3, effect: { damageMultiplier: 0.08, eliteRewardMultiplier: 0.05 }, x: 380, y: 1440, prerequisites: ["knight_crown_guard_meta"], type: "notable" },
   { id: "knight_warlord_oath", classId: "knight", branch: "Crown Guard", name: "Warlord's Oath", description: "Capstone: +35% damage and +8 starting armor.", cost: 300, maxLevel: 1, effect: { damageMultiplier: 0.35, armor: 8 }, x: 180, y: 1500, prerequisites: ["knight_banner"], type: "capstone" },
 
-  { id: "knight_heavy_attack_unlock", classId: "knight", branch: "Ability Unlock", name: "Heavy Attack", description: "Unlocks Heavy Attack: every 3s, strike one enemy for 25% of Knight max HP as damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_heavy_attack" }, x: 0, y: 880, prerequisites: ["knight_iron_bastion"], type: "ability" },
+  { id: "knight_heavy_attack_unlock", classId: "knight", branch: "Ability Unlock", name: "Heavy Attack", description: "Unlocks Heavy Attack: every 3s, strike one enemy for 15% of Knight max HP as damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_heavy_attack" }, x: 0, y: 880, prerequisites: ["knight_iron_bastion"], type: "ability" },
   { id: "knight_holy_sword_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Sword", description: "Unlocks Holy Sword: every 4s, the next 3 player hits deal +50% damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_sword" }, x: 0, y: 1050, prerequisites: ["knight_retribution"], type: "ability" },
   { id: "knight_holy_shield_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Shield", description: "Unlocks Holy Shield: every 5s, gain +50% armor against the next 2 enemy hits.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_shield" }, x: 0, y: 1230, prerequisites: ["knight_aegis_eternal"], type: "ability" },
 
@@ -1657,6 +1593,7 @@ const TREE_NODES = [
 
 applyUniformTreeLayout();
 applyOrderedTreeDependencies();
+syncDataDescriptions();
 
 function applyUniformTreeLayout() {
   const positions = {
@@ -1803,6 +1740,120 @@ function applyOrderedTreeDependencies() {
     }
     if (dependencies[node.id]) node.prerequisites = dependencies[node.id];
   });
+}
+
+function syncDataDescriptions() {
+  Object.values(RUN_ABILITIES).forEach(ability => {
+    ability.description = getRunAbilityDescription(ability);
+  });
+  REWARDS.forEach(reward => {
+    if (!reward.abilityId || !RUN_ABILITIES[reward.abilityId]) return;
+    reward.text = `Unlock ${RUN_ABILITIES[reward.abilityId].name}: ${RUN_ABILITIES[reward.abilityId].description}`;
+  });
+  TREE_NODES.forEach(node => {
+    const effect = node.effect || {};
+    if (effect.unlockRunAbility && RUN_ABILITIES[effect.unlockRunAbility]) {
+      node.description = `Unlocks ${RUN_ABILITIES[effect.unlockRunAbility].name}: ${RUN_ABILITIES[effect.unlockRunAbility].description}`;
+      return;
+    }
+    const effectText = formatTreeEffectText(effect, node.maxLevel > 1);
+    if (!effectText) return;
+    const prefix = node.type === "class" ? `Unlocks ${CLASSES[node.classId]?.name || node.classId} upgrades. ` : "";
+    const capstone = node.type === "capstone" ? "Capstone: " : "";
+    node.description = `${prefix}${capstone}${effectText}.`;
+  });
+}
+
+function getRunAbilityDescription(ability) {
+  if (ability.id === "wizard_curse") return `Every ${formatSeconds(ability.cooldown)}, curse one enemy for ${formatSeconds(ability.duration)} so it takes +22% damage.`;
+  if (ability.id === "wizard_iceball") return `Every ${formatSeconds(ability.cooldown)}, hit one enemy for 75% damage and slow it by 38% for ${formatSeconds(ability.duration)}.`;
+  if (ability.id === "wizard_lightning") return `Every ${formatSeconds(ability.cooldown)}, strike up to 3 enemies for 90%/75%/60% damage.`;
+  if (ability.id === "rogue_poison") return `Every ${formatSeconds(ability.cooldown)}, poison one enemy for ${formatSeconds(ability.duration)}. Poison deals 9 + 0.75 per stage damage each second.`;
+  if (ability.id === "rogue_bleed") return `Every ${formatSeconds(ability.cooldown)}, slow all living enemies by 28% for ${formatSeconds(ability.duration)}. Rogue deals +8% damage to slowed enemies.`;
+  if (ability.id === "rogue_burn") return `Every ${formatSeconds(ability.cooldown)}, burn one enemy for ${formatSeconds(ability.duration)}. Burn deals 7 + 0.55 per stage damage each second.`;
+  if (ability.id === "knight_heavy_attack") return `Every ${formatSeconds(ability.cooldown)}, strike one enemy for ${formatUnsignedPercent(ability.maxHpDamage)} of Knight max HP as damage.`;
+  if (ability.id === "knight_holy_sword") return `Every ${formatSeconds(ability.cooldown)}, the next ${ability.hitCount} player hits deal ${formatExactPercent(ability.hitDamageBonus)} damage.`;
+  if (ability.id === "knight_holy_shield") return `Every ${formatSeconds(ability.cooldown)}, gain ${formatExactPercent(ability.armorMultiplier)} armor against the next ${ability.hitCount} enemy hits.`;
+  return ability.description || "";
+}
+
+function formatSeconds(value) {
+  const seconds = Math.round((Number(value) || 0) * 10) / 10;
+  return `${Number.isInteger(seconds) ? seconds.toFixed(0) : seconds}s`;
+}
+
+function formatUnsignedPercent(value) {
+  return formatExactPercent(value).replace(/^\+/, "");
+}
+
+function formatTreeEffectText(effect = {}, perLevel = false) {
+  const parts = Object.entries(effect)
+    .filter(([, value]) => value !== undefined && value !== null && value !== 0)
+    .filter(([stat]) => stat !== "unlockRunAbility")
+    .map(([stat, value]) => formatTreeStatText(stat, value))
+    .filter(Boolean);
+  if (!parts.length) return "";
+  return `${joinTextParts(parts)}${perLevel ? " per level" : ""}`;
+}
+
+function formatTreeStatText(stat, value) {
+  const flatLabels = {
+    maxHp: "starting HP",
+    damage: "starting damage",
+    armor: "starting armor",
+    attackSpeed: "attack speed",
+    startingGold: "starting gold",
+    luck: "Luck",
+    regen: "HP regen",
+    sanctuaryMaxHp: "max HP from Sanctuaries",
+    sanctuaryRegen: "HP regen from Sanctuaries",
+    battleStartShield: "battle-start shield",
+    rerolls: "reroll per reward, relic, and shop offer",
+    hitRetaliateDamage: "hit retaliation damage",
+    firstEnemyDelay: "first enemy attack delay",
+    guaranteedCritEvery: "guaranteed crit interval",
+    megaCritFromOvercap: "mega crit from crit overcap"
+  };
+  const percentLabels = {
+    essenceMultiplier: "Essence earned",
+    lifeSteal: "life steal",
+    eliteRewardMultiplier: "elite gold and Essence rewards",
+    retaliateBlock: "block retaliation",
+    hitRetaliateChance: "hit retaliation chance",
+    lowHpDamage: "damage while below 40% HP",
+    damageMultiplier: "damage",
+    bleedMaxHpPercent: "max HP bleed damage per second",
+    bleedAttackSpeed: "attack speed after bleeding a new target",
+    critChance: "crit chance",
+    critDamage: "crit damage",
+    critAttackSpeedBonus: "attack speed after crits",
+    megaCritDamage: "mega crit damage",
+    firstHitAvoidChance: "chance to avoid the first hit each battle",
+    evasionDamageBonus: "battle damage after evading",
+    evasionCounter: "evasion counterattack damage",
+    executeDamage: "execute damage",
+    executeThreshold: "execute threshold",
+    killAttackSpeed: "attack speed on kill",
+    killAttackSpeedMax: "maximum attack speed from kills",
+    burnDamage: "burn damage",
+    burnSpreadChance: "burn spread chance",
+    burningEnemyDamage: "damage to burning enemies",
+    splashDamageMultiplier: "splash damage",
+    thirdAttackBonus: "third-attack damage",
+    slowChance: "slow chance",
+    slowValue: "slow strength",
+    delayChance: "delay chance"
+  };
+  if (stat === "delayAmount") return `${formatSigned(value)}s enemy attack delay`;
+  if (flatLabels[stat]) return `${formatEvenSigned(value)} ${flatLabels[stat]}`;
+  if (percentLabels[stat]) return `${formatExactPercent(value)} ${percentLabels[stat]}`;
+  return `${formatEvenSigned(value)} ${stat.replace(/([A-Z])/g, " $1").toLowerCase()}`;
+}
+
+function joinTextParts(parts = []) {
+  if (parts.length <= 1) return parts[0] || "";
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 }
 
 const TREE = TREE_NODES.reduce((nodes, node) => {

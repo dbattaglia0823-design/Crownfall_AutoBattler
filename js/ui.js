@@ -418,10 +418,15 @@ function renderUpgradePool() {
   const groups = getUpgradePoolGroups();
   if (!groups.some(group => group.id === selectedUpgradePoolTab)) selectedUpgradePoolTab = groups[0]?.id || "upgrades";
   const selectedGroup = groups.find(group => group.id === selectedUpgradePoolTab) || groups[0];
+  const countedPoolItems = new Set();
   const totals = groups.reduce((counts, group) => {
     getUpgradePoolGroupItems(group).forEach(item => {
+      const itemCategory = item.poolCategory || group.id;
+      const itemKey = `${itemCategory}:${item.poolId || getPoolItemId(item)}`;
+      if (countedPoolItems.has(itemKey)) return;
+      countedPoolItems.add(itemKey);
       if (!isUpgradePoolItemUnlocked(item)) return;
-      if (!isUpgradePoolItemActive(item, item.poolCategory || group.id)) return;
+      if (!isUpgradePoolItemActive(item, itemCategory)) return;
       const key = `${item.rarity || "Common"} active`;
       counts[key] = (counts[key] || 0) + 1;
     });
@@ -451,19 +456,27 @@ function getUpgradePoolGroups() {
     .filter(reward => !isHeroSpecificUpgrade(reward))
     .filter(reward => !reward.abilityId)
     .map(reward => ({ ...reward, poolId: getPoolItemId(reward), poolCategory: "upgrades" }));
-  const heroChildren = Object.entries(CLASSES).map(([classId, heroClass]) => ({
-    id: `hero_${classId}`,
-    name: heroClass.name,
-    items: sortBuildTestItems(REWARDS
-      .filter(reward => isUpgradeForHero(reward, classId))
-      .map(reward => ({ ...reward, poolId: getPoolItemId(reward), poolCategory: "upgrades" })))
-  })).filter(group => group.items.length);
+  const heroChildren = getHeroSpecificPoolChildren(REWARDS, "upgrades");
+  const generalRelics = RELICS
+    .filter(relic => !isHeroSpecificUpgrade(relic))
+    .map(relic => ({ ...relic, poolId: getPoolItemId(relic), poolCategory: "relics" }));
+  const heroRelicChildren = getHeroSpecificPoolChildren(RELICS, "relics");
   return [
-    { id: "upgrades", name: "Run Upgrades", items: sortUpgradePoolItems(runUpgrades) },
+    { id: "upgrades", name: "Run Upgrades", items: sortUpgradePoolItems(runUpgrades), heroChildren, heroBoxTitle: "Hero Upgrades", heroBoxSubtitle: "Class and ability-specific upgrades" },
     { id: "heroes", name: "Hero", children: heroChildren },
-    { id: "relics", name: "Relics", items: sortBuildTestItems(RELICS.map(relic => ({ ...relic, poolId: getPoolItemId(relic) }))) },
+    { id: "relics", name: "Relics", items: sortBuildTestItems(generalRelics), heroChildren: heroRelicChildren, heroBoxTitle: "Hero Relics", heroBoxSubtitle: "Class and ability-specific relics" },
     { id: "talents", name: "Talents", items: sortBuildTestItems(talents) }
   ];
+}
+
+function getHeroSpecificPoolChildren(items, poolCategory) {
+  return Object.entries(CLASSES).map(([classId, heroClass]) => ({
+    id: `hero_${classId}_${poolCategory}`,
+    name: heroClass.name,
+    items: sortBuildTestItems(items
+      .filter(item => isUpgradeForHero(item, classId))
+      .map(item => ({ ...item, poolId: getPoolItemId(item), poolCategory })))
+  })).filter(group => group.items.length);
 }
 
 function sortUpgradePoolItems(items) {
@@ -476,8 +489,8 @@ function sortUpgradePoolItems(items) {
 }
 
 function renderUpgradePoolGroup(group) {
-  const sections = group.children?.length ? group.children : [group];
-  return sections.map(section => `
+  const regularSections = (group.children?.length ? group.children : [group]).filter(section => section.items?.length);
+  const regularMarkup = regularSections.map(section => `
     <section class="upgrade-pool-section">
       <h3>${escapeHtml(section.name)}</h3>
       <div class="upgrade-pool-list">
@@ -485,10 +498,28 @@ function renderUpgradePoolGroup(group) {
       </div>
     </section>
   `).join("");
+  const heroMarkup = group.heroChildren?.length ? `
+    <section class="upgrade-pool-box upgrade-pool-hero-box">
+      <div class="upgrade-pool-box-header">
+        <h3>${escapeHtml(group.heroBoxTitle || "Hero Unlocks")}</h3>
+        <small>${escapeHtml(group.heroBoxSubtitle || "Class and ability-specific unlocks")}</small>
+      </div>
+      ${group.heroChildren.map(section => `
+        <section class="upgrade-pool-section">
+          <h3>${escapeHtml(section.name)}</h3>
+          <div class="upgrade-pool-list">
+            ${section.items.map(item => renderUpgradePoolItem(item.poolCategory || group.id, item)).join("")}
+          </div>
+        </section>
+      `).join("")}
+    </section>
+  ` : "";
+  return `${regularMarkup}${heroMarkup}`;
 }
 
 function getUpgradePoolGroupItems(group) {
-  return group.children?.length ? group.children.flatMap(section => section.items) : (group.items || []);
+  const regularItems = group.children?.length ? group.children.flatMap(section => section.items) : (group.items || []);
+  return group.heroChildren?.length ? regularItems.concat(group.heroChildren.flatMap(section => section.items)) : regularItems;
 }
 
 function renderUpgradePoolItem(category, item) {
@@ -519,7 +550,15 @@ function toggleUpgradePoolItem(category, id) {
 }
 
 function getUpgradePoolItemsForCategory(category) {
-  return getUpgradePoolGroups().flatMap(group => getUpgradePoolGroupItems(group).filter(item => (item.poolCategory || group.id) === category));
+  const seen = new Set();
+  return getUpgradePoolGroups().flatMap(group => getUpgradePoolGroupItems(group).filter(item => {
+    const itemCategory = item.poolCategory || group.id;
+    const itemId = item.poolId || getPoolItemId(item);
+    const key = `${itemCategory}:${itemId}`;
+    if (itemCategory !== category || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }));
 }
 
 function getPoolItemId(item) {
@@ -531,13 +570,14 @@ function isStarterUpgrade(item) {
 }
 
 function isHeroSpecificUpgrade(item) {
-  return !!(item.classId || item.abilityId || item.requiresAbility);
+  return !!(item.classId || item.abilityId || item.requiresAbility || item.requiresAnyAbility);
 }
 
 function isUpgradeForHero(item, classId) {
   if (item.classId) return item.classId === classId;
   const abilityId = item.abilityId || item.requiresAbility;
-  return abilityId ? RUN_ABILITIES[abilityId]?.classId === classId : false;
+  if (abilityId) return RUN_ABILITIES[abilityId]?.classId === classId;
+  return Array.isArray(item.requiresAnyAbility) && item.requiresAnyAbility.some(id => RUN_ABILITIES[id]?.classId === classId);
 }
 
 function getTalentPoolRarity(talent) {
@@ -1507,7 +1547,8 @@ function getItemIconKind(item = {}) {
 function getItemDisplayText(item) { return item.effects ? formatItemEffects(item.effects) : item.text || item.description || ""; }
 function getTalentDisplayDescription(talent) {
   const effectText = talent.effects?.length ? formatItemEffects(talent.effects) : "";
-  return [talent.description || "", effectText ? `Stats: ${effectText}.` : ""].filter(Boolean).join(" ");
+  if (!effectText || talent.description === effectText) return talent.description || effectText || "";
+  return [talent.description || "", `Stats: ${effectText}.`].filter(Boolean).join(" ");
 }
 function applyRunItemToHero(item) {
   if (item.effects) return applyItemEffects(run.hero, item.effects);
@@ -1720,6 +1761,8 @@ function renderHeroFullStats(hero) {
     ["Start Shield", `${Math.round((hero.runStartShield || 0) + getPermanentEffectTotal("battleStartShield", hero.id))}`],
     ["Shield Cap", `${getHeroShieldCap()}`]
   ];
+  const goldDamageMultiplier = getHeroGoldDamageMultiplier(hero);
+  if (goldDamageMultiplier) rows.push(["Gold Damage", formatExactPercent(goldDamageMultiplier)]);
   if (hero.id === "rogue") {
     rows.push(["Bleed", `${formatDisplayPercent(getHeroBleedMaxHpPercent(hero))} max HP/s (${Math.round(getHeroBleedDamage(hero))}/s)`]);
     if ((hero.runAbilities || []).includes("rogue_poison") || hero.runPoisonAbilityDamage) rows.push(["Poison", `${Math.round(getRoguePoisonAbilityDamage(hero))}/s`]);
@@ -1754,7 +1797,7 @@ function getHeroBattleAttackSpeedBonusCap(hero) { return getPermanentEffectTotal
 function getHeroSplashDamageMultiplier(hero) { return 0.25 + getPermanentEffectTotal("splashDamageMultiplier", hero.id) + (hero.runSplashDamageMultiplier || 0); }
 function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.innerHTML = enemies.length ? enemies.map(e => `<div class="enemy-stat-row"><strong>${escapeHtml(e.name)}</strong><div class="enemy-status">${e.hp > 0 ? "ALIVE" : "DEAD"}</div><div class="enemy-stat-chips"><span>HP ${e.buildTestBoss ? "Infinite" : `${Math.max(0, Math.ceil(e.hp))}/${Math.ceil(e.maxHp)}`}</span><span>DMG ${Number(e.damage).toFixed(1)}</span><span>AS ${getEnemyAttackSpeed(e).toFixed(2)}</span><span>ARM ${e.armor}</span><span>AP ${e.armorPiercing || 0}</span></div></div>`).join("") : `<div class="enemy-stat-empty">No active enemies</div>`; }
 function statCell(label, value, tooltip) { return `<div class="tooltip-item" data-tooltip="${escapeHtml(tooltip)}"><small>${label}</small><strong>${value}</strong></div>`; }
-function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Armor Piercing": "Ignores this much hero armor when this enemy attacks, down to zero armor.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", Block: "Chance to reduce incoming hit damage.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Shield Cap": "Maximum shield this hero can hold.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Rogue bleed damage per second based on the Rogue's maximum HP. One bleed can be active on each enemy.", Poison: "Damage per second from rogue poison effects.", Burn: "Damage per second from burn effects. New burns stack their damage on an existing burn.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect."; }
+function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Armor Piercing": "Ignores this much hero armor when this enemy attacks, down to zero armor.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", Block: "Chance to reduce incoming hit damage.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Gold Damage": "Bonus attack damage from relics based on your current run gold.", "Shield Cap": "Maximum shield this hero can hold.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Rogue bleed damage per second based on the Rogue's maximum HP. One bleed can be active on each enemy.", Poison: "Damage per second from rogue poison effects.", Burn: "Damage per second from burn effects. New burns stack their damage on an existing burn.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect."; }
 function renderActiveSkills() { activeSkills.innerHTML = battle ? Object.entries(battle.activeSkills || {}).map(([name, time]) => `<div class="active-skill"><b>*</b><strong>${escapeHtml(name)}</strong><span>${time.toFixed(1)}s</span></div>`).join("") : ""; }
 function renderSpecialSkills() { const ids = run?.hero?.runAbilities || []; specialSkills.innerHTML = ids.length ? `<div class="special-skill-title">Special Skills</div><div class="special-skill-row">${ids.map(id => `<div class="special-skill"><b>${getAbilityIconMarkup(RUN_ABILITIES[id])}</b><strong>${RUN_ABILITIES[id].name}</strong><span>${Math.max(0, battle?.abilityCooldowns?.[id] || 0).toFixed(1)}s</span></div>`).join("")}</div>` : `<div class="special-skill-empty">No special skills unlocked</div>`; }
 function getAbilityIconMarkup(ability) { return `<span class="ability-icon ability-icon-${ability.id}" style="--ability-color:${ability.color}">${ability.icon}</span>`; }

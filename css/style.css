@@ -241,6 +241,11 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .upgrade-pool-tabs button { min-width: 132px; padding: 10px 14px; border-color: rgba(255,226,162,.18); background: rgba(18,13,10,.5); color: #d7c4a3; }
 .upgrade-pool-tabs button.active { border-color: rgba(250,204,21,.56); background: rgba(92,68,35,.78); color: #fff4cc; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(250,204,21,.08); }
 .upgrade-pool-grid { display: grid; gap: 14px; padding-right: 0; }
+.upgrade-pool-box { display: grid; gap: 12px; padding: 14px; border: 1px solid rgba(250,204,21,.2); border-radius: 8px; background: rgba(18,13,10,.28); }
+.upgrade-pool-box-header { text-align: left; }
+.upgrade-pool-box-header h3 { color: var(--gold2); font-size: 20px; }
+.upgrade-pool-box-header small { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; }
+.upgrade-pool-hero-box { margin-top: 2px; }
 .upgrade-pool-section { display: grid; gap: 8px; padding: 12px; border: 1px solid rgba(255,226,162,.14); border-radius: 8px; background: rgba(18,13,10,.42); }
 .upgrade-pool-section h3 { color: var(--gold2); font-size: 18px; text-align: left; }
 .upgrade-pool-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 8px; }
