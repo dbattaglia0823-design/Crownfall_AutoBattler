@@ -427,7 +427,7 @@ function heroAttack(hero, enemy) {
   startUnitSpriteAnimation(hero, "attack", 0.42);
   spawnHeroAttackEffect(hero, enemy);
 
-  let damage = Math.max(1, hero.damage * (1 + (hero.battleDamageBonus || 0)) - enemy.armor);
+  let damage = hero.damage * (1 + (hero.battleDamageBonus || 0));
   const goldDamageMultiplier = getHeroGoldDamageMultiplier(hero);
   if (goldDamageMultiplier) damage *= 1 + goldDamageMultiplier;
   hero.attackCount = (hero.attackCount || 0) + 1;
@@ -500,8 +500,7 @@ function heroAttack(hero, enemy) {
     battle.enemies
       .filter(other => other !== enemy && other.hp > 0)
       .forEach(other => {
-        const splash = Math.max(1, hero.damage * getWizardSplashDamageMultiplier(hero) - other.armor);
-        damageEnemy(other, splash, "#93c5fd");
+        const splash = damageEnemy(other, hero.damage * getWizardSplashDamageMultiplier(hero), "#93c5fd");
         addFloat(other.x, other.y - 35, Math.round(splash), "#93c5fd");
       });
     const arcaneWardShield = getTalentEffectNumber("wizard_arcane_ward", "value");
@@ -546,8 +545,7 @@ function heroAttack(hero, enemy) {
   if (meteorChance && Math.random() < meteorChance) {
     battle.enemies.filter(other => other.hp > 0).forEach(other => {
       const meteorMultiplier = Math.max(hero.runMeteorDamageMultiplier || 0, getTalentEffectNumber("wizard_meteor_spark", "damageMultiplier", 0.4));
-      const meteor = Math.max(1, hero.damage * meteorMultiplier - other.armor);
-      damageEnemy(other, meteor, "#fca5a5");
+      damageEnemy(other, hero.damage * meteorMultiplier, "#fca5a5");
       addFloat(other.x, other.y - 54, "Meteor", "#fca5a5");
     });
   }
@@ -583,13 +581,13 @@ function queuePendingHit(hit, delay) {
 function applyPendingHit(hit) {
   const enemy = hit.enemy;
   if (!enemy || enemy.hp <= 0) return;
-  damageEnemy(enemy, hit.damage, hit.color, { heavy: hit.heavy });
+  const actualDamage = damageEnemy(enemy, hit.damage, hit.color, { heavy: hit.heavy });
   if (!hit.variant || hit.variant === "heavy") playSound("swordHit");
-  addFloat(enemy.x, enemy.y - 38, hit.text, hit.color, { variant: hit.variant });
+  addFloat(enemy.x, enemy.y - 38, `${Math.round(actualDamage)}${hit.text.endsWith("!!") ? "!!" : hit.text.endsWith("!") ? "!" : ""}`, hit.color, { variant: hit.variant });
   if (hit.variant === "crit" || hit.variant === "mega") addFloat(enemy.x, enemy.y - 72, "+Crit", "#fde68a", { variant: "crit" });
-  if (hit.variant === "mega") log(`Mega crit: ${Math.round(hit.damage)} damage to ${enemy.name}.`, "hero");
-  else if (hit.variant === "crit") log(`Critical hit: ${Math.round(hit.damage)} damage to ${enemy.name}.`, "hero");
-  else if (hit.variant === "heavy") log(`Heavy hit: ${Math.round(hit.damage)} damage to ${enemy.name}.`, "hero");
+  if (hit.variant === "mega") log(`Mega crit: ${Math.round(actualDamage)} damage to ${enemy.name}.`, "hero");
+  else if (hit.variant === "crit") log(`Critical hit: ${Math.round(actualDamage)} damage to ${enemy.name}.`, "hero");
+  else if (hit.variant === "heavy") log(`Heavy hit: ${Math.round(actualDamage)} damage to ${enemy.name}.`, "hero");
   if (hit.shake) triggerScreenShake(hit.shake);
 }
 
@@ -647,12 +645,11 @@ function enemyAttack(enemy, hero) {
     hero.holyShieldHitsRemaining -= 1;
     addFloat(hero.x, hero.y - 76, "Holy Guard", "#fde68a", { variant: "block" });
   }
-  const blocked = absorbHeroShield(damage, effectiveArmor * 0.5);
-  const totalBlocked = blocked + blockPrevented;
-  const damageAfterShield = Math.max(0, damage - blocked);
-  const damageTaken = blocked > 0
-    ? damageAfterShield
-    : Math.max(1, damageAfterShield - effectiveArmor);
+  const mitigatedDamage = getArmorMitigatedDamage(damage, effectiveArmor);
+  const armorPrevented = Math.max(0, damage - mitigatedDamage);
+  const blocked = absorbHeroShield(mitigatedDamage);
+  const totalBlocked = blocked + blockPrevented + armorPrevented;
+  const damageTaken = Math.max(0, mitigatedDamage - blocked);
   if (totalBlocked > 0 || blockedByGuard) {
     playSound("shieldBlock");
     startUnitSpriteAnimation(hero, "block", 0.28);
@@ -965,10 +962,41 @@ function endEternalCrownEnding(crownDefeated = false) {
   showScreen("runEndScreen");
   runEndTitle.textContent = crownDefeated ? "The Impossible Crown Falls" : "The Eternal Crown Endures";
   const routeName = getRunRouteName();
+  const endlessChoice = crownDefeated ? `<span class="actions run-end-actions"><button onclick="continueStoryRunIntoEndless()">Enter Endless Stage 5</button><button onclick="finishCrownVictory()">End Run</button></span>` : "";
   runEndText.innerHTML = renderRunSummary(true, routeName, essence, crownDefeated
     ? "Against all odds, the Eternal Crown has fallen. Your Layer 3 victory was already sealed."
-    : "Layer 3 was conquered and your victory stands. The Eternal Crown wipes out the champion as the crown's last cruel joke.");
+    : "Layer 3 was conquered and your victory stands. The Eternal Crown wipes out the champion as the crown's last cruel joke.") + endlessChoice;
   battle = null;
+}
+
+function finishCrownVictory() {
+  run = null;
+  battle = null;
+  showScreen("menuScreen");
+}
+
+function continueStoryRunIntoEndless() {
+  if (!run || !run.hero) return;
+  run.mode = "endless";
+  run.difficultyId = "endless";
+  run.stage = 4;
+  run.stagesCleared = 4;
+  run.currentNodeId = null;
+  run.chosenNodeIds = [];
+  run.availableNodeIds = [];
+  run.map = [];
+  run.summary = {
+    enemiesDefeated: 0,
+    goldEarned: 0,
+    essenceEarned: 0,
+    relicsCollected: 0,
+    talentsChosen: 0,
+    damageDealt: 0,
+    damageTaken: 0
+  };
+  run.afterRewardAction = null;
+  applyRunTheme();
+  beginNextEndlessStage();
 }
 
 function getRunEndMessage(victory, endlessResult) {
@@ -1021,7 +1049,28 @@ function addFloat(x, y, text, color, options = {}) {
       if (!canAddBuildTestFloat(text)) return;
       if (battle.floatingTexts.length >= BUILD_TEST_MAX_FLOATING_TEXTS) return;
     }
-    battle.floatingTexts.push({ x, y, text, color, variant: options.variant || "" });
+    const variant = options.variant || "";
+    const textValue = String(text);
+    const numeric = /^[-+]?\d+(\.\d+)?$/.test(textValue);
+    const nearby = battle.floatingTexts.find(float =>
+      float.color === color &&
+      float.variant === variant &&
+      Math.abs(float.x - x) <= 32 &&
+      Math.abs(float.y - y) <= 32 &&
+      (numeric ? float.numeric : float.text === textValue)
+    );
+    if (nearby) {
+      nearby.count = (nearby.count || 1) + 1;
+      nearby.x = (nearby.x + x) / 2;
+      nearby.y = Math.min(nearby.y, y) - 3;
+      if (numeric) {
+        nearby.numeric = true;
+        nearby.value = (Number(nearby.value) || Number(nearby.text) || 0) + Number(textValue);
+        nearby.text = String(Math.round(nearby.value));
+      }
+      return;
+    }
+    battle.floatingTexts.push({ x, y, text: textValue, color, variant, count: 1, numeric });
   }
 }
 
@@ -1375,7 +1424,7 @@ function onHeroEvaded(enemy, hero) {
 function damageEnemy(enemy, amount, color, options = {}) {
   if (!enemy || enemy.hp <= 0) return 0;
   const wasAlive = enemy.hp > 0;
-  const damageAmount = getFiniteNumber(amount);
+  const damageAmount = options.status || options.ignoreArmor ? getFiniteNumber(amount) : getArmorMitigatedDamage(amount, enemy.armor);
   const actualDamage = Math.min(enemy.hp, Math.max(0, damageAmount));
   enemy.hp = Math.max(0, enemy.hp - actualDamage);
   if (battle) battle.damageDone = getFiniteNumber(battle.damageDone) + actualDamage;
@@ -1447,9 +1496,32 @@ function addHeroShield(amount, source) {
 function getHeroShieldCap() {
   const hero = run.hero;
   const maxHp = hero.maxHp || 1;
-  if (hero.id === "knight") return Math.max(55, Math.round(maxHp * 0.9));
-  if (hero.id === "wizard") return Math.max(38, Math.round(maxHp * 0.55));
-  return Math.max(42, Math.round(maxHp * 0.65));
+  return Math.max(1, Math.round(maxHp * getHeroShieldCapPercent(hero)));
+}
+
+function getArmorMitigatedDamage(amount, armor) {
+  amount = getFiniteNumber(amount);
+  const reduction = getArmorDamageReduction(armor);
+  return Math.max(1, amount * (1 - reduction));
+}
+
+function getArmorDamageReduction(armor) {
+  let remainingArmor = Math.max(0, getFiniteNumber(armor));
+  let reduction = 0;
+  let band = 0;
+  while (remainingArmor > 0 && band < 40) {
+    const armorInBand = Math.min(5, remainingArmor);
+    const perArmorReduction = 0.015 * Math.pow(0.72, band);
+    reduction += armorInBand * perArmorReduction;
+    remainingArmor -= armorInBand;
+    band += 1;
+  }
+  return Math.min(0.85, reduction);
+}
+
+function getHeroShieldCapPercent(hero = run?.hero) {
+  if (!hero) return 0.2;
+  return Math.max(0.01, 0.2 + (hero.runShieldCapPercent || 0));
 }
 
 function absorbHeroShield(damage, armorReduction = 0) {

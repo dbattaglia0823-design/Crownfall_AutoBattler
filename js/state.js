@@ -90,11 +90,18 @@ function defaultInventory() {
 
 function defaultUpgradePool() {
   return {
+    enabled: {
+      upgrades: {},
+      relics: {},
+      talents: {}
+    },
     disabled: {
       upgrades: {},
       relics: {},
       talents: {}
-    }
+    },
+    seenUnlocks: {},
+    unlockTrackingInitialized: false
   };
 }
 
@@ -216,12 +223,24 @@ function normalizeDifficultyClears(storedClears, parsedSave = {}) {
 
 function normalizeUpgradePool(storedPool, fallbackPool = defaultUpgradePool()) {
   const pool = {
+    enabled: {
+      upgrades: { ...(storedPool?.enabled?.upgrades || {}) },
+      relics: { ...(storedPool?.enabled?.relics || {}) },
+      talents: { ...(storedPool?.enabled?.talents || {}) }
+    },
     disabled: {
       upgrades: { ...(storedPool?.disabled?.upgrades || {}) },
       relics: { ...(storedPool?.disabled?.relics || {}) },
       talents: { ...(storedPool?.disabled?.talents || {}) }
-    }
+    },
+    seenUnlocks: { ...(storedPool?.seenUnlocks || {}) },
+    unlockTrackingInitialized: !!storedPool?.unlockTrackingInitialized
   };
+  Object.keys(pool.enabled).forEach(category => {
+    Object.keys(pool.enabled[category]).forEach(id => {
+      if (!pool.enabled[category][id]) delete pool.enabled[category][id];
+    });
+  });
   Object.keys(pool.disabled).forEach(category => {
     Object.keys(pool.disabled[category]).forEach(id => {
       if (!pool.disabled[category][id]) delete pool.disabled[category][id];
@@ -312,7 +331,7 @@ function normalizeInventoryItem(item) {
     slot,
     rarity,
     quality,
-    power: Math.max(1, Number(item?.power) || getEquipmentPower(rarity, quality)),
+    power: getEquipmentPower(rarity, quality, item?.stats),
     allowedClassIds: Array.isArray(item?.allowedClassIds) ? item.allowedClassIds.filter(id => CLASSES[id]) : [],
     stats: item?.stats && typeof item.stats === "object" ? { ...item.stats } : {},
     description: String(item?.description || ""),
@@ -427,6 +446,7 @@ function generateEquipmentDrop(options = {}) {
   const rarityConfig = rollEquipmentRarity(options.rarityBonus || 0, options.maxRarity);
   const quality = rollEquipmentQuality(rarityConfig.qualityBonus);
   const stats = rollEquipmentStats(template.stats || ["maxHp"], rarityConfig, quality, options.stage || run?.stage || 1);
+  const power = getEquipmentPower(rarityConfig.id, quality, stats);
   return normalizeInventoryItem({
     itemId: template.id,
     instanceId: `${template.id}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
@@ -434,7 +454,7 @@ function generateEquipmentDrop(options = {}) {
     slot,
     rarity: rarityConfig.id,
     quality,
-    power: getEquipmentPower(rarityConfig.id, quality),
+    power,
     allowedClassIds: [],
     stats,
     description: `Dropped from ${options.sourceName || "a boss"}.`,
@@ -465,11 +485,12 @@ function rollEquipmentQuality(qualityBonus = 0) {
 }
 
 function rollEquipmentStats(statKeys, rarityConfig, quality, stage) {
-  const stageMultiplier = 1 + Math.max(0, Number(stage) || 1) * 0.012;
+  const stageMultiplier = 1 + Math.max(0, Number(stage) || 1) * 0.006;
+  const qualityMultiplier = 0.8 + Math.max(0, Math.min(1, Number(quality) || 0)) * 0.4;
   return statKeys.reduce((stats, key, index) => {
     const range = EQUIPMENT_STAT_RANGES[key] || EQUIPMENT_STAT_RANGES.maxHp;
     const slotWeight = index === 0 ? 1 : 0.58;
-    const raw = (range.min + (range.max - range.min) * quality) * rarityConfig.statMultiplier * stageMultiplier * slotWeight;
+    const raw = range.max * qualityMultiplier * rarityConfig.statMultiplier * stageMultiplier * slotWeight;
     stats[key] = roundEquipmentStat(raw, range.decimals);
     return stats;
   }, {});
@@ -480,9 +501,24 @@ function roundEquipmentStat(value, decimals = 0) {
   return Math.max(decimals ? 0.01 : 1, Math.round(value * factor) / factor);
 }
 
-function getEquipmentPower(rarity, quality) {
+function getEquipmentPower(rarity, quality, stats = {}) {
   const rarityRank = Math.max(1, getEquipmentRarityRank(rarity || "Common"));
-  return Math.round(rarityRank * 100 + Math.max(0, Math.min(1, Number(quality) || 0)) * 100);
+  const statWeights = {
+    maxHp: 0.25,
+    damage: 7,
+    armor: 14,
+    attackSpeed: 140,
+    critChance: 180,
+    regen: 18,
+    luck: 18
+  };
+  const statPower = Object.entries(stats || {}).reduce((total, [stat, value]) => {
+    return total + Math.max(0, Number(value) || 0) * (statWeights[stat] || 1);
+  }, 0);
+  const rarityFloor = rarityRank * rarityRank * 18;
+  const rarityMultiplier = 0.75 + rarityRank * 0.2;
+  const qualityBonus = Math.max(0, Math.min(1, Number(quality) || 0)) * 12;
+  return Math.max(1, Math.round(rarityFloor + statPower * rarityMultiplier + qualityBonus));
 }
 
 function getEquipmentRarityRank(rarity) {
@@ -700,6 +736,7 @@ function checkAchievements() {
   if (unlocked.length && typeof showAchievementPopup === "function") {
     unlocked.forEach(achievement => showAchievementPopup(achievement));
   }
+  if (typeof checkUpgradePoolUnlocks === "function") checkUpgradePoolUnlocks();
   if (essenceClaimed && typeof saveGame === "function") saveGame();
   return unlocked;
 }

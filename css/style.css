@@ -233,6 +233,7 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .achievement-locked { opacity: .62; filter: grayscale(.28); }
 .achievement-unlocked { border-color: rgba(250,204,21,.52); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 0 20px rgba(250,204,21,.1); }
 .upgrade-pool-panel { max-width: 1180px; }
+.upgrade-pool-summary:empty { display: none; }
 .upgrade-pool-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 14px; }
 .upgrade-pool-summary div { padding: 10px; border: 1px solid rgba(255,226,162,.14); border-radius: 8px; background: rgba(18,13,10,.48); }
 .upgrade-pool-summary small { display: block; color: var(--muted); text-transform: uppercase; font-size: 11px; }
@@ -241,6 +242,8 @@ body.reduce-animations *, body.reduce-animations *::before, body.reduce-animatio
 .upgrade-pool-tabs button { min-width: 132px; padding: 10px 14px; border-color: rgba(255,226,162,.18); background: rgba(18,13,10,.5); color: #d7c4a3; }
 .upgrade-pool-tabs button.active { border-color: rgba(250,204,21,.56); background: rgba(92,68,35,.78); color: #fff4cc; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(250,204,21,.08); }
 .upgrade-pool-grid { display: grid; gap: 14px; padding-right: 0; }
+.upgrade-pool-bulk-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.upgrade-pool-bulk-actions button { min-width: 92px; padding: 8px 10px; border-color: rgba(255,226,162,.2); background: rgba(18,13,10,.5); color: #f8e7bb; }
 .upgrade-pool-box { display: grid; gap: 12px; padding: 14px; border: 1px solid rgba(250,204,21,.2); border-radius: 8px; background: rgba(18,13,10,.28); }
 .upgrade-pool-box-header { text-align: left; }
 .upgrade-pool-box-header h3 { color: var(--gold2); font-size: 20px; }
@@ -595,12 +598,13 @@ body.disable-shake .screen-shake-light, body.disable-shake .screen-shake-heavy {
 .hero-stat-grid small { display: block; color: var(--muted); font-size: 10px; line-height: 1; text-transform: uppercase; letter-spacing: .7px; margin-bottom: 4px; }
 .hero-stat-grid strong { display: block; color: var(--gold2); font-size: 14px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .full-stat-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.full-stat-list div { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; border: 1px solid rgba(111,84,55,.72); border-radius: 8px; background: rgba(47,35,25,.52); }
-.full-stat-list div > span { flex: 0 0 auto; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .45px; }
-.full-stat-list strong { min-width: 0; flex: 1 1 auto; color: var(--gold2); font-size: 13px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.full-stat-list div { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid rgba(111,84,55,.72); border-radius: 8px; background: rgba(47,35,25,.52); }
+.full-stat-list div > span { min-width: 0; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .45px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.full-stat-list div > span.full-stat-label-long { font-size: 9px; letter-spacing: .15px; }
+.full-stat-list strong { min-width: 0; color: var(--gold2); font-size: 13px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .full-stat-row-scroll strong { text-overflow: clip; }
-.full-stat-scroll-text { display: inline-block; min-width: 100%; color: inherit; font-size: inherit; letter-spacing: 0; text-transform: none; animation: fullStatScroll 7s linear infinite; }
-@keyframes fullStatScroll { 0%, 18% { transform: translateX(0); } 78%, 100% { transform: translateX(calc(-100% + 100px)); } }
+.full-stat-scroll-text { display: inline-block; min-width: 100%; color: inherit; font-size: inherit; letter-spacing: 0; text-transform: none; animation: fullStatScroll 4.5s linear infinite; }
+@keyframes fullStatScroll { 0%, 12% { transform: translateX(0); } 72%, 100% { transform: translateX(calc(-100% + 82px)); } }
 .enemy-stat-list { display: grid; gap: 6px; }
 .enemy-stat-row { display: grid; gap: 6px; padding: 8px; border: 1px solid rgba(111,84,55,.72); border-radius: 8px; background: rgba(47,35,25,.52); color: #e7d6b5; font-size: 11px; }
 .enemy-stat-row strong { min-width: 0; color: var(--gold2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

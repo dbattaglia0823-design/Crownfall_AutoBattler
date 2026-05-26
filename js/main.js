@@ -6,6 +6,7 @@ function initGame() {
   applySettings();
   refreshTopbar();
   renderTree();
+  initializeUpgradeUnlockTracking();
   setupSettingsAutoSave();
   setupGlobalSoundHandlers();
   setupTreeCameraControls();

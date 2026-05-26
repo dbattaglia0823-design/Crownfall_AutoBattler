@@ -34,9 +34,10 @@ let equipmentShopRefreshAvailableAt = {};
 let equipmentShopRefreshTimer = null;
 
 const STARTER_UPGRADE_NAMES = new Set([
-  "Sharpened Blade", "Battle Rhythm", "Iron Skin", "Hardy Bread", "Quick Buckle",
-  "Vitality Draught", "Knightly Edge", "Oakheart Tonic", "Clockwork Grip", "Field Medic",
-  "War Training", "Runed Greatblade", "Giant's Supper", "Silver Reflexes", "Iron Momentum"
+  "Sharpened Blade", "Iron Skin", "Quick Buckle"
+]);
+const STARTER_RELIC_NAMES = new Set([
+  "Plain Whetstone", "Quick Clasp", "Iron Crown", "Traveler Brooch"
 ]);
 let previewSkins = { heroes: {}, enemies: {} };
 let lastAttackSoundAt = 0;
@@ -415,24 +416,11 @@ function showUpgradePoolScreen() {
 function renderUpgradePool() {
   if (!upgradePoolGrid || !upgradePoolSummary) return;
   save.upgradePool = save.upgradePool || defaultUpgradePool();
+  initializeUpgradePoolEnabledState();
   const groups = getUpgradePoolGroups();
   if (!groups.some(group => group.id === selectedUpgradePoolTab)) selectedUpgradePoolTab = groups[0]?.id || "upgrades";
   const selectedGroup = groups.find(group => group.id === selectedUpgradePoolTab) || groups[0];
-  const countedPoolItems = new Set();
-  const totals = groups.reduce((counts, group) => {
-    getUpgradePoolGroupItems(group).forEach(item => {
-      const itemCategory = item.poolCategory || group.id;
-      const itemKey = `${itemCategory}:${item.poolId || getPoolItemId(item)}`;
-      if (countedPoolItems.has(itemKey)) return;
-      countedPoolItems.add(itemKey);
-      if (!isUpgradePoolItemUnlocked(item)) return;
-      if (!isUpgradePoolItemActive(item, itemCategory)) return;
-      const key = `${item.rarity || "Common"} active`;
-      counts[key] = (counts[key] || 0) + 1;
-    });
-    return counts;
-  }, {});
-  upgradePoolSummary.innerHTML = Object.entries(totals).map(([label, count]) => `<div><small>${escapeHtml(label)}</small><strong>${count}</strong></div>`).join("");
+  upgradePoolSummary.innerHTML = "";
   if (upgradePoolTabs) {
     upgradePoolTabs.innerHTML = groups.map(group => `
       <button class="${group.id === selectedUpgradePoolTab ? "active" : ""}" data-pool-tab="${escapeHtml(group.id)}">${escapeHtml(group.name)}</button>
@@ -444,9 +432,16 @@ function renderUpgradePool() {
       };
     });
   }
-  upgradePoolGrid.innerHTML = selectedGroup ? renderUpgradePoolGroup(selectedGroup) : "";
+  upgradePoolGrid.innerHTML = selectedGroup ? `${renderUpgradePoolBulkActions(selectedGroup)}${renderUpgradePoolGroup(selectedGroup)}` : "";
   upgradePoolGrid.querySelectorAll("[data-pool-toggle]").forEach(button => {
     button.onclick = () => toggleUpgradePoolItem(button.dataset.poolCategory, button.dataset.poolId);
+  });
+  upgradePoolGrid.querySelectorAll("[data-pool-bulk]").forEach(button => {
+    button.onclick = () => {
+      const active = button.dataset.poolBulk === "on";
+      if (button.dataset.poolRarity) setUpgradePoolRarityState(selectedGroup, button.dataset.poolRarity, active);
+      else setUpgradePoolTabState(selectedGroup, active);
+    };
   });
 }
 
@@ -462,7 +457,7 @@ function getUpgradePoolGroups() {
     .map(relic => ({ ...relic, poolId: getPoolItemId(relic), poolCategory: "relics" }));
   const heroRelicChildren = getHeroSpecificPoolChildren(RELICS, "relics");
   return [
-    { id: "upgrades", name: "Run Upgrades", items: sortUpgradePoolItems(runUpgrades), heroChildren, heroBoxTitle: "Hero Upgrades", heroBoxSubtitle: "Class and ability-specific upgrades" },
+    { id: "upgrades", name: "Run Upgrades", items: sortUpgradePoolItems(runUpgrades) },
     { id: "heroes", name: "Hero", children: heroChildren },
     { id: "relics", name: "Relics", items: sortBuildTestItems(generalRelics), heroChildren: heroRelicChildren, heroBoxTitle: "Hero Relics", heroBoxSubtitle: "Class and ability-specific relics" },
     { id: "talents", name: "Talents", items: sortBuildTestItems(talents) }
@@ -517,6 +512,24 @@ function renderUpgradePoolGroup(group) {
   return `${regularMarkup}${heroMarkup}`;
 }
 
+function renderUpgradePoolBulkActions(group) {
+  const items = getBulkToggleItems(group);
+  const allActive = items.length > 0 && items.every(item => isUpgradePoolItemActive(item, item.poolCategory || group.id));
+  const rarities = ["Common", "Rare", "Epic", "Legendary"];
+  return `<div class="upgrade-pool-bulk-actions">
+    <button data-pool-bulk="${allActive ? "off" : "on"}">${allActive ? "All Off" : "All On"}</button>
+    ${rarities.map(rarity => {
+      const rarityItems = items.filter(item => (item.rarity || "Common") === rarity);
+      const rarityActive = rarityItems.length > 0 && rarityItems.every(item => isUpgradePoolItemActive(item, item.poolCategory || group.id));
+      return `<button data-pool-bulk="${rarityActive ? "off" : "on"}" data-pool-rarity="${rarity}" ${rarityItems.length ? "" : "disabled"}>${rarity} ${rarityActive ? "Off" : "On"}</button>`;
+    }).join("")}
+  </div>`;
+}
+
+function getBulkToggleItems(group) {
+  return getUpgradePoolGroupItems(group).filter(item => isUpgradePoolItemUnlocked(item) && !isStarterUpgrade(item));
+}
+
 function getUpgradePoolGroupItems(group) {
   const regularItems = group.children?.length ? group.children.flatMap(section => section.items) : (group.items || []);
   return group.heroChildren?.length ? regularItems.concat(group.heroChildren.flatMap(section => section.items)) : regularItems;
@@ -535,16 +548,57 @@ function renderUpgradePoolItem(category, item) {
 
 function toggleUpgradePoolItem(category, id) {
   save.upgradePool = save.upgradePool || defaultUpgradePool();
+  save.upgradePool.enabled = save.upgradePool.enabled || defaultUpgradePool().enabled;
+  save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
+  save.upgradePool.disabled = save.upgradePool.disabled || defaultUpgradePool().disabled;
   save.upgradePool.disabled[category] = save.upgradePool.disabled[category] || {};
   const items = getUpgradePoolItemsForCategory(category);
   const item = items.find(entry => entry.poolId === id);
   if (!item || !isUpgradePoolItemUnlocked(item) || isStarterUpgrade(item)) return;
-  if (save.upgradePool.disabled[category][id]) delete save.upgradePool.disabled[category][id];
-  else {
-    const activeSameRarity = items.filter(entry => (entry.rarity || "Common") === (item.rarity || "Common") && isUpgradePoolItemUnlocked(entry) && isUpgradePoolItemActive(entry, category));
-    if (activeSameRarity.length <= getMinimumActivePoolCount(item.rarity || "Common")) return;
-    save.upgradePool.disabled[category][id] = true;
-  }
+  if (save.upgradePool.enabled[category][id]) {
+    const activeSameCategory = items.filter(entry => isUpgradePoolItemUnlocked(entry) && isUpgradePoolItemActive(entry, category));
+    if (activeSameCategory.length <= getMinimumActivePoolCount()) return;
+    delete save.upgradePool.enabled[category][id];
+  } else save.upgradePool.enabled[category][id] = true;
+  delete save.upgradePool.disabled[category][id];
+  saveGame();
+  renderUpgradePool();
+}
+
+function setUpgradePoolTabState(group, active) {
+  if (!group) return;
+  save.upgradePool = save.upgradePool || defaultUpgradePool();
+  save.upgradePool.enabled = save.upgradePool.enabled || defaultUpgradePool().enabled;
+  save.upgradePool.disabled = save.upgradePool.disabled || defaultUpgradePool().disabled;
+  getUpgradePoolGroupItems(group).forEach(item => {
+    const category = item.poolCategory || group.id;
+    const id = item.poolId || getPoolItemId(item);
+    if (!isUpgradePoolItemUnlocked(item) || isStarterUpgrade(item)) return;
+    save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
+    save.upgradePool.disabled[category] = save.upgradePool.disabled[category] || {};
+    if (active) save.upgradePool.enabled[category][id] = true;
+    else delete save.upgradePool.enabled[category][id];
+    delete save.upgradePool.disabled[category][id];
+  });
+  saveGame();
+  renderUpgradePool();
+}
+
+function setUpgradePoolRarityState(group, rarity, active) {
+  if (!group || !rarity) return;
+  save.upgradePool = save.upgradePool || defaultUpgradePool();
+  save.upgradePool.enabled = save.upgradePool.enabled || defaultUpgradePool().enabled;
+  save.upgradePool.disabled = save.upgradePool.disabled || defaultUpgradePool().disabled;
+  getBulkToggleItems(group).forEach(item => {
+    if ((item.rarity || "Common") !== rarity) return;
+    const category = item.poolCategory || group.id;
+    const id = item.poolId || getPoolItemId(item);
+    save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
+    save.upgradePool.disabled[category] = save.upgradePool.disabled[category] || {};
+    if (active) save.upgradePool.enabled[category][id] = true;
+    else delete save.upgradePool.enabled[category][id];
+    delete save.upgradePool.disabled[category][id];
+  });
   saveGame();
   renderUpgradePool();
 }
@@ -566,7 +620,7 @@ function getPoolItemId(item) {
 }
 
 function isStarterUpgrade(item) {
-  return STARTER_UPGRADE_NAMES.has(item.name);
+  return STARTER_UPGRADE_NAMES.has(item.name) || STARTER_RELIC_NAMES.has(item.name);
 }
 
 function isHeroSpecificUpgrade(item) {
@@ -607,16 +661,58 @@ function isUpgradePoolItemUnlocked(item) {
 function isUpgradePoolItemActive(item, category = null) {
   if (isStarterUpgrade(item)) return true;
   const poolCategory = category || (item.effect ? "relics" : item.tier ? "talents" : "upgrades");
-  return !save.upgradePool?.disabled?.[poolCategory]?.[item.poolId || getPoolItemId(item)];
+  return !!save.upgradePool?.enabled?.[poolCategory]?.[item.poolId || getPoolItemId(item)];
 }
 
 function getMinimumActivePoolCount() {
-  return 5;
+  return 3;
+}
+
+function initializeUpgradePoolEnabledState() {
+  save.upgradePool.enabled = save.upgradePool.enabled || defaultUpgradePool().enabled;
+  ["upgrades", "relics", "talents"].forEach(category => {
+    save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
+  });
+}
+
+function getAllUpgradePoolEntries() {
+  const seen = new Set();
+  return getUpgradePoolGroups().flatMap(group => getUpgradePoolGroupItems(group).map(item => {
+    const category = item.poolCategory || group.id;
+    const id = item.poolId || getPoolItemId(item);
+    const key = `${category}:${id}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    return { ...item, poolCategory: category, poolId: id, unlockKey: key };
+  })).filter(Boolean);
+}
+
+function initializeUpgradeUnlockTracking() {
+  save.upgradePool = save.upgradePool || defaultUpgradePool();
+  save.upgradePool.seenUnlocks = save.upgradePool.seenUnlocks || {};
+  getAllUpgradePoolEntries().forEach(item => {
+    if (isUpgradePoolItemUnlocked(item)) save.upgradePool.seenUnlocks[item.unlockKey] = true;
+  });
+  save.upgradePool.unlockTrackingInitialized = true;
+  saveGame();
+}
+
+function checkUpgradePoolUnlocks() {
+  save.upgradePool = save.upgradePool || defaultUpgradePool();
+  save.upgradePool.seenUnlocks = save.upgradePool.seenUnlocks || {};
+  if (!save.upgradePool.unlockTrackingInitialized) return initializeUpgradeUnlockTracking();
+  const newlyUnlocked = getAllUpgradePoolEntries().filter(item =>
+    !isStarterUpgrade(item) && isUpgradePoolItemUnlocked(item) && !save.upgradePool.seenUnlocks[item.unlockKey]
+  );
+  newlyUnlocked.forEach(item => {
+    save.upgradePool.seenUnlocks[item.unlockKey] = true;
+    showUnlockPopup(item);
+  });
+  if (newlyUnlocked.length) saveGame();
 }
 
 function filterByUpgradePool(items, category) {
   return items.filter(item => {
-    if (item.abilityId) return true;
     const poolItem = { ...item, poolId: getPoolItemId(item), rarity: item.rarity || (item.tier ? getTalentPoolRarity(item) : "Common") };
     return isUpgradePoolItemUnlocked(poolItem) && isUpgradePoolItemActive(poolItem, category);
   });
@@ -634,10 +730,15 @@ function getAvailablePoolItems(options = {}) {
   if (type === "talents") items = CLASS_TALENTS[classId] || [];
   return items.filter(item => {
     if (type === "talents" && options.excludeOwnedTalentIds?.has(item.id)) return false;
-    if (item.abilityId) return isRunAbilityUnlockedForClass(item.abilityId, classId) && !abilityIds.has(item.abilityId);
+    const poolItem = { ...item, poolId: getPoolItemId(item), rarity: item.rarity || (item.tier ? getTalentPoolRarity(item) : "Common") };
+    if (item.abilityId) {
+      if (!isRunAbilityUnlockedForClass(item.abilityId, classId) || abilityIds.has(item.abilityId)) return false;
+      if (includeLocked) return true;
+      if (!isUpgradePoolItemUnlocked(poolItem)) return false;
+      return includeDisabled || isUpgradePoolItemActive(poolItem, type);
+    }
     if (!item.abilityId && !isAbilityLockedItemAvailable(item, classId, abilityIds)) return false;
     if (includeLocked) return true;
-    const poolItem = { ...item, poolId: getPoolItemId(item), rarity: item.rarity || (item.tier ? getTalentPoolRarity(item) : "Common") };
     if (!isUpgradePoolItemUnlocked(poolItem)) return false;
     return includeDisabled || isUpgradePoolItemActive(poolItem, type);
   });
@@ -1046,6 +1147,15 @@ function formatSignedEquipmentValue(key, value) {
   if (key === "attackSpeed" || key.toLowerCase().includes("chance") || Math.abs(number) < 1) return `${number >= 0 ? "+" : ""}${formatDisplayPercent(Math.abs(number))}`;
   const rounded = Math.max(2, Math.round(Math.abs(number) / 2) * 2);
   return `${number >= 0 ? "+" : "-"}${rounded}`;
+}
+
+function showUnlockPopup(item) {
+  const popup = document.createElement("div");
+  popup.className = "achievement-toast unlock-toast";
+  popup.innerHTML = `<div class="achievement-toast-medal">+</div><div><small>Unlock Available</small><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(getItemDisplayText(item))}</p><em>Off by default. Enable it in Unlocks.</em></div>`;
+  document.body.appendChild(popup);
+  setTimeout(() => popup.classList.add("achievement-toast-hide"), 3600);
+  setTimeout(() => popup.remove(), 4300);
 }
 
 function renderSkinPicker(kind, ownerId, skins) {
@@ -1637,7 +1747,7 @@ function leaveShop() { showMap(); }
 
 function renderChoiceHeroStats(target) {
   if (!target || !run?.hero) return; const hero = run.hero;
-  target.innerHTML = [["HP", `${Math.ceil(hero.hp)}/${Math.ceil(hero.maxHp)}`], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Armor", hero.armor], ["Life Steal", `${Math.round((hero.lifeSteal || 0) * 100)}%`], ["Crit", formatPercentCap(hero.crit, STAT_CAPS.crit)], ["Luck", hero.luck || 0], ["Gold", Math.floor(run.gold)]].map(([l, v]) => `<div class="tooltip-item" data-tooltip="${escapeHtml(getTermTooltip(l))}"><small>${l}</small><strong>${v}</strong></div>`).join("");
+  target.innerHTML = [["HP", `${Math.ceil(hero.hp)}/${Math.ceil(hero.maxHp)}`], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Armor", hero.armor], ["Life Steal", `${Math.round((hero.lifeSteal || 0) * 100)}%`], ["Crit", formatPercentCap(hero.crit, STAT_CAPS.crit)], ["Luck", hero.luck || 0], ["Gold", Math.floor(run.gold)]].map(([l, v]) => `<div class="tooltip-item" data-tooltip="${escapeHtml(l === "Armor" ? getArmorTooltip(hero.armor) : getTermTooltip(l))}"><small>${l}</small><strong>${v}</strong></div>`).join("");
 }
 
 function addRunUpgradeName(name, description, rarity = "Common") {
@@ -1689,7 +1799,7 @@ function updateRunHud(force = false) {
   runEssence.textContent = isGauntletRun() ? Math.floor(save.gauntlet?.points || 0) : Math.floor(run.essenceEarned);
   if (battleSpeedSelect) battleSpeedSelect.value = String(getBattleSpeedPreference());
   if (!isHudTooltipHovered()) {
-    heroStats.innerHTML = [["HP", `${Math.max(0, Math.ceil(hero.hp))}/${Math.ceil(hero.maxHp)}`], ["Armor", hero.armor], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Shield", `${Math.ceil(hero.shield || 0)}/${getHeroShieldCap()}`], ["Crit", formatPercentCap(hero.crit, STAT_CAPS.crit)], ["Regen", `${(hero.regen || 0).toFixed(1)}/s`], ["Luck", hero.luck || 0]].map(([l, v]) => statCell(l, v, getTermTooltip(l))).join("");
+    heroStats.innerHTML = [["HP", `${Math.max(0, Math.ceil(hero.hp))}/${Math.ceil(hero.maxHp)}`], ["Armor", hero.armor], ["Damage", hero.damage.toFixed(1)], ["Atk Spd", getHeroAttackSpeed(hero).toFixed(2)], ["Shield", `${Math.ceil(hero.shield || 0)}/${getHeroShieldCap()}`], ["Crit", formatPercentCap(hero.crit, STAT_CAPS.crit)], ["Regen", `${(hero.regen || 0).toFixed(1)}/s`], ["Luck", hero.luck || 0]].map(([l, v]) => statCell(l, v, l === "Armor" ? getArmorTooltip(hero.armor) : getTermTooltip(l))).join("");
     heroStats.className = "hero-stat-grid"; renderHeroFullStats(hero);
     const upgrades = sortRunUpgrades(getRunUpgradeStacks()), relics = sortRunRelics(getRunRelicStacks()), talents = sortRunTalents(run.talents);
     heroUpgrades.innerHTML = `<div class="loadout-list-title">Upgrades</div>` + (upgrades.length ? upgrades.map(upgrade => `<div class="pill upgrade-pill upgrade-${upgrade.rarity.toLowerCase()} tooltip-item" data-tooltip="${escapeHtml(getUpgradeTooltip(upgrade.name))}">${getItemIconMarkup(upgrade.source)}<span>${escapeHtml(upgrade.name)}</span>${upgrade.count > 1 ? `<strong>${upgrade.count}x</strong>` : ""}</div>`).join("") : `<div class="pill">No run upgrades yet</div>`);
@@ -1764,7 +1874,7 @@ function renderHeroFullStats(hero) {
   const goldDamageMultiplier = getHeroGoldDamageMultiplier(hero);
   if (goldDamageMultiplier) rows.push(["Gold Damage", formatExactPercent(goldDamageMultiplier)]);
   if (hero.id === "rogue") {
-    rows.push(["Bleed", `${formatDisplayPercent(getHeroBleedMaxHpPercent(hero))} max HP/s (${Math.round(getHeroBleedDamage(hero))}/s)`]);
+    rows.push(["Bleed", `${formatExactPercent(getHeroBleedMaxHpPercent(hero)).replace(/^\+/, "")} max HP/s`, getBleedTooltip(hero)]);
     if ((hero.runAbilities || []).includes("rogue_poison") || hero.runPoisonAbilityDamage) rows.push(["Poison", `${Math.round(getRoguePoisonAbilityDamage(hero))}/s`]);
   }
   const burnPercent = getHeroBurnMaxHpPercent(hero);
@@ -1777,10 +1887,11 @@ function renderHeroFullStats(hero) {
     rows.push(["Burn", burnParts.join(", ")]);
   }
   if (hero.id === "wizard") rows.push(["Splash Damage", formatDisplayPercent(getHeroSplashDamageMultiplier(hero))]);
-  heroFullStats.innerHTML = rows.map(([l, v]) => {
+  heroFullStats.innerHTML = rows.map(([l, v, tooltip]) => {
     const scrollClass = l === "Bleed" ? " full-stat-row-scroll" : "";
+    const labelClass = l.length > 9 ? " class=\"full-stat-label-long\"" : "";
     const value = l === "Bleed" ? `<span class="full-stat-scroll-text">${escapeHtml(v)}</span>` : escapeHtml(v);
-    return `<div class="tooltip-item${scrollClass}" data-tooltip="${escapeHtml(getTermTooltip(l))}"><span>${escapeHtml(l)}</span><strong>${value}</strong></div>`;
+    return `<div class="tooltip-item${scrollClass}" data-tooltip="${escapeHtml(tooltip || getTermTooltip(l))}"><span${labelClass}>${escapeHtml(l)}</span><strong>${value}</strong></div>`;
   }).join("");
 }
 function formatDisplayPercent(value) {
@@ -1795,9 +1906,23 @@ const RARITY_SORT_RANK = { Mythic: 6, Legendary: 5, Epic: 4, Rare: 3, Uncommon: 
 function getHeroEvasionChance(hero) { return Math.min(STAT_CAPS.evasion, getPermanentEffectTotal("evasion", hero.id) + (hero.runEvasion || 0)); }
 function getHeroBattleAttackSpeedBonusCap(hero) { return getPermanentEffectTotal("killAttackSpeedMax", hero.id) || 0.35; }
 function getHeroSplashDamageMultiplier(hero) { return 0.25 + getPermanentEffectTotal("splashDamageMultiplier", hero.id) + (hero.runSplashDamageMultiplier || 0); }
-function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.innerHTML = enemies.length ? enemies.map(e => `<div class="enemy-stat-row"><strong>${escapeHtml(e.name)}</strong><div class="enemy-status">${e.hp > 0 ? "ALIVE" : "DEAD"}</div><div class="enemy-stat-chips"><span>HP ${e.buildTestBoss ? "Infinite" : `${Math.max(0, Math.ceil(e.hp))}/${Math.ceil(e.maxHp)}`}</span><span>DMG ${Number(e.damage).toFixed(1)}</span><span>AS ${getEnemyAttackSpeed(e).toFixed(2)}</span><span>ARM ${e.armor}</span><span>AP ${e.armorPiercing || 0}</span></div></div>`).join("") : `<div class="enemy-stat-empty">No active enemies</div>`; }
+function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.innerHTML = enemies.length ? enemies.map(e => `<div class="enemy-stat-row"><strong>${escapeHtml(e.name)}</strong><div class="enemy-status">${e.hp > 0 ? "ALIVE" : "DEAD"}</div><div class="enemy-stat-chips"><span>HP ${e.buildTestBoss ? "Infinite" : `${Math.max(0, Math.ceil(e.hp))}/${Math.ceil(e.maxHp)}`}</span><span>DMG ${Number(e.damage).toFixed(1)}</span><span>AS ${getEnemyAttackSpeed(e).toFixed(2)}</span><span class="tooltip-item" data-tooltip="${escapeHtml(getArmorTooltip(e.armor))}">ARM ${e.armor}</span><span>AP ${e.armorPiercing || 0}</span></div></div>`).join("") : `<div class="enemy-stat-empty">No active enemies</div>`; }
 function statCell(label, value, tooltip) { return `<div class="tooltip-item" data-tooltip="${escapeHtml(tooltip)}"><small>${label}</small><strong>${value}</strong></div>`; }
-function getTermTooltip(term) { return ({ Damage: "How much health an attack removes before armor.", Armor: "Reduces incoming hit damage.", "Armor Piercing": "Ignores this much hero armor when this enemy attacks, down to zero armor.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: "Temporary protection that absorbs damage before health.", Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", Block: "Chance to reduce incoming hit damage.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Gold Damage": "Bonus attack damage from relics based on your current run gold.", "Shield Cap": "Maximum shield this hero can hold.", "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Rogue bleed damage per second based on the Rogue's maximum HP. One bleed can be active on each enemy.", Poison: "Damage per second from rogue poison effects.", Burn: "Damage per second from burn effects. New burns stack their damage on an existing burn.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect."; }
+function getArmorTooltip(armor) {
+  const reduction = typeof getArmorDamageReduction === "function" ? getArmorDamageReduction(armor) : 0;
+  return `Reduces incoming hit damage by ${formatExactPercent(reduction).replace(/^\+/, "")}. Each 5 armor gives a smaller reduction than the previous 5.`;
+}
+
+function getBleedTooltip(hero) {
+  const percent = formatExactPercent(getHeroBleedMaxHpPercent(hero)).replace(/^\+/, "");
+  return `Rogue bleed deals ${Math.round(getHeroBleedDamage(hero))} damage per second right now (${percent} of ${Math.round(hero.maxHp)} max HP). One bleed can be active on each enemy.`;
+}
+
+function getTermTooltip(term) {
+  const shieldCapPercent = run?.hero ? formatExactPercent(getHeroShieldCapPercent(run.hero)).replace(/^\+/, "") : "20%";
+  const shieldCap = run?.hero ? ` Maximum shield is ${shieldCapPercent} of max HP right now (${getHeroShieldCap()} shield).` : " Maximum shield starts at 20% of max HP.";
+  return ({ Damage: "How much health an attack removes before armor.", Armor: getArmorTooltip(run?.hero?.armor || 0), "Armor Piercing": "Ignores this much hero armor before percentage damage reduction is calculated, down to zero armor.", "Atk Spd": "How many attacks happen each second.", "Attack speed": "How many attacks happen each second.", Crit: "Chance for an attack to deal critical damage.", "Crit chance": "Chance for an attack to deal critical damage.", Shield: `Temporary protection that absorbs damage before health.${shieldCap}`, Health: "Current and maximum HP.", Luck: "Improves reward, relic, and shop rolls.", Gold: "Currency used during this run at merchants.", Essence: "Currency used between runs to buy permanent upgrades and unlocks.", Block: "Chance to reduce incoming hit damage.", Evasion: "Chance to avoid enemy attacks.", Execute: "Bonus damage against enemies below the listed health threshold.", "Crit Damage": "Extra critical-hit damage from talents, relics, and upgrades.", "Atk Bonus": "Temporary attack speed gained during this battle.", "Dmg Bonus": "Temporary damage gained during this battle.", "Gold Damage": "Bonus attack damage from relics based on your current run gold.", "Shield Cap": `Maximum shield this hero can hold.${shieldCap}`, "Life Steal": "Heals for part of the damage you deal.", "Start Shield": "Shield gained at battle start.", Bleed: "Rogue bleed damage per second based on the Rogue's maximum HP. One bleed can be active on each enemy.", Poison: "Damage per second from rogue poison effects.", Burn: "Damage per second from burn effects. New burns stack their damage on an existing burn.", "Splash Damage": "Damage dealt to secondary targets when wizard splash magic triggers." })[term] || "A combat stat or effect.";
+}
 function renderActiveSkills() { activeSkills.innerHTML = battle ? Object.entries(battle.activeSkills || {}).map(([name, time]) => `<div class="active-skill"><b>*</b><strong>${escapeHtml(name)}</strong><span>${time.toFixed(1)}s</span></div>`).join("") : ""; }
 function renderSpecialSkills() { const ids = run?.hero?.runAbilities || []; specialSkills.innerHTML = ids.length ? `<div class="special-skill-title">Special Skills</div><div class="special-skill-row">${ids.map(id => `<div class="special-skill"><b>${getAbilityIconMarkup(RUN_ABILITIES[id])}</b><strong>${RUN_ABILITIES[id].name}</strong><span>${Math.max(0, battle?.abilityCooldowns?.[id] || 0).toFixed(1)}s</span></div>`).join("")}</div>` : `<div class="special-skill-empty">No special skills unlocked</div>`; }
 function getAbilityIconMarkup(ability) { return `<span class="ability-icon ability-icon-${ability.id}" style="--ability-color:${ability.color}">${ability.icon}</span>`; }
@@ -1817,7 +1942,7 @@ function renderBattle() {
   if (battle.bossIntroTimer > 0) renderBossIntro(); if (battle.state === "result") renderBattleResultPanel();
   renderBattleParticles();
   const floats = isBuildTestRun() ? battle.floatingTexts.slice(-24) : battle.floatingTexts;
-  floats.forEach(float => { const div = document.createElement("div"), scale = getBattleScale(); div.className = `float-text ${float.variant ? `float-text-${float.variant}` : ""}`; div.style.left = float.x * scale.x + "px"; div.style.top = float.y * scale.y + "px"; div.style.color = float.color; div.textContent = float.text; battlefield.appendChild(div); }); battle.floatingTexts = [];
+  floats.forEach(float => { const div = document.createElement("div"), scale = getBattleScale(); div.className = `float-text ${float.variant ? `float-text-${float.variant}` : ""}`; div.style.left = float.x * scale.x + "px"; div.style.top = float.y * scale.y + "px"; div.style.color = float.color; div.textContent = float.count > 1 && !float.numeric ? `${float.text} x${float.count}` : float.text; battlefield.appendChild(div); }); battle.floatingTexts = [];
 }
 function renderBattleParticles() {
   const scale = getBattleScale();
@@ -2027,7 +2152,7 @@ function getTreeUpgradeCost(node, level) {
 }
 function isTreeNodeLocked(node) { return node.prerequisites.some(id => getTreeLevel(id) <= 0); }
 function getTreeNodeInitials(node) { return node.name.split(/\s+/).map(word => word[0]).join("").slice(0, 2).toUpperCase(); }
-function purchaseTreeNode(id) { const node = TREE[id], level = getTreeLevel(id), cost = getTreeUpgradeCost(node, level); if (isTreeNodeLocked(node) || level >= node.maxLevel || save.essence < cost) return; save.essence -= cost; save.tree[id] = level + 1; selectedTreeNodeId = id; saveGame(); renderTree(); }
+function purchaseTreeNode(id) { const node = TREE[id], level = getTreeLevel(id), cost = getTreeUpgradeCost(node, level); if (isTreeNodeLocked(node) || level >= node.maxLevel || save.essence < cost) return; save.essence -= cost; save.tree[id] = level + 1; selectedTreeNodeId = id; checkUpgradePoolUnlocks(); saveGame(); renderTree(); }
 function getTreeNodesInDependencyOrder(nodes) {
   const byId = new Map(nodes.map(node => [node.id, node]));
   const ordered = [];

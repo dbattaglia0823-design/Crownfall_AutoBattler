@@ -8,7 +8,7 @@ const BASE_STAGE_ESSENCE = 15;
 const ENDLESS_BASE_ESSENCE = 2;
 const ENDLESS_ESSENCE_PER_STAGE = 1.15;
 const ENDLESS_ESSENCE_CAP = 50;
-const ROGUE_BASE_BLEED_MAX_HP_PERCENT = 0.03;
+const ROGUE_BASE_BLEED_MAX_HP_PERCENT = 0.04;
 const TREE_COST_GROWTH = 1.75;
 const GLOBAL_TREE_COST_MULTIPLIER = 0.75;
 const GLOBAL_TREE_COST_GROWTH = 1.5;
@@ -108,9 +108,9 @@ const GAUNTLET_SHOP_UPGRADES = [
 ];
 
 const CLASSES = {
-  knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 200, damage: 16, attackSpeed: 0.71, armor: 4, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
-  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed based on max HP.", hp: 155, damage: 13, attackSpeed: 1.04, armor: 1, crit: 0.25, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Max HP bleed"] },
-  wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 175, damage: 24, attackSpeed: 0.6, armor: 1, crit: 0.1, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
+  knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 200, damage: 18, attackSpeed: 0.71, armor: 4, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
+  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed based on max HP.", hp: 155, damage: 13, attackSpeed: 0.92, armor: 1, crit: 0.15, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Max HP bleed"] },
+  wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 175, damage: 24, attackSpeed: 0.6, armor: 2, crit: 0.1, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
 };
 
 const EQUIPMENT_SLOTS = [
@@ -123,68 +123,68 @@ const EQUIPMENT_SLOTS = [
 ];
 
 const EQUIPMENT_RARITIES = [
-  { id: "Common", weight: 60, statMultiplier: 1, qualityBonus: 0 },
-  { id: "Uncommon", weight: 26.5, statMultiplier: 1.18, qualityBonus: 0.04 },
-  { id: "Rare", weight: 10, statMultiplier: 1.42, qualityBonus: 0.09 },
-  { id: "Epic", weight: 3, statMultiplier: 1.78, qualityBonus: 0.15 },
-  { id: "Legendary", weight: 0.5, statMultiplier: 2.25, qualityBonus: 0.24 }
+  { id: "Common", weight: 60, statMultiplier: 0.55, qualityBonus: 0 },
+  { id: "Uncommon", weight: 26.5, statMultiplier: 0.9, qualityBonus: 0.02 },
+  { id: "Rare", weight: 10, statMultiplier: 1.65, qualityBonus: 0.04 },
+  { id: "Epic", weight: 3, statMultiplier: 2.8, qualityBonus: 0.06 },
+  { id: "Legendary", weight: 0.5, statMultiplier: 4.5, qualityBonus: 0.08 }
 ];
 
 const EQUIPMENT_STAT_RANGES = {
-  maxHp: { min: 8, max: 32, decimals: 0 },
-  damage: { min: 1, max: 6, decimals: 1 },
-  armor: { min: 1, max: 5, decimals: 0 },
-  attackSpeed: { min: 0.01, max: 0.09, decimals: 2 },
-  critChance: { min: 0.01, max: 0.08, decimals: 2 },
-  regen: { min: 0.2, max: 2.2, decimals: 1 },
-  luck: { min: 1, max: 4, decimals: 0 }
+  maxHp: { min: 3, max: 12, decimals: 0 },
+  damage: { min: 0.4, max: 2.4, decimals: 1 },
+  armor: { min: 1, max: 2, decimals: 0 },
+  attackSpeed: { min: 0.005, max: 0.025, decimals: 3 },
+  critChance: { min: 0.005, max: 0.025, decimals: 3 },
+  regen: { min: 0.05, max: 0.45, decimals: 1 },
+  luck: { min: 1, max: 1, decimals: 0 }
 };
 
 const EQUIPMENT_TEMPLATES = {
   head: [
     { id: "soldiers_helm", name: "Soldier's Helm", stats: ["maxHp", "armor"] },
     { id: "crownguard_sallet", name: "Crownguard Sallet", stats: ["armor", "maxHp"] },
-    { id: "duelist_mask", name: "Duelist Mask", stats: ["critChance", "attackSpeed"] },
-    { id: "oracle_cowl", name: "Oracle Cowl", stats: ["damage", "critChance"] },
-    { id: "wolfhide_cap", name: "Wolfhide Cap", stats: ["attackSpeed", "maxHp"] },
-    { id: "iron_visor", name: "Iron Visor", stats: ["armor", "regen"] },
-    { id: "ember_hood", name: "Ember Hood", stats: ["damage", "regen"] },
+    { id: "duelist_mask", name: "Duelist Mask", stats: ["critChance", "luck"] },
+    { id: "oracle_cowl", name: "Oracle Cowl", stats: ["luck", "critChance"] },
+    { id: "wolfhide_cap", name: "Wolfhide Cap", stats: ["maxHp", "critChance"] },
+    { id: "iron_visor", name: "Iron Visor", stats: ["armor", "critChance"] },
+    { id: "ember_hood", name: "Ember Hood", stats: ["maxHp", "luck"] },
     { id: "gravewatch_helm", name: "Gravewatch Helm", stats: ["maxHp", "luck"] },
     { id: "kingsfall_circlet", name: "Kingsfall Circlet", stats: ["critChance", "luck"] },
-    { id: "ashen_crownlet", name: "Ashen Crownlet", stats: ["damage", "armor"] }
+    { id: "ashen_crownlet", name: "Ashen Crownlet", stats: ["armor", "luck"] }
   ],
   body: [
     { id: "chainmail_vest", name: "Chainmail Vest", stats: ["armor", "maxHp"] },
     { id: "oathbound_plate", name: "Oathbound Plate", stats: ["maxHp", "armor"] },
-    { id: "shadow_jacket", name: "Shadow Jacket", stats: ["attackSpeed", "critChance"] },
-    { id: "runed_robes", name: "Runed Robes", stats: ["damage", "regen"] },
-    { id: "raider_harness", name: "Raider Harness", stats: ["damage", "maxHp"] },
-    { id: "sanctuary_mail", name: "Sanctuary Mail", stats: ["regen", "armor"] },
-    { id: "wyvern_hide", name: "Wyvern Hide", stats: ["maxHp", "attackSpeed"] },
-    { id: "battle_surcoat", name: "Battle Surcoat", stats: ["damage", "armor"] },
-    { id: "moonstitched_garb", name: "Moonstitched Garb", stats: ["critChance", "regen"] },
+    { id: "shadow_jacket", name: "Shadow Jacket", stats: ["critChance", "maxHp"] },
+    { id: "runed_robes", name: "Runed Robes", stats: ["luck", "maxHp"] },
+    { id: "raider_harness", name: "Raider Harness", stats: ["maxHp", "armor"] },
+    { id: "sanctuary_mail", name: "Sanctuary Mail", stats: ["luck", "armor"] },
+    { id: "wyvern_hide", name: "Wyvern Hide", stats: ["maxHp", "critChance"] },
+    { id: "battle_surcoat", name: "Battle Surcoat", stats: ["armor", "maxHp"] },
+    { id: "moonstitched_garb", name: "Moonstitched Garb", stats: ["critChance", "luck"] },
     { id: "crownforged_cuirass", name: "Crownforged Cuirass", stats: ["armor", "luck"] }
   ],
   mainHand: [
     { id: "tempered_blade", name: "Tempered Blade", stats: ["damage", "critChance"] },
-    { id: "heavy_mace", name: "Heavy Mace", stats: ["damage", "armor"] },
+    { id: "heavy_mace", name: "Heavy Mace", stats: ["damage", "critChance"] },
     { id: "quick_daggers", name: "Quick Daggers", stats: ["attackSpeed", "critChance"] },
-    { id: "war_axe", name: "War Axe", stats: ["damage", "maxHp"] },
+    { id: "war_axe", name: "War Axe", stats: ["damage", "attackSpeed"] },
     { id: "dueling_rapier", name: "Dueling Rapier", stats: ["critChance", "damage"] },
     { id: "apprentice_wand", name: "Apprentice Wand", stats: ["damage", "attackSpeed"] },
     { id: "storm_staff", name: "Storm Staff", stats: ["damage", "luck"] },
-    { id: "bone_scepter", name: "Bone Scepter", stats: ["damage", "regen"] },
-    { id: "crownsplitter", name: "Crownsplitter", stats: ["damage", "armor"] },
-    { id: "gilded_halberd", name: "Gilded Halberd", stats: ["damage", "maxHp"] }
+    { id: "bone_scepter", name: "Bone Scepter", stats: ["damage", "luck"] },
+    { id: "crownsplitter", name: "Crownsplitter", stats: ["damage", "critChance"] },
+    { id: "gilded_halberd", name: "Gilded Halberd", stats: ["damage", "luck"] }
   ],
   offHand: [
     { id: "round_shield", name: "Round Shield", stats: ["armor", "maxHp"] },
     { id: "tower_guard", name: "Tower Guard", stats: ["armor", "regen"] },
     { id: "parrying_dagger", name: "Parrying Dagger", stats: ["critChance", "attackSpeed"] },
-    { id: "focus_orb", name: "Focus Orb", stats: ["damage", "critChance"] },
+    { id: "focus_orb", name: "Focus Orb", stats: ["critChance", "luck"] },
     { id: "lucky_charm", name: "Lucky Charm", stats: ["luck", "critChance"] },
     { id: "iron_lantern", name: "Iron Lantern", stats: ["regen", "maxHp"] },
-    { id: "ember_tome", name: "Ember Tome", stats: ["damage", "regen"] },
+    { id: "ember_tome", name: "Ember Tome", stats: ["luck", "regen"] },
     { id: "duelist_buckler", name: "Duelist Buckler", stats: ["attackSpeed", "armor"] },
     { id: "saints_reliquary", name: "Saint's Reliquary", stats: ["maxHp", "luck"] },
     { id: "crown_mirror", name: "Crown Mirror", stats: ["critChance", "luck"] }
@@ -193,24 +193,24 @@ const EQUIPMENT_TEMPLATES = {
     { id: "marching_greaves", name: "Marching Greaves", stats: ["maxHp", "armor"] },
     { id: "plated_leggings", name: "Plated Leggings", stats: ["armor", "maxHp"] },
     { id: "rogues_trousers", name: "Rogue's Trousers", stats: ["attackSpeed", "critChance"] },
-    { id: "runewoven_leggings", name: "Runewoven Leggings", stats: ["damage", "regen"] },
+    { id: "runewoven_leggings", name: "Runewoven Leggings", stats: ["regen", "luck"] },
     { id: "wolfstep_chaps", name: "Wolfstep Chaps", stats: ["attackSpeed", "maxHp"] },
     { id: "grave_ward_greaves", name: "Grave Ward Greaves", stats: ["armor", "regen"] },
     { id: "campaign_tassets", name: "Campaign Tassets", stats: ["maxHp", "luck"] },
-    { id: "emberstride_leggings", name: "Emberstride Leggings", stats: ["damage", "attackSpeed"] },
-    { id: "duelist_legwraps", name: "Duelist Legwraps", stats: ["critChance", "damage"] },
+    { id: "emberstride_leggings", name: "Emberstride Leggings", stats: ["attackSpeed", "luck"] },
+    { id: "duelist_legwraps", name: "Duelist Legwraps", stats: ["critChance", "attackSpeed"] },
     { id: "crownforged_greaves", name: "Crownforged Greaves", stats: ["armor", "luck"] }
   ],
   feet: [
     { id: "travelers_boots", name: "Traveler's Boots", stats: ["attackSpeed", "maxHp"] },
     { id: "iron_sabatons", name: "Iron Sabatons", stats: ["armor", "maxHp"] },
     { id: "silent_slippers", name: "Silent Slippers", stats: ["critChance", "attackSpeed"] },
-    { id: "runecaster_sandals", name: "Runecaster Sandals", stats: ["damage", "regen"] },
-    { id: "spurred_boots", name: "Spurred Boots", stats: ["attackSpeed", "damage"] },
+    { id: "runecaster_sandals", name: "Runecaster Sandals", stats: ["regen", "luck"] },
+    { id: "spurred_boots", name: "Spurred Boots", stats: ["attackSpeed", "critChance"] },
     { id: "sanctuary_treads", name: "Sanctuary Treads", stats: ["regen", "maxHp"] },
     { id: "fortune_boots", name: "Fortune Boots", stats: ["luck", "attackSpeed"] },
     { id: "grave_marchers", name: "Grave Marchers", stats: ["armor", "regen"] },
-    { id: "emberstep_boots", name: "Emberstep Boots", stats: ["damage", "critChance"] },
+    { id: "emberstep_boots", name: "Emberstep Boots", stats: ["attackSpeed", "luck"] },
     { id: "kingroad_sabatons", name: "Kingroad Sabatons", stats: ["maxHp", "luck"] }
   ]
 };
@@ -311,7 +311,7 @@ const ENEMY_ARCHETYPES = {
 
   orc: { id: "orc", name: "Orc", hp: 76, damage: 11, attackSpeed: 0.34, armor: 3, armorPiercing: 2, className: "orc" },
   raider: { id: "raider", name: "Raider", hp: 66, damage: 13, attackSpeed: 0.52, armor: 2, armorPiercing: 2, className: "raider" },
-  troll: { id: "troll", name: "Troll", hp: 112, damage: 17, attackSpeed: 0.08, armor: 4, armorPiercing: 3, className: "troll" },
+  troll: { id: "troll", name: "Troll", hp: 112, damage: 17, attackSpeed: 0.4, armor: 4, armorPiercing: 3, className: "troll" },
   armoredKnight: { id: "armored_knight", name: "Armored Knight", hp: 98, damage: 14, attackSpeed: 0.3, armor: 7, armorPiercing: 3, className: "armored_knight" },
 
   fallenKnight: { id: "fallen_knight", name: "Fallen Knight", hp: 108, damage: 17, attackSpeed: 0.33, armor: 7, armorPiercing: 4, className: "fallen_knight" },
@@ -937,7 +937,7 @@ function addRoundGrowth(hero, stat, value) {
 // Example: { name: "Sharpened Blade", rarity: "Common", stats: { damage: 5 } }
 // Ability/run-only stat example: { stats: { abilityStats: { runBurnDamage: 5 } } }
 // Growth exception example: { effects: [{ type: "stageGrowth", stat: "damageMultiplier", value: 0.02 }] }
-// Common keys: damage, maxHp, armor, attackSpeed, regen, luck, gold, shield, critChance,
+// Common keys: damage, maxHp, armor, attackSpeed, regen, luck, gold, shield, shieldCapPercent, critChance,
 // blockChance, lifeSteal, abilityDamage, bleedMaxHpPercent, burnChance, evasion.
 const REWARDS = [
   // General Upgrades
@@ -961,6 +961,7 @@ const REWARDS = [
   { name: "Clockwork Grip", rarity: "Rare", stats: { attackSpeed: 0.16 } },
   { name: "Field Medic", rarity: "Rare", stats: { maxHp: 32, armor: 2 } },
   { name: "Gilded Compass", rarity: "Rare", stats: { luck: 3, gold: 30 } },
+  { name: "Reinforced Guard", rarity: "Rare", stats: { shieldCapPercent: 0.05 } },
   { name: "Barbed Buckler", rarity: "Rare", stats: { armor: 3, critChance: 0.08 } },
   { name: "Glass Canon", rarity: "Rare", stats: { damage: 40, maxHp: -80 } },
   { name: "War Training", rarity: "Epic", stats: { damage: 25, maxHp: 32 } },
@@ -989,6 +990,7 @@ const REWARDS = [
   { name: "Chrono Spurs", rarity: "Legendary", stats: { attackSpeed: 0.24 } },
   { name: "Sovereign Star", rarity: "Legendary", stats: { luck: 10, critChance: 0.1, gold: 200 } },
   { name: "Living Aegis", rarity: "Legendary", stats: { armor: 16, maxHp: 240, regen: 3 } },
+  { name: "Aegis Reservoir", rarity: "Legendary", stats: { shieldCapPercent: 0.12, maxHp: 120 } },
   { name: "Crown Edge", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 12 }, effects: [{ type: "stageGrowth", stat: "damageMultiplier", value: 0.05 }] },
   { name: "Crown Heart", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 14 }, effects: [{ type: "stageGrowth", stat: "maxHpMultiplier", value: 0.05 }] },
   { name: "Crown Plate", rarity: "Legendary", unlockRequirement: { type: "stat", stat: "totalDamageTaken", count: 15000 }, effects: [{ type: "stageGrowth", stat: "armorMultiplier", value: 0.05 }] },
@@ -1001,21 +1003,21 @@ const REWARDS = [
   { classId: "knight", name: "Shield Drill", rarity: "Common", stats: { shield: 20 } },
   { classId: "knight", name: "Plate Fitting", rarity: "Common", stats: { armor: 3, maxHp: 30 } },
   { classId: "knight", name: "Shield Timing", rarity: "Common", stats: { blockChance: 0.04 } },
-  { classId: "rogue", name: "Serrated Oil", rarity: "Common", stats: { bleedMaxHpPercent: 0.003 } },
+  { classId: "rogue", name: "Serrated Oil", rarity: "Common", stats: { bleedMaxHpPercent: 0.013 } },
   { classId: "rogue", name: "Quickstep", rarity: "Common", stats: { attackSpeed: 0.1, evasion: 0.03 } },
   { classId: "wizard", name: "Kindling Rune", rarity: "Common", stats: { burnChance: 0.15 } },
   { classId: "wizard", name: "Arcane Focus", rarity: "Common", stats: { damage: 9, splashDamageMultiplier: 0.1 } },
   { classId: "knight", name: "Guard Stance", rarity: "Rare", stats: { blockChance: 0.07 } },
   { classId: "knight", name: "Bulwark Drill", rarity: "Rare", stats: { blockChance: 0.04, shield: 30 } },
   { classId: "knight", name: "Spiked Shield", rarity: "Rare", stats: { retaliateBlock: 0.15 } },
-  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", stats: { bleedMaxHpPercent: 0.004 } },
+  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", stats: { bleedMaxHpPercent: 0.014 } },
   { classId: "rogue", name: "Assassin's Eye", rarity: "Rare", stats: { critChance: 0.1, executeDamage: 0.1 } },
   { classId: "wizard", name: "Frost Thread", rarity: "Rare", stats: { slowChance: 0.2, slowValue: 0.2 } },
   { classId: "wizard", name: "Mana Ward", rarity: "Rare", stats: { splashShield: 12 } },
   { classId: "wizard", name: "Scorching Brand", rarity: "Rare", stats: { burnMaxHpPercent: 0.004 } },
   { classId: "knight", name: "Unbroken Vow", rarity: "Epic", stats: { maxHp: 90, shield: 40 } },
   { classId: "knight", name: "Castle Guard", rarity: "Epic", stats: { blockChance: 0.15 } },
-  { classId: "rogue", name: "Blood Rush", rarity: "Epic", stats: { bleedMaxHpPercent: 0.008, bleedAttackSpeed: 0.08 } },
+  { classId: "rogue", name: "Blood Rush", rarity: "Epic", stats: { bleedMaxHpPercent: 0.018, bleedAttackSpeed: 0.08 } },
   { classId: "wizard", name: "Chain Spell", rarity: "Epic", stats: { splashDamageMultiplier: 0.20 } },
   { classId: "knight", name: "Oathbreaker Lessons", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "oathbreaker", count: 20 }, stats: { armor: 8, shield: 10 } },
   { classId: "rogue", name: "Acolyte's Black Oil", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "blood_acolyte", count: 20 }, stats: { abilityDamage: 12 } },
@@ -1089,10 +1091,12 @@ const RELICS = [
   { id: "scholars_rune", name: "Scholar's Rune", rarity: "Rare", icon: "SR", stats: { essenceMultiplier: 0.20 } },
   { id: "oracle_lens", name: "Oracle Lens", rarity: "Rare", icon: "OL", stats: { luck: 6, critChance: 0.12 } },
   { id: "tower_shield", classId: "knight", name: "Tower Shield", rarity: "Rare", icon: "TS", stats: { blockChance: 0.12 } },
+  { id: "shield_brace", name: "Shield Brace", rarity: "Rare", icon: "SB", stats: { shieldCapPercent: 0.05 } },
   { id: "frost_core", name: "Frost Core", rarity: "Rare", icon: "FC", requiresAbility: "wizard_iceball", stats: { abilityStat: "runIceballSlow", abilityValue: 0.15 } },
   { id: "trapwire_spool", name: "Trapwire Spool", rarity: "Rare", icon: "TS", requiresAbility: "rogue_bleed", stats: { abilityStat: "runTrapDuration", abilityValue: 2.5 } },
   { id: "red_crown_splinter", requiresNode: "unlock_relics", name: "Red Crown Splinter", rarity: "Epic", icon: "RC", stats: { damage: 45 } },
   { id: "dawn_banner", requiresNode: "unlock_relics", name: "Dawn Banner", rarity: "Epic", icon: "DB", stats: { shield: 120 } },
+  { id: "aegis_core", name: "Aegis Core", rarity: "Epic", icon: "AC", stats: { shieldCapPercent: 0.08, armor: 4 } },
   { id: "gilded_edge", name: "Gilded Edge", rarity: "Epic", icon: "GE", stats: { goldDamageMultiplier: 0.00010 } },
   { id: "hunters_mark", name: "Hunter's Mark", rarity: "Epic", icon: "HM", stats: { damage: 65 } },
   { id: "executioners_file", name: "Executioner's File", rarity: "Epic", icon: "EF", stats: { damage: 72 } },
@@ -1132,7 +1136,7 @@ const RELICS = [
 ];
 
 const DIRECT_STAT_KEYS = [
-  "damage", "maxHp", "armor", "attackSpeed", "regen", "luck", "gold", "shield", "blockChance", "critChance",
+  "damage", "maxHp", "armor", "attackSpeed", "regen", "luck", "gold", "shield", "shieldCapPercent", "blockChance", "critChance",
   "critDamage", "lifeSteal", "essenceMultiplier", "afterBattleGold", "firstHitReduction", "abilityDamage",
   "goldDamageMultiplier",
   "retaliateBlock", "hitRetaliateChance", "lowHpDamage", "bleedMaxHpPercent", "bleedAttackSpeed", "burnChance",
@@ -1340,6 +1344,7 @@ function applyFlatUpgrade(hero, flat = {}, growth = null) {
   if (flat.luck) hero.luck = (hero.luck || 0) + flat.luck;
   if (flat.gold) { run.gold += flat.gold; if (run.summary) run.summary.goldEarned += flat.gold; }
   if (flat.shield) hero.runStartShield = (hero.runStartShield || 0) + flat.shield;
+  if (flat.shieldCapPercent) hero.runShieldCapPercent = (hero.runShieldCapPercent || 0) + flat.shieldCapPercent;
   if (flat.blockChance) hero.runBlockChance = (hero.runBlockChance || 0) + flat.blockChance;
   if (flat.critChance) hero.crit += flat.critChance;
   if (flat.critDamage) hero.runCritDamage = (hero.runCritDamage || 0) + flat.critDamage;
@@ -1380,13 +1385,14 @@ function applyFlatUpgrade(hero, flat = {}, growth = null) {
 function getFlatUpgradeText(flat = {}, growth = null) {
   const parts = [];
   if (flat.damage) parts.push(`${formatEvenSigned(flat.damage)} damage`);
-  if (flat.attackSpeed) parts.push(`${formatPercent(flat.attackSpeed)} attack speed`);
+  if (flat.attackSpeed) parts.push(`${formatEvenSigned(flat.attackSpeed)} attack speed`);
   if (flat.maxHp) parts.push(`${formatEvenSigned(flat.maxHp)} max HP`);
   if (flat.armor) parts.push(`${formatEvenSigned(flat.armor)} armor`);
   if (flat.regen) parts.push(`${formatEvenSigned(flat.regen)} HP regen`);
   if (flat.luck) parts.push(`${formatEvenSigned(flat.luck)} Luck`);
   if (flat.gold) parts.push(`${formatEvenSigned(flat.gold)} gold`);
   if (flat.shield) parts.push(`${formatEvenSigned(flat.shield)} battle-start shield`);
+  if (flat.shieldCapPercent) parts.push(`${formatPercent(flat.shieldCapPercent)} shield cap`);
   if (flat.blockChance) parts.push(`${formatPercent(flat.blockChance)} block chance`);
   if (flat.critChance) parts.push(`${formatPercent(flat.critChance)} crit chance`);
   if (flat.critDamage) parts.push(`${formatPercent(flat.critDamage)} crit damage`);
@@ -1542,10 +1548,10 @@ const TREE_NODES = [
   { id: "knight_holy_sword_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Sword", description: "Unlocks Holy Sword: every 4s, the next 3 player hits deal +50% damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_sword" }, x: 0, y: 1050, prerequisites: ["knight_retribution"], type: "ability" },
   { id: "knight_holy_shield_unlock", classId: "knight", branch: "Ability Unlock", name: "Holy Shield", description: "Unlocks Holy Shield: every 5s, gain +50% armor against the next 2 enemy hits.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "knight_holy_shield" }, x: 0, y: 1230, prerequisites: ["knight_aegis_eternal"], type: "ability" },
 
-  { id: "rogue_serrated", classId: "rogue", branch: "Bleed", name: "Serrated Edge", description: "+0.5% max HP bleed damage per second per level.", cost: 55, maxLevel: 4, effect: { bleedMaxHpPercent: 0.005 }, x: 760, y: 1540, prerequisites: ["rogue_root"], type: "stat" },
-  { id: "rogue_open_wounds", classId: "rogue", branch: "Bleed", name: "Open Wounds", description: "+0.8% max HP bleed damage per second per level.", cost: 100, maxLevel: 3, effect: { bleedMaxHpPercent: 0.008 }, x: 760, y: 1680, prerequisites: ["rogue_serrated"], type: "notable" },
+  { id: "rogue_serrated", classId: "rogue", branch: "Bleed", name: "Serrated Edge", description: "+1.5% max HP bleed damage per second per level.", cost: 55, maxLevel: 4, effect: { bleedMaxHpPercent: 0.015 }, x: 760, y: 1540, prerequisites: ["rogue_root"], type: "stat" },
+  { id: "rogue_open_wounds", classId: "rogue", branch: "Bleed", name: "Open Wounds", description: "+1.8% max HP bleed damage per second per level.", cost: 100, maxLevel: 3, effect: { bleedMaxHpPercent: 0.018 }, x: 760, y: 1680, prerequisites: ["rogue_serrated"], type: "notable" },
   { id: "rogue_blood_scent", classId: "rogue", branch: "Bleed", name: "Blood Scent", description: "Bleeding a new target grants +5% attack speed per level.", cost: 145, maxLevel: 3, effect: { bleedAttackSpeed: 0.05 }, x: 760, y: 1820, prerequisites: ["rogue_open_wounds"], type: "notable" },
-  { id: "rogue_crimson_execution", classId: "rogue", branch: "Bleed", name: "Crimson Execution", description: "Capstone: +2.5% max HP bleed damage per second and +18% execute damage.", cost: 285, maxLevel: 1, effect: { executeDamage: 0.18, bleedMaxHpPercent: 0.025 }, x: 760, y: 2020, prerequisites: ["rogue_blood_scent"], type: "capstone" },
+  { id: "rogue_crimson_execution", classId: "rogue", branch: "Bleed", name: "Crimson Execution", description: "Capstone: +4% max HP bleed damage per second and +18% execute damage.", cost: 285, maxLevel: 1, effect: { executeDamage: 0.18, bleedMaxHpPercent: 0.04 }, x: 760, y: 2020, prerequisites: ["rogue_blood_scent"], type: "capstone" },
 
   { id: "rogue_precision", classId: "rogue", branch: "Critical", name: "Keen Eye", description: "+3% crit chance per level.", cost: 60, maxLevel: 4, effect: { critChance: 0.03 }, x: 1120, y: 1540, prerequisites: ["rogue_root"], type: "stat" },
   { id: "rogue_backstab_meta", classId: "rogue", branch: "Critical", name: "Backstab", description: "Critical hits deal +12% damage per level.", cost: 105, maxLevel: 3, effect: { critDamage: 0.12 }, x: 1120, y: 1680, prerequisites: ["rogue_precision"], type: "notable" },
@@ -1808,6 +1814,7 @@ function formatTreeStatText(stat, value) {
     sanctuaryMaxHp: "max HP from Sanctuaries",
     sanctuaryRegen: "HP regen from Sanctuaries",
     battleStartShield: "battle-start shield",
+    shieldCapPercent: "shield cap",
     rerolls: "reroll per reward, relic, and shop offer",
     hitRetaliateDamage: "hit retaliation damage",
     firstEnemyDelay: "first enemy attack delay",
