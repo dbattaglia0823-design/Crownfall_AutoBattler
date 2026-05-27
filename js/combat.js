@@ -376,6 +376,9 @@ function updateVisualTimers(dt) {
     enemy.hitFlash = Math.max(0, (enemy.hitFlash || 0) - dt);
     enemy.deathTimer = Math.max(0, (enemy.deathTimer || 0) - dt);
   });
+  battle.floatingTexts = (battle.floatingTexts || [])
+    .map(float => ({ ...float, age: (float.age || 0) + dt }))
+    .filter(float => float.age < (float.life || FLOAT_TEXT_LIFETIME));
   battle.particles = battle.particles
     .map(particle => ({ ...particle, age: particle.age + dt }))
     .filter(particle => particle.age < particle.life);
@@ -683,7 +686,8 @@ function enemyAttack(enemy, hero) {
   }
   if (safeDamageTaken > 0) markUnitHit(hero);
   if (enemy.boss) triggerScreenShake("heavy");
-  if (safeDamageTaken > 0) addFloat(hero.x, hero.y - 38, Math.round(safeDamageTaken), "#ff8b8b", { variant: safeDamageTaken >= hero.maxHp * 0.18 ? "heavy" : "" });
+  if (armorPrevented >= 1) addFloat(hero.x, hero.y - 38, Math.round(armorPrevented), "#7dd3fc", { variant: "armor", stackKey: "playerDamage" });
+  if (safeDamageTaken > 0) addFloat(hero.x, hero.y - 38, Math.round(safeDamageTaken), "#ff8b8b", { variant: safeDamageTaken >= hero.maxHp * 0.18 ? "heavy" : "", stackKey: "playerDamage" });
   if (safeDamageTaken >= hero.maxHp * 0.18 || safeDamageTaken >= 45) log(`${enemy.name} lands a heavy hit for ${Math.round(safeDamageTaken)} damage.`, "danger");
 }
 
@@ -1041,6 +1045,9 @@ function renderRunSummary(victory, routeName, essence, message, extraRows = []) 
   `;
 }
 
+const FLOAT_TEXT_LIFETIME = 0.75;
+const FLOAT_TEXT_STACK_LIMIT = 5;
+
 function addFloat(x, y, text, color, options = {}) {
   if (save.settings.damageNumbers === false) return;
   if (save.settings.reduceAnimations) return;
@@ -1050,9 +1057,10 @@ function addFloat(x, y, text, color, options = {}) {
       if (battle.floatingTexts.length >= BUILD_TEST_MAX_FLOATING_TEXTS) return;
     }
     const variant = options.variant || "";
+    const stackKey = options.stackKey || "";
     const textValue = String(text);
     const numeric = /^[-+]?\d+(\.\d+)?$/.test(textValue);
-    const nearby = battle.floatingTexts.find(float =>
+    const nearby = !stackKey && battle.floatingTexts.find(float =>
       float.color === color &&
       float.variant === variant &&
       Math.abs(float.x - x) <= 32 &&
@@ -1070,7 +1078,12 @@ function addFloat(x, y, text, color, options = {}) {
       }
       return;
     }
-    battle.floatingTexts.push({ x, y, text: textValue, color, variant, count: 1, numeric });
+    if (stackKey) {
+      battle.floatingTexts = battle.floatingTexts
+        .map(float => float.stackKey === stackKey ? { ...float, stackIndex: (float.stackIndex || 0) + 1 } : float)
+        .filter(float => float.stackKey !== stackKey || (float.stackIndex || 0) < FLOAT_TEXT_STACK_LIMIT);
+    }
+    battle.floatingTexts.push({ x, y, text: textValue, color, variant, stackKey, stackIndex: 0, count: 1, numeric, age: 0, life: FLOAT_TEXT_LIFETIME });
   }
 }
 
@@ -1109,7 +1122,12 @@ function triggerSkillVfx(x, y, label, theme, options = {}) {
     sprite: options.sprite || (options.abilityId && typeof getSkillSpriteSheet === "function" ? getSkillSpriteSheet(options.abilityId, options.hero || run?.hero) : ""),
     color: colors[theme] || colors.global,
     age: 0,
-    life: 0.85
+    life: options.life || 0.85,
+    floatY: options.floatY ?? 28,
+    startScale: options.startScale ?? 0.65,
+    endScale: options.endScale ?? 1.35,
+    startOpacity: options.startOpacity ?? 1,
+    endOpacity: options.endOpacity ?? 0
   });
 }
 
@@ -1139,13 +1157,13 @@ function updateRunAbilities(hero, target, dt) {
 }
 
 function useRunAbility(ability, hero, target) {
-  triggerSkillVfx(hero.x, hero.y - 6, ability.name, ability.classId, { abilityId: ability.id, hero });
   delete battle.activeSkills[ability.name];
   battle.recentAbilities[ability.id] = 0.55;
 
   if (ability.id === "wizard_curse") {
     playSound("magicCast");
     applyEnemyStatus(target, "curse", { duration: ability.duration + (hero.runCurseDuration || 0), value: 0.22 + (hero.runCurseDamageTaken || 0) });
+    triggerSkillVfx(target.x, target.y - 4, ability.name, ability.classId, { abilityId: ability.id, hero });
     spawnAbilityIndicator(target, "curse");
     startUnitSpriteAnimation(hero, "attack", 0.26);
     addFloat(target.x, target.y - 70, "CURSE", ability.color);
@@ -1155,7 +1173,7 @@ function useRunAbility(ability, hero, target) {
   if (ability.id === "wizard_iceball") {
     playSound("magicCast");
     startUnitSpriteAnimation(hero, "attack", 0.26);
-    spawnAbilityProjectile(hero, target, "iceball");
+    spawnAbilityProjectile(hero, target, "iceball", { abilityId: ability.id, hero, color: ability.color });
     damageEnemy(target, hero.damage * (0.75 + (hero.runIceballDamage || 0)), "#93c5fd");
     applyEnemyStatus(target, "slow", { duration: ability.duration + (hero.runIceballDuration || 0), value: 0.38 + (hero.runIceballSlow || 0) });
     addFloat(target.x, target.y - 62, "Iceball", ability.color);
@@ -1167,6 +1185,7 @@ function useRunAbility(ability, hero, target) {
     startUnitSpriteAnimation(hero, "attack", 0.28);
     battle.enemies.filter(enemy => enemy.hp > 0).slice(0, 3 + (hero.runLightningTargets || 0)).forEach((enemy, index) => {
       damageEnemy(enemy, hero.damage * (0.9 + (hero.runLightningDamage || 0) - index * 0.15), "#fde68a", { heavy: index === 0 });
+      triggerSkillVfx(enemy.x, enemy.y - 4, ability.name, ability.classId, { abilityId: ability.id, hero });
       spawnAbilityIndicator(enemy, "lightning");
       addFloat(enemy.x, enemy.y - 62, "Lightning", ability.color);
     });
@@ -1179,6 +1198,7 @@ function useRunAbility(ability, hero, target) {
     startUnitSpriteAnimation(hero, "attack", 0.24);
     spawnSlashEffect(target, "rogue");
     applyEnemyStatus(target, "poison", { damage: getRoguePoisonAbilityDamage(hero), duration: ability.duration });
+    triggerSkillVfx(target.x, target.y - 4, ability.name, ability.classId, { abilityId: ability.id, hero });
     spawnAbilityIndicator(target, "poison");
     return;
   }
@@ -1187,6 +1207,7 @@ function useRunAbility(ability, hero, target) {
     startUnitSpriteAnimation(hero, "attack", 0.24);
     battle.enemies.filter(enemy => enemy.hp > 0).forEach(enemy => {
       applyEnemyStatus(enemy, "slow", { duration: ability.duration + (hero.runTrapDuration || 0), value: ROGUE_TRAP_SLOW_VALUE + (hero.runTrapSlow || 0) });
+      triggerSkillVfx(enemy.x, enemy.y - 4, ability.name, ability.classId, { abilityId: ability.id, hero });
       spawnAbilityIndicator(enemy, "bleed");
     });
     addFloat(hero.x, hero.y - 72, "TRAP", ability.color);
@@ -1197,6 +1218,7 @@ function useRunAbility(ability, hero, target) {
     startUnitSpriteAnimation(hero, "attack", 0.24);
     spawnSlashEffect(target, "rogue");
     applyEnemyStatus(target, "burn", { damage: getRogueBurnAbilityDamage(hero, target), duration: ability.duration + (hero.runBurnAbilityDuration || 0) });
+    triggerSkillVfx(target.x, target.y - 4, ability.name, ability.classId, { abilityId: ability.id, hero });
     spawnAbilityIndicator(target, "burn");
     return;
   }
@@ -1206,6 +1228,7 @@ function useRunAbility(ability, hero, target) {
     spawnSlashEffect(target, "heavy");
     const percent = (ability.maxHpDamage || 0.25) + (hero.runHeavyAttackMaxHpDamage || 0);
     damageEnemy(target, hero.maxHp * percent, "#f8e7bb", { heavy: true });
+    triggerSkillVfx(target.x, target.y - 4, ability.name, ability.classId, { abilityId: ability.id, hero });
     addFloat(target.x, target.y - 70, "HEAVY", "#f8e7bb", { variant: "heavy" });
     return;
   }
@@ -1216,6 +1239,7 @@ function useRunAbility(ability, hero, target) {
     hero.holySwordDamageBonus = ability.hitDamageBonus || 0.5;
     startUnitSpriteAnimation(hero, "attack", 0.3);
     spawnSlashEffect(target, "sword");
+    triggerSkillVfx(hero.x, hero.y - 6, ability.name, ability.classId, { abilityId: ability.id, hero, life: ability.duration, floatY: 0, startScale: 1.05, endScale: 1.05, startOpacity: 0.88, endOpacity: 0.88 });
     spawnAbilityIndicator(hero, "holy-sword");
     addFloat(hero.x, hero.y - 72, "Holy Sword", ability.color);
     return;
@@ -1225,6 +1249,7 @@ function useRunAbility(ability, hero, target) {
     hero.holyShieldHitsRemaining = Math.max(hero.holyShieldHitsRemaining || 0, (ability.hitCount || 2) + (hero.runHolyShieldHits || 0));
     hero.holyShieldArmorBonus = ability.armorMultiplier || 0.5;
     startUnitSpriteAnimation(hero, "block", 0.3);
+    triggerSkillVfx(hero.x, hero.y - 6, ability.name, ability.classId, { abilityId: ability.id, hero, life: 0.42, floatY: 0, startScale: 1.9, endScale: 0.15, startOpacity: 0.58, endOpacity: 0 });
     spawnAbilityIndicator(hero, "holy-shield");
     addFloat(hero.x, hero.y - 72, "Holy Shield", ability.color);
   }
@@ -1505,18 +1530,27 @@ function getArmorMitigatedDamage(amount, armor) {
   return Math.max(1, amount * (1 - reduction));
 }
 
+const ARMOR_BAND_SIZE = 5;
+const ARMOR_BASE_REDUCTION_PER_POINT = 0.015;
+const ARMOR_REDUCTION_DECAY_PER_BAND = 0.72;
+const ARMOR_MIN_REDUCTION_PER_POINT = 0.001;
+const ARMOR_MAX_DAMAGE_REDUCTION = 0.85;
+
 function getArmorDamageReduction(armor) {
   let remainingArmor = Math.max(0, getFiniteNumber(armor));
   let reduction = 0;
   let band = 0;
-  while (remainingArmor > 0 && band < 40) {
-    const armorInBand = Math.min(5, remainingArmor);
-    const perArmorReduction = 0.015 * Math.pow(0.72, band);
+  while (remainingArmor > 0 && reduction < ARMOR_MAX_DAMAGE_REDUCTION) {
+    const armorInBand = Math.min(ARMOR_BAND_SIZE, remainingArmor);
+    const perArmorReduction = Math.max(
+      ARMOR_MIN_REDUCTION_PER_POINT,
+      ARMOR_BASE_REDUCTION_PER_POINT * Math.pow(ARMOR_REDUCTION_DECAY_PER_BAND, band)
+    );
     reduction += armorInBand * perArmorReduction;
     remainingArmor -= armorInBand;
     band += 1;
   }
-  return Math.min(0.85, reduction);
+  return Math.min(ARMOR_MAX_DAMAGE_REDUCTION, reduction);
 }
 
 function getHeroShieldCapPercent(hero = run?.hero) {

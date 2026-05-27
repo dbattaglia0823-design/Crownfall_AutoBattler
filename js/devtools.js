@@ -5,7 +5,7 @@ function installDevTools() {
       if (!Number.isFinite(value)) return devResult("addEssence needs a number.");
       save.essence = Math.max(0, Math.round((Number(save.essence) || 0) + value));
       saveGame();
-      if (upgradeScreen.classList.contains("active")) renderTree();
+      refreshDevEssenceUi();
       return devResult(`Essence is now ${Math.floor(save.essence)}.`);
     },
 
@@ -58,6 +58,16 @@ function installDevTools() {
 function devResult(message) {
   console.info(`[CrownfallDev] ${message}`);
   return message;
+}
+
+function refreshDevEssenceUi() {
+  if (typeof refreshTopbar === "function") refreshTopbar();
+  const treeEssenceEl = document.getElementById("treeEssence");
+  if (treeEssenceEl) treeEssenceEl.textContent = Math.floor(save.essence);
+  const upgradeScreenEl = document.getElementById("upgradeScreen");
+  if (upgradeScreenEl?.classList.contains("active") && typeof renderTree === "function") renderTree();
+  const equipmentScreenEl = document.getElementById("equipmentScreen");
+  if (equipmentScreenEl?.classList.contains("active") && typeof renderEquipmentShop === "function") renderEquipmentShop();
 }
 
 function normalizeNodeType(type) {

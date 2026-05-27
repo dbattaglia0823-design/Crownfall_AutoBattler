@@ -34,7 +34,7 @@ let equipmentShopRefreshAvailableAt = {};
 let equipmentShopRefreshTimer = null;
 
 const STARTER_UPGRADE_NAMES = new Set([
-  "Sharpened Blade", "Iron Skin", "Quick Buckle"
+  "Sharpened Blade", "Iron Skin", "Quick Buckle", "Lucky Charm", "Oakheart Tonic", "Glass Canon"
 ]);
 const STARTER_RELIC_NAMES = new Set([
   "Plain Whetstone", "Quick Clasp", "Iron Crown", "Traveler Brooch"
@@ -513,6 +513,7 @@ function renderUpgradePoolGroup(group) {
 }
 
 function renderUpgradePoolBulkActions(group) {
+  if (group.id === "talents") return "";
   const items = getBulkToggleItems(group);
   const allActive = items.length > 0 && items.every(item => isUpgradePoolItemActive(item, item.poolCategory || group.id));
   const rarities = ["Common", "Rare", "Epic", "Legendary"];
@@ -540,9 +541,12 @@ function renderUpgradePoolItem(category, item) {
   const active = unlocked && isUpgradePoolItemActive(item, category);
   const starter = isStarterUpgrade(item);
   const lockedText = unlocked ? "" : `<em>${getUpgradePoolUnlockText(item)}</em>`;
+  const toggleButton = category === "talents"
+    ? ""
+    : `<button data-pool-toggle="1" data-pool-category="${category}" data-pool-id="${escapeHtml(item.poolId)}" ${!unlocked || starter ? "disabled" : ""}>${starter ? "Default" : active ? "On" : "Off"}</button>`;
   return `<div class="upgrade-pool-item upgrade-pool-${String(item.rarity || "Common").toLowerCase()} ${active ? "" : "upgrade-pool-disabled"} ${starter ? "upgrade-pool-starter" : ""}">
     <div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(getItemDisplayText(item))}</small>${lockedText}</div>
-    <button data-pool-toggle="1" data-pool-category="${category}" data-pool-id="${escapeHtml(item.poolId)}" ${!unlocked || starter ? "disabled" : ""}>${starter ? "Default" : active ? "On" : "Off"}</button>
+    ${toggleButton}
   </div>`;
 }
 
@@ -659,8 +663,9 @@ function isUpgradePoolItemUnlocked(item) {
 }
 
 function isUpgradePoolItemActive(item, category = null) {
-  if (isStarterUpgrade(item)) return true;
   const poolCategory = category || (item.effect ? "relics" : item.tier ? "talents" : "upgrades");
+  if (poolCategory === "talents") return true;
+  if (isStarterUpgrade(item)) return true;
   return !!save.upgradePool?.enabled?.[poolCategory]?.[item.poolId || getPoolItemId(item)];
 }
 
@@ -761,9 +766,23 @@ function showAchievementPopup(achievement) {
   const popup = document.createElement("div");
   popup.className = "achievement-toast";
   popup.innerHTML = `<div class="achievement-toast-medal">!</div><div><small>Achievement Unlocked</small><strong>${escapeHtml(achievement.name)}</strong><p>${escapeHtml(achievement.goal || achievement.description)}</p><em>${escapeHtml(formatAchievementReward(achievement))}</em></div>`;
-  document.body.appendChild(popup);
+  showStackedToast(popup);
+}
+
+function showStackedToast(popup) {
+  let stack = document.getElementById("toastStack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.id = "toastStack";
+    stack.className = "achievement-toast-stack";
+    document.body.appendChild(stack);
+  }
+  stack.appendChild(popup);
   setTimeout(() => popup.classList.add("achievement-toast-hide"), 3600);
-  setTimeout(() => popup.remove(), 4300);
+  setTimeout(() => {
+    popup.remove();
+    if (!stack.children.length) stack.remove();
+  }, 4300);
 }
 
 function showSanctuaryGainPopup(amount, regen = 0) {
@@ -1152,10 +1171,8 @@ function formatSignedEquipmentValue(key, value) {
 function showUnlockPopup(item) {
   const popup = document.createElement("div");
   popup.className = "achievement-toast unlock-toast";
-  popup.innerHTML = `<div class="achievement-toast-medal">+</div><div><small>Unlock Available</small><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(getItemDisplayText(item))}</p><em>Off by default. Enable it in Unlocks.</em></div>`;
-  document.body.appendChild(popup);
-  setTimeout(() => popup.classList.add("achievement-toast-hide"), 3600);
-  setTimeout(() => popup.remove(), 4300);
+  popup.innerHTML = `<div class="achievement-toast-medal">+</div><div><small>Unlock Available</small><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(getItemDisplayText(item))}</p></div>`;
+  showStackedToast(popup);
 }
 
 function renderSkinPicker(kind, ownerId, skins) {
@@ -1910,7 +1927,7 @@ function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.
 function statCell(label, value, tooltip) { return `<div class="tooltip-item" data-tooltip="${escapeHtml(tooltip)}"><small>${label}</small><strong>${value}</strong></div>`; }
 function getArmorTooltip(armor) {
   const reduction = typeof getArmorDamageReduction === "function" ? getArmorDamageReduction(armor) : 0;
-  return `Reduces incoming hit damage by ${formatExactPercent(reduction).replace(/^\+/, "")}. Each 5 armor gives a smaller reduction than the previous 5.`;
+  return `Reduces incoming hit damage by ${formatExactPercent(reduction).replace(/^\+/, "")}. Each 5 armor gives a smaller reduction than the previous 5, but high armor still gives at least 0.1% reduction per armor, up to 85%.`;
 }
 
 function getBleedTooltip(hero) {
@@ -1942,7 +1959,20 @@ function renderBattle() {
   if (battle.bossIntroTimer > 0) renderBossIntro(); if (battle.state === "result") renderBattleResultPanel();
   renderBattleParticles();
   const floats = isBuildTestRun() ? battle.floatingTexts.slice(-24) : battle.floatingTexts;
-  floats.forEach(float => { const div = document.createElement("div"), scale = getBattleScale(); div.className = `float-text ${float.variant ? `float-text-${float.variant}` : ""}`; div.style.left = float.x * scale.x + "px"; div.style.top = float.y * scale.y + "px"; div.style.color = float.color; div.textContent = float.count > 1 && !float.numeric ? `${float.text} x${float.count}` : float.text; battlefield.appendChild(div); }); battle.floatingTexts = [];
+  floats.forEach(float => {
+    const div = document.createElement("div"), scale = getBattleScale();
+    const progress = Math.min(1, Math.max(0, (float.age || 0) / Math.max(0.01, float.life || 0.75)));
+    const stackOffset = (float.stackIndex || 0) * 18;
+    div.className = `float-text ${float.variant ? `float-text-${float.variant}` : ""}`;
+    div.style.left = float.x * scale.x + "px";
+    div.style.top = (float.y - stackOffset) * scale.y + "px";
+    div.style.color = float.color;
+    div.style.animation = "none";
+    div.style.opacity = String(Math.max(0, 1 - progress));
+    div.style.transform = `translate(-50%, ${-50 - progress * 70}%)`;
+    div.textContent = float.count > 1 && !float.numeric ? `${float.text} x${float.count}` : float.text;
+    battlefield.appendChild(div);
+  });
 }
 function renderBattleParticles() {
   const scale = getBattleScale();
@@ -1951,13 +1981,17 @@ function renderBattleParticles() {
     const progress = Math.min(1, particle.age / Math.max(.01, particle.life));
     if (particle.type === "skill") {
       const div = document.createElement("div");
+      const startScale = particle.startScale ?? .65;
+      const endScale = particle.endScale ?? 1.35;
+      const startOpacity = particle.startOpacity ?? 1;
+      const endOpacity = particle.endOpacity ?? 0;
       div.className = `skill-vfx skill-vfx-${particle.theme || "global"}${particle.sprite ? " skill-vfx-sprite" : ""}`;
       div.style.left = particle.x * scale.x + "px";
-      div.style.top = (particle.y * scale.y - progress * 28) + "px";
+      div.style.top = (particle.y * scale.y - progress * (particle.floatY ?? 28)) + "px";
       div.style.setProperty("--skill-color", particle.color || "#ffe2a2");
-      div.style.opacity = Math.max(0, 1 - progress).toString();
+      div.style.opacity = Math.max(0, startOpacity + (endOpacity - startOpacity) * progress).toString();
       div.style.animation = "none";
-      div.style.transform = `translate(-50%, -50%) scale(${.65 + progress * .7})`;
+      div.style.transform = `translate(-50%, -50%) scale(${startScale + (endScale - startScale) * progress})`;
       div.innerHTML = particle.sprite
         ? `<img src="${escapeHtml(particle.sprite)}" alt=""><span>${escapeHtml(particle.label || "")}</span>`
         : `<span>${escapeHtml(particle.label || "")}</span>`;
@@ -1984,12 +2018,15 @@ function getBattleScale() {
 function createUnitEl(unit, isHero) { const el = document.createElement("div"), scale = getBattleScale(), size = (unit.finalBoss ? 156 : unit.boss ? 135.2 : unit.miniBoss ? 101.2 : isHero ? 92.4 : 85.8) * scale.unit; el.className = `unit ${isHero ? "player " + unit.colorClass : `enemy ${unit.className} ${unit.skinClass || ""}`}`; if (unit.spriteAnim?.type === "attack" || unit.spriteAnim?.type === "block") el.classList.add("attack-flash"); if ((unit.hitFlash || 0) > 0) el.classList.add("hit-flash"); if (unit.spriteAnim?.type === "downed" || (unit.hp <= 0 && !isHero)) el.classList.add("unit-downed"); el.style.left = unit.x * scale.x + "px"; el.style.top = unit.y * scale.y + "px"; el.style.width = size + "px"; el.style.height = size + "px"; const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100)), attackSpeed = isHero ? getHeroAttackSpeed(unit) : getEnemyAttackSpeed(unit), attackWindow = 1 / Math.max(.01, attackSpeed), attackProgress = Math.max(0, Math.min(100, (1 - Math.max(0, unit.attackCooldown || 0) / attackWindow) * 100)), hpText = unit.buildTestBoss ? "Infinite" : `${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}`; el.innerHTML = `<div class="attackbar"><div class="attackfill" style="width:${attackProgress}%"></div><span class="attacktext">${attackSpeed.toFixed(2)}/s</span></div><div class="hpbar"><div class="hpfill" style="width:${hp}%"></div><span class="hptext">${hpText}</span></div><div class="sprite"></div>`; const baseSheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : getEnemySpriteSheet(unit); const skin = isHero ? getHeroSkin(unit.id, unit.skinId || "base") : getEnemySkin(unit.id, unit.skinId || "base"); if (baseSheet) { el.classList.add("sprite-sheet-unit"); const sprite = el.querySelector(".sprite"); sprite.style.cssText = `${getSpriteBackgroundStyle(baseSheet, isHero ? "hero" : "enemy", unit.id, skin)};background-size:600% 100%;background-position:${getSpriteSheetPosition(unit)};`; } return el; }
 function spawnHeroAttackEffect(hero, enemy) { if (hero.id === "wizard") { playSound("magicCast"); spawnAbilityProjectile(hero, enemy, "magic"); return; } spawnSlashEffect(enemy, hero.id === "rogue" ? "rogue" : "sword"); }
 function spawnSlashEffect(target, type) { if (!battlefield || save.settings.reduceAnimations || !canSpawnBuildTestEffect(".attack-vfx")) return; const scale = getBattleScale(), slash = document.createElement("div"); slash.className = `attack-vfx ${type}-slash-vfx`; slash.style.left = target.x * scale.x + "px"; slash.style.top = target.y * scale.y + "px"; battlefield.appendChild(slash); setTimeout(() => slash.remove(), isBuildTestRun() ? 150 : 460); }
-function spawnAbilityProjectile(source, target, type = "magic") {
+function spawnAbilityProjectile(source, target, type = "magic", options = {}) {
   if (!battlefield || save.settings.reduceAnimations || !source || !target || !canSpawnBuildTestEffect(".battle-projectile")) return;
+  const sprite = options.sprite || (options.abilityId && typeof getSkillSpriteSheet === "function" ? getSkillSpriteSheet(options.abilityId, options.hero || run?.hero) : "");
   const scale = getBattleScale(), projectile = document.createElement("div");
-  projectile.className = `battle-projectile battle-projectile-${type}`;
+  projectile.className = `battle-projectile battle-projectile-${type}${sprite ? " battle-projectile-sprite" : ""}`;
   projectile.style.left = source.x * scale.x + "px";
   projectile.style.top = source.y * scale.y + "px";
+  projectile.style.setProperty("--skill-color", options.color || "#ffe2a2");
+  if (sprite) projectile.innerHTML = `<img src="${escapeHtml(sprite)}" alt="">`;
   battlefield.appendChild(projectile);
   const frames = [
     { left: source.x * scale.x + "px", top: source.y * scale.y + "px", opacity: .35, transform: "translate(-50%, -50%) scale(.72)" },
