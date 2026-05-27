@@ -1,8 +1,13 @@
 const SAVE_KEY = "crownfall_autobattler_save_v5";
+const SAVE_SCHEMA_VERSION = 2;
+const SAVE_BACKUP_KEY = `${SAVE_KEY}_backup`;
+const SAVE_TEMP_KEY = `${SAVE_KEY}_tmp`;
+const SAVE_EXPORT_PREFIX = "crownfall-save";
 const STAGE_COUNT = 30;
 const MAP_LAYER_SIZE = 10;
 const FINAL_BOSS_STAGE = STAGE_COUNT + 1;
 
+let lastSaveStatus = { text: "", type: "ok", at: 0 };
 let save = loadSave();
 let run = null;
 let battle = null;
@@ -171,8 +176,35 @@ function getDefaultTreeLevels() {
 }
 
 function loadSave() {
+  const primaryRaw = safeStorageGet(SAVE_KEY);
+  const backupRaw = safeStorageGet(SAVE_BACKUP_KEY);
+  const sources = [
+    { label: "primary", raw: primaryRaw },
+    { label: "backup", raw: backupRaw }
+  ];
+
+  for (const source of sources) {
+    if (!source.raw) continue;
+    try {
+      const parsed = parseStoredSave(source.raw);
+      const normalized = normalizeSaveData(parsed);
+      if (source.label !== "primary" || !isSaveEnvelope(source.raw)) {
+        if (source.label === "primary") safeStorageSet(SAVE_BACKUP_KEY, source.raw);
+        safeStorageSet(SAVE_KEY, serializeSave(normalized));
+      }
+      if (source.label === "backup") setSaveStatus("Recovered from backup save.", "warn");
+      return normalized;
+    } catch (error) {
+      console.warn(`Crownfall save: failed to load ${source.label} save.`, error);
+    }
+  }
+
+  setSaveStatus(primaryRaw || backupRaw ? "Save data was unreadable. Started fresh." : "", primaryRaw || backupRaw ? "warn" : "ok");
+  return defaultSave();
+}
+
+function normalizeSaveData(parsed) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(SAVE_KEY));
     const fallback = defaultSave();
     const tree = migrateTreeSave({ ...fallback.tree, ...((parsed && parsed.tree) || {}) }, parsed && parsed.tree);
     const storedSave = { ...(parsed || {}) };
@@ -206,9 +238,81 @@ function loadSave() {
       gauntlet,
       settings
     };
-  } catch {
+  } catch (error) {
+    console.warn("Crownfall save: failed to normalize save data.", error);
     return defaultSave();
   }
+}
+
+function safeStorageGet(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn("Crownfall save: localStorage read failed.", error);
+    return null;
+  }
+}
+
+function safeStorageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn("Crownfall save: localStorage write failed.", error);
+    return false;
+  }
+}
+
+function safeStorageRemove(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.warn("Crownfall save: localStorage remove failed.", error);
+  }
+}
+
+function parseStoredSave(raw) {
+  if (!raw) throw new Error("No save data found.");
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object") throw new Error("Save data is not an object.");
+  if (!isSaveEnvelope(raw, parsed)) return parsed;
+  const dataJson = JSON.stringify(parsed.data || {});
+  if (parsed.checksum && parsed.checksum !== getSaveChecksum(dataJson)) throw new Error("Save checksum mismatch.");
+  return parsed.data || {};
+}
+
+function isSaveEnvelope(raw, parsed = null) {
+  try {
+    const value = parsed || JSON.parse(raw);
+    return !!value && typeof value === "object" && value.format === "crownfall-save" && value.data && typeof value.data === "object";
+  } catch {
+    return false;
+  }
+}
+
+function serializeSave(saveData) {
+  const dataJson = JSON.stringify(saveData || defaultSave());
+  return JSON.stringify({
+    format: "crownfall-save",
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    savedAt: new Date().toISOString(),
+    checksum: getSaveChecksum(dataJson),
+    data: JSON.parse(dataJson)
+  });
+}
+
+function getSaveChecksum(text) {
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function setSaveStatus(text, type = "ok") {
+  lastSaveStatus = { text, type, at: Date.now() };
+  if (typeof renderSaveStatus === "function") renderSaveStatus();
 }
 
 function normalizeDifficultyClears(storedClears, parsedSave = {}) {
@@ -658,14 +762,134 @@ function migrateTreeSave(tree, oldTree) {
     else tree[id] = Math.min(Math.max(0, Number(tree[id]) || 0), TREE[id].maxLevel);
   });
 
-  if (migrated) localStorage.setItem(SAVE_KEY, JSON.stringify({ ...(JSON.parse(localStorage.getItem(SAVE_KEY)) || {}), tree }));
   return tree;
 }
 
 function saveGame() {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+  const previousSave = safeStorageGet(SAVE_KEY);
+  const nextSave = serializeSave(save);
+  const wroteTemp = safeStorageSet(SAVE_TEMP_KEY, nextSave);
+  if (!wroteTemp) {
+    setSaveStatus("Could not write save. Browser storage may be full or blocked.", "error");
+    applySettings();
+    refreshTopbar();
+    return false;
+  }
+  if (previousSave) safeStorageSet(SAVE_BACKUP_KEY, previousSave);
+  const wrotePrimary = safeStorageSet(SAVE_KEY, nextSave);
+  if (wrotePrimary) {
+    safeStorageRemove(SAVE_TEMP_KEY);
+    setSaveStatus("Saved.", "ok");
+  } else {
+    setSaveStatus("Could not finish saving. Previous backup is still available.", "error");
+  }
   applySettings();
   refreshTopbar();
+  return wrotePrimary;
+}
+
+function getStoredSaveMeta(key = SAVE_KEY) {
+  const raw = safeStorageGet(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (isSaveEnvelope(raw, parsed)) {
+      return {
+        savedAt: parsed.savedAt || "",
+        schemaVersion: parsed.schemaVersion || 1,
+        checksum: parsed.checksum || "",
+        size: raw.length
+      };
+    }
+    return { savedAt: "", schemaVersion: 1, checksum: "", size: raw.length };
+  } catch {
+    return null;
+  }
+}
+
+function exportSave() {
+  if (!saveGame()) return;
+  const serialized = safeStorageGet(SAVE_KEY) || serializeSave(save);
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const blob = new Blob([serialized], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${SAVE_EXPORT_PREFIX}-${stamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setSaveStatus("Save exported.", "ok");
+}
+
+function importSaveFile() {
+  const input = document.getElementById("saveImportInput");
+  if (input) input.click();
+}
+
+function handleSaveImport(event) {
+  const file = event?.target?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const imported = normalizeSaveData(parseStoredSave(String(reader.result || "")));
+      if (!confirm("Import this save and replace your current browser save?")) return;
+      save = imported;
+      run = null;
+      battle = null;
+      stopBattleLoop();
+      saveGame();
+      rerenderAfterSaveChange();
+      setSaveStatus("Save imported.", "ok");
+      showScreen("settingsScreen");
+    } catch (error) {
+      console.warn("Crownfall save: import failed.", error);
+      setSaveStatus("Import failed. That file is not a valid Crownfall save.", "error");
+    } finally {
+      event.target.value = "";
+    }
+  };
+  reader.onerror = () => {
+    setSaveStatus("Import failed. Browser could not read that file.", "error");
+    event.target.value = "";
+  };
+  reader.readAsText(file);
+}
+
+function restoreBackupSave() {
+  const backupRaw = safeStorageGet(SAVE_BACKUP_KEY);
+  if (!backupRaw) {
+    setSaveStatus("No backup save found.", "warn");
+    return;
+  }
+  try {
+    const restored = normalizeSaveData(parseStoredSave(backupRaw));
+    if (!confirm("Restore the previous backup save? Your current save will become the new backup.")) return;
+    save = restored;
+    run = null;
+    battle = null;
+    stopBattleLoop();
+    saveGame();
+    rerenderAfterSaveChange();
+    setSaveStatus("Backup restored.", "ok");
+    showScreen("settingsScreen");
+  } catch (error) {
+    console.warn("Crownfall save: backup restore failed.", error);
+    setSaveStatus("Backup restore failed. Backup data is unreadable.", "error");
+  }
+}
+
+function rerenderAfterSaveChange() {
+  applySettings();
+  refreshTopbar();
+  renderTree();
+  renderCharacterBrowser();
+  renderAccountStats();
+  renderAchievements();
+  if (typeof renderGauntletScreen === "function") renderGauntletScreen();
+  if (typeof renderSettings === "function") renderSettings();
 }
 
 function isProgressionWriteBlocked() {

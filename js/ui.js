@@ -12,7 +12,7 @@ const gauntletReturnButton = $("gauntletReturnButton"), gauntletFightAgainButton
 const upgradeScreen = $("upgradeScreen"), treeCards = $("treeCards"), treeViewport = $("treeViewport"), treeDetails = $("treeDetails"), treeEssence = $("treeEssence"), treeTabs = $("treeTabs");
 const upgradePoolSummary = $("upgradePoolSummary"), upgradePoolTabs = $("upgradePoolTabs"), upgradePoolGrid = $("upgradePoolGrid");
 const gauntletSummary = $("gauntletSummary"), gauntletOpponentCards = $("gauntletOpponentCards"), gauntletShopGrid = $("gauntletShopGrid"), gauntletHeroLeaderboard = $("gauntletHeroLeaderboard"), gauntletEnemyLeaderboard = $("gauntletEnemyLeaderboard");
-const battleSpeedSetting = $("battleSpeedSetting"), disableShakeSetting = $("disableShakeSetting"), reduceAnimationsSetting = $("reduceAnimationsSetting"), soundSetting = $("soundSetting"), musicVolumeSetting = $("musicVolumeSetting"), sfxVolumeSetting = $("sfxVolumeSetting"), damageNumbersSetting = $("damageNumbersSetting"), tooltipsSetting = $("tooltipsSetting"), equipmentAutosellRaritySetting = $("equipmentAutosellRaritySetting"), fullscreenHint = $("fullscreenHint"), settingsMainMenuButton = $("settingsMainMenuButton");
+const battleSpeedSetting = $("battleSpeedSetting"), disableShakeSetting = $("disableShakeSetting"), reduceAnimationsSetting = $("reduceAnimationsSetting"), soundSetting = $("soundSetting"), musicVolumeSetting = $("musicVolumeSetting"), sfxVolumeSetting = $("sfxVolumeSetting"), damageNumbersSetting = $("damageNumbersSetting"), tooltipsSetting = $("tooltipsSetting"), equipmentAutosellRaritySetting = $("equipmentAutosellRaritySetting"), fullscreenHint = $("fullscreenHint"), saveStatus = $("saveStatus"), saveImportInput = $("saveImportInput"), settingsMainMenuButton = $("settingsMainMenuButton");
 const screens = [...document.querySelectorAll(".screen")];
 const runGoldLabel = runGold?.closest(".stat-box")?.querySelector("small");
 const runEssenceLabel = runEssence?.closest(".stat-box")?.querySelector("small");
@@ -135,6 +135,21 @@ function renderSettings() {
   settingsMainMenuButton.textContent = run ? "Exit Run to Main Menu" : "Main Menu";
   settingsMainMenuButton.classList.toggle("danger-btn", !!run);
   fullscreenHint.textContent = "";
+  renderSaveStatus();
+}
+
+function renderSaveStatus() {
+  if (!saveStatus) return;
+  const meta = getStoredSaveMeta();
+  const backupMeta = getStoredSaveMeta(SAVE_BACKUP_KEY);
+  const savedAt = meta?.savedAt ? new Date(meta.savedAt).toLocaleString() : "Legacy or unsaved";
+  const backupText = backupMeta ? "Backup available" : "No backup yet";
+  const statusText = lastSaveStatus?.text || "Ready.";
+  saveStatus.className = `save-status save-status-${lastSaveStatus?.type || "ok"}`;
+  saveStatus.innerHTML = `
+    <span><strong>${statusText}</strong><small>Last save: ${savedAt}</small></span>
+    <span><small>${backupText}</small></span>
+  `;
 }
 
 function saveSettings() {
@@ -161,6 +176,7 @@ function setupSettingsAutoSave() {
     control.addEventListener("input", saveSettings);
     control.addEventListener("change", saveSettings);
   });
+  if (saveImportInput) saveImportInput.addEventListener("change", handleSaveImport);
 }
 
 function renderEquipmentAutosellOptions() {
