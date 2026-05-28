@@ -123,11 +123,11 @@ const EQUIPMENT_SLOTS = [
 ];
 
 const EQUIPMENT_RARITIES = [
-  { id: "Common", weight: 60, statMultiplier: 0.55, qualityBonus: 0 },
-  { id: "Uncommon", weight: 26.5, statMultiplier: 0.9, qualityBonus: 0.02 },
-  { id: "Rare", weight: 10, statMultiplier: 1.65, qualityBonus: 0.04 },
-  { id: "Epic", weight: 1.6, statMultiplier: 2.8, qualityBonus: 0.06 },
-  { id: "Legendary", weight: 0.2, statMultiplier: 4.5, qualityBonus: 0.08 }
+  { id: "Common", weight: 56, statMultiplier: 0.55, qualityBonus: 0 },
+  { id: "Uncommon", weight: 25, statMultiplier: 0.9, qualityBonus: 0.02 },
+  { id: "Rare", weight: 12, statMultiplier: 1.65, qualityBonus: 0.04 },
+  { id: "Epic", weight: 5, statMultiplier: 2.8, qualityBonus: 0.06 },
+  { id: "Legendary", weight: 2, statMultiplier: 4.5, qualityBonus: 0.1 }
 ];
 
 const EQUIPMENT_STAT_RANGES = {
