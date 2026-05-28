@@ -1521,10 +1521,7 @@ function rerollRewards() {
 function getRewardChoices() {
   const classId = run?.hero?.id || "";
   const eligible = getAvailablePoolItems({ type: "upgrades", classId, includeAbilities: true });
-  const classRewards = eligible.filter(reward => reward.classId === classId);
-  const first = classRewards.length ? getWeightedChoices(classRewards, 1) : [];
-  const chosenKeys = new Set(first.map(getChoiceItemKey));
-  return [...first, ...getWeightedChoices(eligible.filter(reward => !chosenKeys.has(getChoiceItemKey(reward))), 3 - first.length, chosenKeys)];
+  return getWeightedChoices(eligible, 3);
 }
 
 function isRewardUnlocked(reward) {
@@ -1644,7 +1641,7 @@ function getStageGrowthValue(stat, value) {
 function getRarityWeight(rarity) {
   const progress = run ? Math.min(1, run.stage / run.maxStage) : 0, luck = Math.max(0, run?.hero?.luck || 0);
   if (!isRarityAllowedByLuck(rarity, luck)) return 0;
-  return Math.max(0.1, ({ Common: 72 - progress * 24 - luck * 1.35, Rare: 18 + progress * 8 + luck * .6, Epic: 2.5 + progress * 5 + luck * .25, Legendary: .15 + progress * .8 + luck * .05, Mythic: .25 + progress * 1.3 + luck * .096 })[rarity] || 70);
+  return Math.max(0.1, ({ Common: 72 - progress * 24 - luck * 1.35, Rare: 18 + progress * 8 + luck * .6, Epic: 1.2 + progress * 2.8 + luck * .12, Legendary: .05 + progress * .35 + luck * .02, Mythic: .25 + progress * 1.3 + luck * .096 })[rarity] || 70);
 }
 
 function escapeHtml(value) {
@@ -1889,7 +1886,7 @@ function renderHeroFullStats(hero) {
     ["Shield Cap", `${getHeroShieldCap()}`]
   ];
   const goldDamageMultiplier = getHeroGoldDamageMultiplier(hero);
-  if (goldDamageMultiplier) rows.push(["Gold Damage", formatExactPercent(goldDamageMultiplier)]);
+  if (goldDamageMultiplier) rows.push(["Gold Damage", `${formatMultiplierBonus(goldDamageMultiplier)}x`]);
   if (hero.id === "rogue") {
     rows.push(["Bleed", `${formatExactPercent(getHeroBleedMaxHpPercent(hero)).replace(/^\+/, "")} max HP/s`, getBleedTooltip(hero)]);
     if ((hero.runAbilities || []).includes("rogue_poison") || hero.runPoisonAbilityDamage) rows.push(["Poison", `${Math.round(getRoguePoisonAbilityDamage(hero))}/s`]);
