@@ -203,6 +203,18 @@
             </span>
             <button onclick="toggleFullscreen()">Toggle</button>
           </div>
+          <div class="setting-row save-management-row">
+            <span>
+              <strong>Browser Save</strong>
+              <small>Export a backup file, import a save, or restore the previous local backup.</small>
+            </span>
+            <div class="save-actions">
+              <button onclick="saveGame()">Save Now</button>
+              <button onclick="exportSave()">Export</button>
+              <button onclick="importSaveFile()">Import</button>
+              <button onclick="restoreBackupSave()">Restore Backup</button>
+            </div>
+          </div>
           <label class="setting-row setting-row-muted">
             <span>
               <strong>Sound</strong>
@@ -211,6 +223,8 @@
             <input id="soundSetting" type="checkbox" />
           </label>
         </div>
+        <input id="saveImportInput" type="file" accept="application/json,.json" hidden />
+        <div id="saveStatus" class="save-status"></div>
         <p id="fullscreenHint" class="settings-hint"></p>
         <div class="actions">
           <button id="settingsMainMenuButton" onclick="exitRunToMainMenu()">Main Menu</button>
