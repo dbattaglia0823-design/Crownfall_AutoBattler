@@ -109,8 +109,8 @@ const GAUNTLET_SHOP_UPGRADES = [
 
 const CLASSES = {
   knight: { name: "Knight", description: "Armored front-liner with strong defense and steady melee damage.", hp: 200, damage: 18, attackSpeed: 0.71, armor: 4, crit: 0.04, colorClass: "knight", traits: ["High health", "Armor", "Reliable melee"] },
-  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed based on max HP.", hp: 155, damage: 13, attackSpeed: 0.92, armor: 1, crit: 0.15, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Max HP bleed"] },
-  wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 175, damage: 24, attackSpeed: 0.6, armor: 2, crit: 0.1, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
+  rogue: { name: "Rogue", description: "Fast assassin with high crit chance. Attacks always apply bleed based on max HP.", hp: 155, damage: 13, attackSpeed: 0.96, armor: 2, crit: 0.18, colorClass: "rogue", traits: ["Fast attacks", "High crit", "Max HP bleed"] },
+  wizard: { name: "Wizard", description: "Ranged spellcaster with high damage and splash magic.", hp: 175, damage: 24, attackSpeed: 0.6, armor: 2, crit: 0.08, colorClass: "wizard", traits: ["High burst", "Splash damage", "Magic scaling"] }
 };
 
 const EQUIPMENT_SLOTS = [
@@ -123,11 +123,11 @@ const EQUIPMENT_SLOTS = [
 ];
 
 const EQUIPMENT_RARITIES = [
-  { id: "Common", weight: 60, statMultiplier: 0.55, qualityBonus: 0 },
-  { id: "Uncommon", weight: 26.5, statMultiplier: 0.9, qualityBonus: 0.02 },
-  { id: "Rare", weight: 10, statMultiplier: 1.65, qualityBonus: 0.04 },
-  { id: "Epic", weight: 3, statMultiplier: 2.8, qualityBonus: 0.06 },
-  { id: "Legendary", weight: 0.5, statMultiplier: 4.5, qualityBonus: 0.08 }
+  { id: "Common", weight: 56, statMultiplier: 0.55, qualityBonus: 0 },
+  { id: "Uncommon", weight: 25, statMultiplier: 0.9, qualityBonus: 0.02 },
+  { id: "Rare", weight: 12, statMultiplier: 1.65, qualityBonus: 0.04 },
+  { id: "Epic", weight: 5, statMultiplier: 2.8, qualityBonus: 0.06 },
+  { id: "Legendary", weight: 2, statMultiplier: 4.5, qualityBonus: 0.1 }
 ];
 
 const EQUIPMENT_STAT_RANGES = {
@@ -314,12 +314,12 @@ const ENEMY_ARCHETYPES = {
   troll: { id: "troll", name: "Troll", hp: 112, damage: 17, attackSpeed: 0.4, armor: 4, armorPiercing: 3, className: "troll" },
   armoredKnight: { id: "armored_knight", name: "Armored Knight", hp: 98, damage: 14, attackSpeed: 0.3, armor: 7, armorPiercing: 3, className: "armored_knight" },
 
-  fallenKnight: { id: "fallen_knight", name: "Fallen Knight", hp: 108, damage: 17, attackSpeed: 0.33, armor: 7, armorPiercing: 4, className: "fallen_knight" },
+  fallenKnight: { id: "fallen_knight", name: "Fallen Knight", hp: 108, damage: 17, attackSpeed: 0.4, armor: 7, armorPiercing: 4, className: "fallen_knight" },
   cultist: { id: "cultist", name: "Cultist", hp: 72, damage: 18, attackSpeed: 0.42, armor: 2, armorPiercing: 2, className: "cultist" },
-  fallenKing: { id: "fallen_king_shade", name: "Fallen King", hp: 135, damage: 22, attackSpeed: 0.26, armor: 6, armorPiercing: 4, className: "boss" },
+  fallenKing: { id: "fallen_king_shade", name: "Fallen King", hp: 135, damage: 22, attackSpeed: 0.36, armor: 6, armorPiercing: 4, className: "boss" },
   crownHound: { id: "crown_hound", name: "Crown Hound", hp: 82, damage: 15, attackSpeed: 0.72, armor: 2, armorPiercing: 2, className: "wolf", requiresNode: "unlock_enemies" },
-  oathbreaker: { id: "oathbreaker", name: "Oathbreaker", hp: 118, damage: 19, attackSpeed: 0.38, armor: 8, armorPiercing: 4, className: "fallen_knight", requiresNode: "unlock_enemies" },
-  bloodAcolyte: { id: "blood_acolyte", name: "Blood Acolyte", hp: 86, damage: 21, attackSpeed: 0.44, armor: 3, armorPiercing: 3, className: "cultist", requiresNode: "unlock_enemies" }
+  oathbreaker: { id: "oathbreaker", name: "Oathbreaker", hp: 118, damage: 19, attackSpeed: 0.44, armor: 8, armorPiercing: 4, className: "fallen_knight", requiresNode: "unlock_enemies" },
+  bloodAcolyte: { id: "blood_acolyte", name: "Blood Acolyte", hp: 86, damage: 21, attackSpeed: 0.52, armor: 3, armorPiercing: 3, className: "cultist", requiresNode: "unlock_enemies" }
 };
 
 const ENEMY_AREAS = {
@@ -964,9 +964,9 @@ const REWARDS = [
   { name: "Reinforced Guard", rarity: "Rare", stats: { shieldCapPercent: 0.05 } },
   { name: "Barbed Buckler", rarity: "Rare", stats: { armor: 3, critChance: 0.08 } },
   { name: "Glass Canon", rarity: "Rare", stats: { damage: 40, maxHp: -80 } },
-  { name: "War Training", rarity: "Epic", stats: { damage: 25, maxHp: 32 } },
-  { name: "Runed Greatblade", rarity: "Epic", stats: { damage: 42 } },
-  { name: "Giant's Supper", rarity: "Epic", stats: { maxHp: 150 } },
+  { name: "War Training", rarity: "Epic", stats: { damage: 30, maxHp: 30 } },
+  { name: "Runed Greatblade", rarity: "Epic", stats: { damage: 38 } },
+  { name: "Giant's Supper", rarity: "Epic", stats: { maxHp: 130 } },
   { name: "Silver Reflexes", rarity: "Epic", stats: { attackSpeed: 0.20 } },
   { name: "Fortune's Edge", rarity: "Epic", stats: { damage: 30, critChance: 0.08, luck: 2 } },
   { name: "Iron Momentum", rarity: "Epic", stats: { armor: 8, attackSpeed: 0.1 } },
@@ -977,15 +977,15 @@ const REWARDS = [
   { name: "Battle Heart", rarity: "Epic", unlockRequirement: { type: "bossKills", count: 2 }, effects: [{ type: "stageGrowth", stat: "maxHpMultiplier", value: 0.03 }] },
   { name: "Battle Plate", rarity: "Epic", unlockRequirement: { type: "stat", stat: "totalDamageTaken", count: 2500 }, effects: [{ type: "stageGrowth", stat: "armorMultiplier", value: 0.03 }] },
   { name: "Battle Tempo", rarity: "Epic", unlockRequirement: { type: "stat", stat: "battlesWon", count: 30 }, effects: [{ type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.03 }] },
-  { name: "Goblin Breaker", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "goblin", count: 50 }, stats: { damage: 50 } },
-  { name: "Wolfhunter Stride", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "wolf", count: 50 }, stats: { attackSpeed: 0.24 } },
+  { name: "Goblin Breaker", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "goblin", count: 50 }, stats: { damage: 40 } },
+  { name: "Wolfhunter Stride", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "wolf", count: 50 }, stats: { attackSpeed: 0.22 } },
   { name: "Bonecrusher Guard", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "skeleton", count: 50 }, stats: { armor: 10 } },
-  { name: "Ratcatcher's Draught", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "plague_rat", count: 50 }, stats: { maxHp: 180 } },
+  { name: "Ratcatcher's Draught", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "plague_rat", count: 50 }, stats: { maxHp: 150 } },
   { name: "Archer's Tempo", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "dark_archer", count: 50 }, stats: { attackSpeed: 0.18, critChance: 0.05 } },
-  { name: "Orc Splitter", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "orc", count: 50 }, stats: { damage: 50 } },
+  { name: "Orc Splitter", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "orc", count: 50 }, stats: { damage: 44 } },
   { name: "Kingslayer Edge", rarity: "Legendary", stats: { damage: 82, critChance: 0.12 } },
   { name: "Titan Plate", rarity: "Legendary", stats: { armor: 15, maxHp: 125 } },
-  { name: "Eternal Edge", rarity: "Legendary", stats: { damage: 100 } },
+  { name: "Eternal Edge", rarity: "Legendary", stats: { damage: 90 } },
   { name: "Colossus Heart", rarity: "Legendary", stats: { maxHp: 200 } },
   { name: "Chrono Spurs", rarity: "Legendary", stats: { attackSpeed: 0.3 } },
   { name: "Sovereign Star", rarity: "Legendary", stats: { luck: 10, critChance: 0.1, gold: 200 } },
@@ -995,8 +995,8 @@ const REWARDS = [
   { name: "Crown Heart", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 14 }, effects: [{ type: "stageGrowth", stat: "maxHpMultiplier", value: 0.05 }] },
   { name: "Crown Plate", rarity: "Legendary", unlockRequirement: { type: "stat", stat: "totalDamageTaken", count: 15000 }, effects: [{ type: "stageGrowth", stat: "armorMultiplier", value: 0.05 }] },
   { name: "Crown Tempo", rarity: "Legendary", unlockRequirement: { type: "stat", stat: "battlesWon", count: 100 }, effects: [{ type: "stageGrowth", stat: "attackSpeedMultiplier", value: 0.05 }] },
-  { name: "Regent's Drill", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 8 }, stats: { damage: 150, maxHp: 80 } },
-  { name: "Tyrant's Answer", rarity: "Legendary", unlockRequirement: { type: "enemyKills", enemyId: "crownfallTyrant", count: 3 }, stats: { damage: 220 } },
+  { name: "Regent's Drill", rarity: "Legendary", unlockRequirement: { type: "bossKills", count: 8 }, stats: { damage: 80, maxHp: 80 } },
+  { name: "Tyrant's Answer", rarity: "Legendary", unlockRequirement: { type: "enemyKills", enemyId: "crownfallTyrant", count: 3 }, stats: { damage: 125 } },
   { name: "Crown Duelist", rarity: "Legendary", unlockRequirement: { type: "finalBossKills", count: 1 }, stats: { attackSpeed: 0.50, critChance: 0.16 } },
 
   // Hero Upgrades
@@ -1006,7 +1006,7 @@ const REWARDS = [
   { classId: "rogue", name: "Serrated Oil", rarity: "Common", stats: { bleedMaxHpPercent: 0.013 } },
   { classId: "rogue", name: "Quickstep", rarity: "Common", stats: { attackSpeed: 0.1, evasion: 0.03 } },
   { classId: "wizard", name: "Kindling Rune", rarity: "Common", stats: { burnChance: 0.15 } },
-  { classId: "wizard", name: "Arcane Focus", rarity: "Common", stats: { damage: 9, splashDamageMultiplier: 0.1 } },
+  { classId: "wizard", name: "Arcane Focus", rarity: "Common", stats: { damage: 9, splashDamageMultiplier: 0.05 } },
   { classId: "knight", name: "Guard Stance", rarity: "Rare", stats: { blockChance: 0.07 } },
   { classId: "knight", name: "Bulwark Drill", rarity: "Rare", stats: { blockChance: 0.04, shield: 30 } },
   { classId: "knight", name: "Spiked Shield", rarity: "Rare", stats: { retaliateBlock: 0.15 } },
@@ -1018,11 +1018,11 @@ const REWARDS = [
   { classId: "knight", name: "Unbroken Vow", rarity: "Epic", stats: { maxHp: 90, shield: 40 } },
   { classId: "knight", name: "Castle Guard", rarity: "Epic", stats: { blockChance: 0.15 } },
   { classId: "rogue", name: "Blood Rush", rarity: "Epic", stats: { bleedMaxHpPercent: 0.018, bleedAttackSpeed: 0.08 } },
-  { classId: "wizard", name: "Chain Spell", rarity: "Epic", stats: { splashDamageMultiplier: 0.20 } },
+  { classId: "wizard", name: "Chain Spell", rarity: "Epic", stats: { splashDamageMultiplier: 0.10 } },
   { classId: "knight", name: "Oathbreaker Lessons", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "oathbreaker", count: 20 }, stats: { armor: 8, shield: 10 } },
   { classId: "rogue", name: "Acolyte's Black Oil", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "blood_acolyte", count: 20 }, stats: { abilityDamage: 12 } },
-  { classId: "wizard", name: "Necromancer's Margin", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "necromancer", count: 20 }, stats: { splashDamageMultiplier: 0.2, abilityStats: { runBurnDamage: 10 } } },
-  { classId: "knight", name: "Royal Bastion", rarity: "Legendary", stats: { armor: 14, maxHp: 170 } },
+  { classId: "wizard", name: "Necromancer's Margin", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "necromancer", count: 20 }, stats: { splashDamageMultiplier: 0.10, abilityStats: { runBurnDamage: 10 } } },
+  { classId: "knight", name: "Royal Bastion", rarity: "Legendary", stats: { armor: 12, maxHp: 170 } },
   { classId: "rogue", name: "Deathblow Contract", rarity: "Legendary", stats: { executeDamage: 0.4, executeThreshold: 0.4 } },
   { classId: "wizard", name: "Inferno Thesis", rarity: "Legendary", stats: { abilityStats: { runBurnDamage: 15, runBurningEnemyDamage: 0.16 } } },
 
@@ -1403,7 +1403,7 @@ function getFlatUpgradeText(flat = {}, growth = null) {
   if (flat.abilityStat) parts.push(formatAbilityStatText(flat.abilityStat, flat.abilityValue));
   Object.entries(flat.abilityStats || {}).forEach(([stat, value]) => parts.push(formatAbilityStatText(stat, value)));
   if (flat.abilityDamage) parts.push(`${formatEvenSigned(flat.abilityDamage)} skill damage`);
-  if (flat.goldDamageMultiplier) parts.push(`${formatPercent(flat.goldDamageMultiplier * 100)} damage per 100 gold`);
+  if (flat.goldDamageMultiplier) parts.push(`${formatMultiplierBonus(flat.goldDamageMultiplier * 100)}x damage per 100 gold`);
   if (flat.retaliateBlock) parts.push(`${formatPercent(flat.retaliateBlock)} block retaliation`);
   if (flat.hitRetaliateChance) parts.push(`${formatPercent(flat.hitRetaliateChance)} hit retaliation chance`);
   if (flat.lowHpDamage) parts.push(`${formatPercent(flat.lowHpDamage)} low-HP damage`);
@@ -1453,6 +1453,11 @@ function formatPercent(value) {
 function formatExactPercent(value) {
   const rounded = Math.round((Number(value) || 0) * 1000) / 10;
   return `${rounded >= 0 ? "+" : ""}${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded}%`;
+}
+
+function formatMultiplierBonus(value) {
+  const rounded = Math.round((Number(value) || 0) * 10000) / 10000;
+  return `${rounded >= 0 ? "+" : ""}${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded}`;
 }
 
 function formatAbilityStatText(stat, value) {
@@ -1582,10 +1587,10 @@ const TREE_NODES = [
   { id: "wizard_prismatic_shell", classId: "wizard", branch: "Arcane Shield", name: "Prismatic Shell", description: "+1 armor and +4 splash shield per level.", cost: 155, maxLevel: 3, effect: { armor: 1, splashShield: 4 }, x: 2240, y: 960, prerequisites: ["wizard_warding_glyph"], type: "notable" },
   { id: "wizard_archmage_aegis", classId: "wizard", branch: "Arcane Shield", name: "Archmage Aegis", description: "Capstone: +45 battle-start shield, +12 splash shield, and +1 armor.", cost: 300, maxLevel: 1, effect: { battleStartShield: 45, splashShield: 12, armor: 1 }, x: 2440, y: 960, prerequisites: ["wizard_prismatic_shell"], type: "capstone" },
 
-  { id: "wizard_focus", classId: "wizard", branch: "Splash", name: "Arcane Study", description: "+2 starting damage and +5% splash damage per level.", cost: 60, maxLevel: 4, effect: { damage: 2, splashDamageMultiplier: 0.05 }, x: 1840, y: 1140, prerequisites: ["wizard_root"], type: "stat" },
+  { id: "wizard_focus", classId: "wizard", branch: "Splash", name: "Arcane Study", description: "+2 starting damage and +3% splash damage per level.", cost: 60, maxLevel: 4, effect: { damage: 2, splashDamageMultiplier: 0.03 }, x: 1840, y: 1140, prerequisites: ["wizard_root"], type: "stat" },
   { id: "wizard_rune_battery", classId: "wizard", branch: "Splash", name: "Rune Battery", description: "Every third attack deals +12% damage per level.", cost: 115, maxLevel: 3, effect: { thirdAttackBonus: 0.12 }, x: 2040, y: 1140, prerequisites: ["wizard_focus"], type: "notable" },
-  { id: "wizard_chain_spark", classId: "wizard", branch: "Splash", name: "Chain Spark", description: "Splash deals +8% damage per level.", cost: 155, maxLevel: 3, effect: { splashDamageMultiplier: 0.08 }, x: 2240, y: 1140, prerequisites: ["wizard_rune_battery"], type: "notable" },
-  { id: "wizard_archmage_sigil", classId: "wizard", branch: "Splash", name: "Archmage Sigil", description: "Capstone: every third attack deals +50% damage; splash deals +25% damage.", cost: 300, maxLevel: 1, effect: { thirdAttackBonus: 0.5, splashDamageMultiplier: 0.25 }, x: 2440, y: 1140, prerequisites: ["wizard_chain_spark"], type: "capstone" },
+  { id: "wizard_chain_spark", classId: "wizard", branch: "Splash", name: "Chain Spark", description: "Splash deals +5% damage per level.", cost: 155, maxLevel: 3, effect: { splashDamageMultiplier: 0.05 }, x: 2240, y: 1140, prerequisites: ["wizard_rune_battery"], type: "notable" },
+  { id: "wizard_archmage_sigil", classId: "wizard", branch: "Splash", name: "Archmage Sigil", description: "Capstone: every third attack deals +50% damage; splash deals +20% damage.", cost: 300, maxLevel: 1, effect: { thirdAttackBonus: 0.5, splashDamageMultiplier: 0.20 }, x: 2440, y: 1140, prerequisites: ["wizard_chain_spark"], type: "capstone" },
 
   { id: "wizard_frost_hex_meta", classId: "wizard", branch: "Control", name: "Frost Hex", description: "Attacks gain +5% slow chance and +4% slow strength per level.", cost: 55, maxLevel: 4, effect: { slowChance: 0.05, slowValue: 0.04 }, x: 1800, y: 1320, prerequisites: ["wizard_root"], type: "stat" },
   { id: "wizard_time_thread", classId: "wizard", branch: "Control", name: "Time Thread", description: "Attacks gain +2.5% chance per level to delay enemy attacks by 0.35s.", cost: 105, maxLevel: 3, effect: { delayChance: 0.025, delayAmount: 0.35 }, x: 2000, y: 1380, prerequisites: ["wizard_frost_hex_meta"], type: "notable" },

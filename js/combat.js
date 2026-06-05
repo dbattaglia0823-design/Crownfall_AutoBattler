@@ -747,7 +747,7 @@ function prepareBattleResult(victory) {
   const earned = isEndlessRun() ? Math.min(ENDLESS_ESSENCE_CAP, rawEssence) : rawEssence;
   const goldBefore = run.gold;
   run.essenceEarned += earned;
-  const baseGoldReward = battle.nodeType === "Elite" ? 35 : 20 + run.stage * 1.4;
+  const baseGoldReward = battle.nodeType === "Elite" ? 30 : 15 + run.stage * 1.4;
   run.gold += Math.round(baseGoldReward * layerRewardMultiplier * (1 + eliteBonus));
   applyStageGrowthRelics();
   applyAfterBattleRelics();

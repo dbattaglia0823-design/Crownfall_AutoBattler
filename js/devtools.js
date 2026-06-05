@@ -49,15 +49,47 @@ function installDevTools() {
       validateSkillTreeLines();
       validateDifficultyProgression();
       return devResult("Ran skill-tree and difficulty validation checks. Check the console for warnings.");
+    },
+
+    run(command = "") {
+      return runDevCommand(command);
     }
   };
 
+  window.addEssence = window.addessence = amount => window.CrownfallDev.addEssence(amount);
+  window.jumpToStage = window.jumptostage = (stage, nodeType) => window.CrownfallDev.jumpToStage(stage, nodeType);
+  window.forceMapNodeType = window.forcemapnodetype = (type, nodeId) => window.CrownfallDev.forceMapNodeType(type, nodeId);
+  window.resetRun = window.resetrun = () => window.CrownfallDev.resetRun();
+  window.dev = command => window.CrownfallDev.run(command);
+
   console.info("CrownfallDev ready:", Object.keys(window.CrownfallDev).join(", "));
+  console.info("CrownfallDev shortcuts: addessence(1000), jumptostage(10, 'Boss'), forcemapnodetype('Elite'), resetrun(), dev('addessence 1000')");
 }
 
 function devResult(message) {
   console.info(`[CrownfallDev] ${message}`);
   return message;
+}
+
+function runDevCommand(command = "") {
+  const parts = String(command).trim().split(/\s+/).filter(Boolean);
+  const name = (parts.shift() || "").toLowerCase();
+  if (!name) return devResult("Enter a dev command.");
+  const aliases = {
+    addessence: "addEssence",
+    essence: "addEssence",
+    jumptostage: "jumpToStage",
+    jump: "jumpToStage",
+    forcemapnodetype: "forceMapNodeType",
+    forcenode: "forceMapNodeType",
+    resetrun: "resetRun",
+    validate: "validate"
+  };
+  const method = aliases[name] || name;
+  if (!window.CrownfallDev || typeof window.CrownfallDev[method] !== "function") {
+    return devResult(`Unknown dev command: ${name}.`);
+  }
+  return window.CrownfallDev[method](...parts);
 }
 
 function refreshDevEssenceUi() {
