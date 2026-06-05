@@ -1,4 +1,4 @@
-const CACHE_VERSION = "crownfall-v42";
+const CACHE_VERSION = "crownfall-v50";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -17,6 +17,10 @@ const CORE_ASSETS = [
   "./assets/heroes/knight-sheet.png",
   "./assets/heroes/rogue-sheet.png",
   "./assets/heroes/wizard-sheet.png",
+  "./assets/heroes/skins/crimson-champion-sheet.png",
+  "./assets/heroes/skins/knight-golden-oath-sheet.png",
+  "./assets/heroes/skins/rogue-crimson-ghost-sheet.png",
+  "./assets/heroes/skins/rogue-verdant-shade-sheet.png",
   "./assets/enemies/goblin-sheet.png",
   "./assets/enemies/skeleton-sheet.png",
   "./assets/enemies/orc-sheet.png",

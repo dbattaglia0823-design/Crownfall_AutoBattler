@@ -14,6 +14,8 @@ const BUILD_TEST_MAX_ENEMY_ATTACKS_PER_FRAME = 4;
 const BUILD_TEST_MAX_FLOATING_TEXTS = 36;
 const BUILD_TEST_MAX_PARTICLES = 48;
 const BUILD_TEST_FLOAT_TEXTS_PER_SECOND = 35;
+const BATTLE_START_INTRO_MS = 620;
+let battleStartTimeout = null;
 
 function startRun(classId) {
   battleLog.innerHTML = "";
@@ -38,14 +40,22 @@ function beginStage(nodeType) {
   applyRunTheme();
   showScreen("battleScreen");
   setupBattle(nodeType);
+  battle.startIntroActive = true;
   setBattleLogVisible(!isBuildTestRun());
   updateRunHud();
   renderBattle();
   if (!battle.enemies.some(enemy => enemy.boss)) {
     log(`Stage ${run.stage}: ${nodeType} begins. ${run.hero.name} faces ${battle.enemies.map(enemy => enemy.name).join(", ")}.`, "info");
   }
-  lastFrameTime = performance.now();
-  battleFrame = requestAnimationFrame(battleLoop);
+  const introDuration = save.settings.reduceAnimations ? 180 : BATTLE_START_INTRO_MS;
+  battleStartTimeout = setTimeout(() => {
+    battleStartTimeout = null;
+    if (!battle || battle.state !== "fighting") return;
+    battle.startIntroActive = false;
+    lastFrameTime = performance.now();
+    renderBattle();
+    battleFrame = requestAnimationFrame(battleLoop);
+  }, introDuration);
 }
 
 function setupBattle(nodeType) {
@@ -418,6 +428,8 @@ function startUnitSpriteAnimation(unit, type, duration) {
 }
 
 function stopBattleLoop() {
+  if (battleStartTimeout) clearTimeout(battleStartTimeout);
+  battleStartTimeout = null;
   if (battleFrame) cancelAnimationFrame(battleFrame);
   battleFrame = null;
 }

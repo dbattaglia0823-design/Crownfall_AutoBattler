@@ -105,9 +105,24 @@ function defaultUpgradePool() {
       relics: {},
       talents: {}
     },
+    rarityDefaults: {
+      upgrades: {},
+      relics: {}
+    },
+    presets: defaultUpgradePoolPresets(),
     seenUnlocks: {},
     unlockTrackingInitialized: false
   };
+}
+
+function defaultUpgradePoolPresets() {
+  return Array.from({ length: 5 }, (_, index) => ({
+    name: `Preset ${index + 1}`,
+    enabled: { upgrades: {}, relics: {}, talents: {} },
+    disabled: { upgrades: {}, relics: {}, talents: {} },
+    rarityDefaults: { upgrades: {}, relics: {} },
+    savedAt: 0
+  }));
 }
 
 function defaultHeroEquipment() {
@@ -337,6 +352,11 @@ function normalizeUpgradePool(storedPool, fallbackPool = defaultUpgradePool()) {
       relics: { ...(storedPool?.disabled?.relics || {}) },
       talents: { ...(storedPool?.disabled?.talents || {}) }
     },
+    rarityDefaults: {
+      upgrades: { ...(storedPool?.rarityDefaults?.upgrades || {}) },
+      relics: { ...(storedPool?.rarityDefaults?.relics || {}) }
+    },
+    presets: normalizeUpgradePoolPresets(storedPool?.presets),
     seenUnlocks: { ...(storedPool?.seenUnlocks || {}) },
     unlockTrackingInitialized: !!storedPool?.unlockTrackingInitialized
   };
@@ -350,7 +370,37 @@ function normalizeUpgradePool(storedPool, fallbackPool = defaultUpgradePool()) {
       if (!pool.disabled[category][id]) delete pool.disabled[category][id];
     });
   });
+  Object.keys(pool.rarityDefaults).forEach(category => {
+    Object.keys(pool.rarityDefaults[category]).forEach(rarity => {
+      if (typeof pool.rarityDefaults[category][rarity] !== "boolean") delete pool.rarityDefaults[category][rarity];
+    });
+  });
   return { ...fallbackPool, ...pool };
+}
+
+function normalizeUpgradePoolPresets(storedPresets) {
+  const defaults = defaultUpgradePoolPresets();
+  return defaults.map((fallbackPreset, index) => {
+    const storedPreset = Array.isArray(storedPresets) ? storedPresets[index] : null;
+    return {
+      name: String(storedPreset?.name || fallbackPreset.name).slice(0, 32),
+      enabled: {
+        upgrades: { ...(storedPreset?.enabled?.upgrades || {}) },
+        relics: { ...(storedPreset?.enabled?.relics || {}) },
+        talents: { ...(storedPreset?.enabled?.talents || {}) }
+      },
+      disabled: {
+        upgrades: { ...(storedPreset?.disabled?.upgrades || {}) },
+        relics: { ...(storedPreset?.disabled?.relics || {}) },
+        talents: { ...(storedPreset?.disabled?.talents || {}) }
+      },
+      rarityDefaults: {
+        upgrades: { ...(storedPreset?.rarityDefaults?.upgrades || {}) },
+        relics: { ...(storedPreset?.rarityDefaults?.relics || {}) }
+      },
+      savedAt: Math.max(0, Number(storedPreset?.savedAt) || 0)
+    };
+  });
 }
 
 function normalizeSkins(storedSkins, fallback, purchases) {

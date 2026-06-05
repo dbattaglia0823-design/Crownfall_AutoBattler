@@ -44,6 +44,111 @@ function getMapNodeCount(stage) {
   return 1;
 }
 
+function isCrossroadsStage(stage) {
+  const layerStage = stage % MAP_LAYER_SIZE;
+  return layerStage === 4 || layerStage === 9;
+}
+
+function getStandardNodeType(stage) {
+  if (stage % MAP_LAYER_SIZE === 0) return "Boss";
+  if (stage % MAP_LAYER_SIZE === 5) return "Elite";
+  return "Battle";
+}
+
+function beginNextStandardStage() {
+  if (!run) return;
+  const nextStage = run.stage + 1;
+  if (nextStage > STAGE_COUNT) return endRun(true);
+  if (isCrossroadsStage(nextStage)) return showCrossroads(nextStage);
+  enterStandardStage(nextStage, getStandardNodeType(nextStage));
+}
+
+function enterStandardStage(stage, nodeType) {
+  const nodeId = `s${stage}-${nodeType.toLowerCase()}`;
+  run.stage = stage;
+  run.currentNodeId = nodeId;
+  run.chosenNodeIds = run.chosenNodeIds || [];
+  if (!run.chosenNodeIds.includes(nodeId)) run.chosenNodeIds.push(nodeId);
+  run.availableNodeIds = [];
+  saveGame();
+  beginStage(nodeType);
+}
+
+function showCrossroads(stage = run.stage + 1) {
+  applyRunTheme();
+  applyMapBackground();
+  showScreen("crossroadsScreen");
+  crossroadsSubtitle.textContent = `${getRunStageLabelForStage(stage)}. Choose the next stop.`;
+  const choices = [
+    { type: "Battle", title: "Fight", icon: MAP_TYPES.Battle.icon, description: "Enter combat and keep pushing forward.", button: "Fight" },
+    { type: "Merchant", title: "Shop", icon: MAP_TYPES.Merchant.icon, description: "Spend gold on temporary upgrades before the next fight.", button: "Visit Shop" },
+    { type: "Heal", title: "Sanctuary", icon: MAP_TYPES.Heal.icon, description: "Gain max HP and regeneration, then continue onward.", button: "Rest" }
+  ];
+  crossroadsChoices.innerHTML = choices.map(choice => `
+    <div class="card choice-card crossroads-card crossroads-${choice.type.toLowerCase()}" data-node-type="${choice.type}">
+      <div class="choice-icon ${MAP_TYPES[choice.type].className}">${choice.icon}</div>
+      <h3>${choice.title}</h3>
+      <p>${choice.description}</p>
+      <p class="subtle">Stage ${stage}</p>
+      <button>${choice.button}</button>
+    </div>
+  `).join("");
+  crossroadsChoices.querySelectorAll("[data-node-type]").forEach(card => {
+    card.querySelector("button").onclick = () => handleCrossroadsChoice(stage, card.dataset.nodeType);
+  });
+}
+
+function handleCrossroadsChoice(stage, nodeType) {
+  playSound("map");
+  const nodeId = `s${stage}-${nodeType.toLowerCase()}`;
+  run.currentNodeId = nodeId;
+  run.chosenNodeIds = run.chosenNodeIds || [];
+  if (!run.chosenNodeIds.includes(nodeId)) run.chosenNodeIds.push(nodeId);
+  run.stage = stage;
+  run.availableNodeIds = [];
+
+  if (nodeType === "Heal") {
+    applySanctuaryReward();
+    saveGame();
+    setTimeout(() => continueAfterRunChoice(), 720);
+    return;
+  }
+
+  if (nodeType === "Merchant") {
+    markNonCombatStageCleared();
+    saveGame();
+    return showShop();
+  }
+
+  saveGame();
+  beginStage(getStandardNodeType(stage));
+}
+
+function applySanctuaryReward() {
+  const layer = Math.max(1, Math.ceil(run.stage / MAP_LAYER_SIZE));
+  const maxHpGain = SANCTUARY_BASE_HP_GAIN + ((layer - 1) * SANCTUARY_LAYER_HP_GAIN) + getPermanentEffectTotal("sanctuaryMaxHp", run.classId);
+  const regenGain = SANCTUARY_BASE_REGEN_GAIN + ((layer - 1) * SANCTUARY_LAYER_REGEN_GAIN) + getPermanentEffectTotal("sanctuaryRegen", run.classId);
+  run.hero.maxHp += maxHpGain;
+  run.hero.hp = Math.min(run.hero.maxHp, (run.hero.hp || 0) + maxHpGain);
+  run.hero.regen = (run.hero.regen || 0) + regenGain;
+  markNonCombatStageCleared();
+  log(`Visited a sanctuary. Gained ${maxHpGain} max HP and +${regenGain} HP regen.`);
+  showSanctuaryGainPopup(maxHpGain, regenGain);
+}
+
+function markNonCombatStageCleared() {
+  run.stagesCleared = Math.max(run.stagesCleared, run.stage);
+  save.highestClear = Math.max(save.highestClear, run.stagesCleared);
+}
+
+function getRunStageLabelForStage(stage) {
+  if (stage === FINAL_BOSS_STAGE) return "Final Battle";
+  if (isEndlessRun()) return `Endless Stage ${stage}`;
+  const layer = Math.max(1, Math.ceil(stage / MAP_LAYER_SIZE));
+  const layerStage = ((stage - 1) % MAP_LAYER_SIZE) + 1;
+  return `Layer ${layer}: Stage ${layerStage} / ${MAP_LAYER_SIZE}`;
+}
+
 function getStageNodeTypes(stage, count, themeId) {
   // Round 4 and 9: optional side stops, with the main route staying as combat.
   if (stage % MAP_LAYER_SIZE === 4 || stage % MAP_LAYER_SIZE === 9) {
@@ -107,24 +212,14 @@ function handleMapChoice(node) {
   run.stage = node.stage;
 
   if (node.type === "Heal") {
-    const layer = Math.max(1, Math.ceil(run.stage / MAP_LAYER_SIZE));
-    const maxHpGain = SANCTUARY_BASE_HP_GAIN + ((layer - 1) * SANCTUARY_LAYER_HP_GAIN) + getPermanentEffectTotal("sanctuaryMaxHp", run.classId);
-    const regenGain = SANCTUARY_BASE_REGEN_GAIN + ((layer - 1) * SANCTUARY_LAYER_REGEN_GAIN) + getPermanentEffectTotal("sanctuaryRegen", run.classId);
-    run.hero.maxHp += maxHpGain;
-    run.hero.hp = Math.min(run.hero.maxHp, (run.hero.hp || 0) + maxHpGain);
-    run.hero.regen = (run.hero.regen || 0) + regenGain;
-    run.stagesCleared = Math.max(run.stagesCleared, run.stage);
-    save.highestClear = Math.max(save.highestClear, run.stagesCleared);
+    applySanctuaryReward();
     saveGame();
-    log(`Visited a sanctuary. Gained ${maxHpGain} max HP and +${regenGain} HP regen.`);
     showMap();
-    showSanctuaryGainPopup(maxHpGain, regenGain);
     return;
   }
 
   if (node.type === "Merchant") {
-    run.stagesCleared = Math.max(run.stagesCleared, run.stage);
-    save.highestClear = Math.max(save.highestClear, run.stagesCleared);
+    markNonCombatStageCleared();
     saveGame();
     return showShop();
   }
@@ -133,8 +228,7 @@ function handleMapChoice(node) {
     const gold = 35 + run.stage * 3;
     run.gold += gold;
     if (run.summary) run.summary.goldEarned += gold;
-    run.stagesCleared = Math.max(run.stagesCleared, run.stage);
-    save.highestClear = Math.max(save.highestClear, run.stagesCleared);
+    markNonCombatStageCleared();
     saveGame();
     log(`Found hidden treasure. Gained ${Math.round(gold)} gold.`, "reward");
     if (Math.random() < 0.35 + Math.min(0.25, (run.hero.luck || 0) * 0.02)) {

@@ -7,6 +7,7 @@ const buildTestText = $("buildTestText"), buildTestSummary = $("buildTestSummary
 const battlefield = $("battlefield"), buildTestFightHud = $("buildTestFightHud"), buildTestPauseButton = $("buildTestPauseButton"), buildTestDamageCounter = $("buildTestDamageCounter"), buildTestTimer = $("buildTestTimer"), heroStats = $("heroStats"), heroFullStats = $("heroFullStats"), enemyStats = $("enemyStats"), activeSkills = $("activeSkills"), specialSkills = $("specialSkills"), heroUpgrades = $("heroUpgrades"), heroRelics = $("heroRelics"), heroTalents = $("heroTalents"), battleLog = $("battleLog");
 const rewardSubtitle = $("rewardSubtitle"), rewardHeroStats = $("rewardHeroStats"), rewardCards = $("rewardCards"), rewardRerollButton = $("rewardRerollButton"), relicSubtitle = $("relicSubtitle"), relicHeroStats = $("relicHeroStats"), relicCards = $("relicCards"), relicRerollButton = $("relicRerollButton");
 const talentSubtitle = $("talentSubtitle"), talentCards = $("talentCards"), mapScreen = $("mapScreen"), mapSubtitle = $("mapSubtitle"), mapConnections = $("mapConnections"), mapBoard = $("mapBoard"), mapLegend = $("mapLegend");
+const crossroadsScreen = $("crossroadsScreen"), crossroadsSubtitle = $("crossroadsSubtitle"), crossroadsChoices = $("crossroadsChoices");
 const shopSubtitle = $("shopSubtitle"), shopGold = $("shopGold"), shopHeroStats = $("shopHeroStats"), shopCards = $("shopCards"), shopRerollButton = $("shopRerollButton"), runEndTitle = $("runEndTitle"), runEndText = $("runEndText");
 const gauntletReturnButton = $("gauntletReturnButton"), gauntletFightAgainButton = $("gauntletFightAgainButton"), runEndStartButton = $("runEndStartButton"), runEndEssenceButton = $("runEndEssenceButton");
 const upgradeScreen = $("upgradeScreen"), treeCards = $("treeCards"), treeViewport = $("treeViewport"), treeDetails = $("treeDetails"), treeEssence = $("treeEssence"), treeTabs = $("treeTabs");
@@ -28,7 +29,7 @@ let treeHasInitialCenter = false;
 let characterBrowserTab = "heroes";
 let selectedCharacterId = "knight";
 let selectedEquipmentSlotTab = "all";
-let selectedUpgradePoolTab = "upgrades";
+let selectedUpgradePoolTab = "presets";
 let equipmentShopOffers = {};
 let equipmentShopRefreshAvailableAt = {};
 let equipmentShopRefreshTimer = null;
@@ -71,6 +72,44 @@ function showScreen(id) {
   if (id === "gauntletScreen") renderGauntletScreen();
   if (id === "battleScreen") syncMobileBattleDropdowns();
   if (id === "runEndScreen") resetRunEndActions();
+  requestAnimationFrame(() => focusActiveScreen(id));
+}
+
+function focusActiveScreen(id) {
+  const screen = $(id);
+  if (!screen || !screen.classList.contains("active")) return;
+  if (id === "upgradeScreen") {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    return;
+  }
+
+  const target = id === "mapScreen"
+    ? screen.querySelector(".roguelike-map-panel")
+    : id === "crossroadsScreen"
+      ? crossroadsChoices
+    : id === "difficultyScreen"
+      ? difficultyCards
+      : id === "classScreen"
+        ? classCards
+        : id === "battleScreen"
+          ? battlefield
+          : screen.querySelector(".center-card, .panel") || screen;
+  scrollElementIntoFocus(target);
+}
+
+function scrollElementIntoFocus(target) {
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const documentTop = window.scrollY + rect.top;
+  const appPadding = parseFloat(getComputedStyle(document.querySelector(".app") || document.body).paddingTop) || 0;
+  let top = documentTop - appPadding;
+
+  if (rect.height < viewportHeight - appPadding * 2) {
+    top = documentTop - Math.max(appPadding, (viewportHeight - rect.height) / 2);
+  }
+
+  window.scrollTo({ top: Math.max(0, Math.round(top)), left: 0, behavior: "auto" });
 }
 
 function resetRunEndActions() {
@@ -459,6 +498,15 @@ function renderUpgradePool() {
       else setUpgradePoolTabState(selectedGroup, active);
     };
   });
+  upgradePoolGrid.querySelectorAll("[data-preset-name]").forEach(input => {
+    input.onchange = () => renameUpgradePoolPreset(Number(input.dataset.presetName), input.value);
+  });
+  upgradePoolGrid.querySelectorAll("[data-preset-save]").forEach(button => {
+    button.onclick = () => saveUpgradePoolPreset(Number(button.dataset.presetSave));
+  });
+  upgradePoolGrid.querySelectorAll("[data-preset-apply]").forEach(button => {
+    button.onclick = () => applyUpgradePoolPreset(Number(button.dataset.presetApply));
+  });
 }
 
 function getUpgradePoolGroups() {
@@ -473,6 +521,7 @@ function getUpgradePoolGroups() {
     .map(relic => ({ ...relic, poolId: getPoolItemId(relic), poolCategory: "relics" }));
   const heroRelicChildren = getHeroSpecificPoolChildren(RELICS, "relics");
   return [
+    { id: "presets", name: "Presets", presets: true },
     { id: "upgrades", name: "Run Upgrades", items: sortUpgradePoolItems(runUpgrades) },
     { id: "heroes", name: "Hero", children: heroChildren },
     { id: "relics", name: "Relics", items: sortBuildTestItems(generalRelics), heroChildren: heroRelicChildren, heroBoxTitle: "Hero Relics", heroBoxSubtitle: "Class and ability-specific relics" },
@@ -500,6 +549,7 @@ function sortUpgradePoolItems(items) {
 }
 
 function renderUpgradePoolGroup(group) {
+  if (group.presets) return renderUpgradePoolPresets();
   const regularSections = (group.children?.length ? group.children : [group]).filter(section => section.items?.length);
   const regularMarkup = regularSections.map(section => `
     <section class="upgrade-pool-section">
@@ -528,7 +578,29 @@ function renderUpgradePoolGroup(group) {
   return `${regularMarkup}${heroMarkup}`;
 }
 
+function renderUpgradePoolPresets() {
+  initializeUpgradePoolEnabledState();
+  save.upgradePool.presets = normalizeUpgradePoolPresets(save.upgradePool.presets);
+  return `<div class="upgrade-pool-preset-grid">${save.upgradePool.presets.map((preset, index) => `
+    <div class="upgrade-pool-preset-card">
+      <input data-preset-name="${index}" value="${escapeHtml(preset.name)}" maxlength="32" aria-label="Preset ${index + 1} name">
+      <small>${preset.savedAt ? `Saved ${formatPresetSavedAt(preset.savedAt)}` : "Empty preset"}</small>
+      <div class="upgrade-pool-preset-actions">
+        <button data-preset-save="${index}">Save</button>
+        <button data-preset-apply="${index}" ${preset.savedAt ? "" : "disabled"}>Apply</button>
+      </div>
+    </div>
+  `).join("")}</div>`;
+}
+
+function formatPresetSavedAt(savedAt) {
+  const date = new Date(savedAt);
+  if (Number.isNaN(date.getTime())) return "previously";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 function renderUpgradePoolBulkActions(group) {
+  if (group.presets) return "";
   if (group.id === "talents") return "";
   const items = getBulkToggleItems(group);
   const allActive = items.length > 0 && items.every(item => isUpgradePoolItemActive(item, item.poolCategory || group.id));
@@ -538,9 +610,68 @@ function renderUpgradePoolBulkActions(group) {
     ${rarities.map(rarity => {
       const rarityItems = items.filter(item => (item.rarity || "Common") === rarity);
       const rarityActive = rarityItems.length > 0 && rarityItems.every(item => isUpgradePoolItemActive(item, item.poolCategory || group.id));
-      return `<button data-pool-bulk="${rarityActive ? "off" : "on"}" data-pool-rarity="${rarity}" ${rarityItems.length ? "" : "disabled"}>${rarity} ${rarityActive ? "Off" : "On"}</button>`;
+      return `<button class="upgrade-pool-rarity-toggle ${rarityActive ? "active" : ""}" data-pool-bulk="${rarityActive ? "off" : "on"}" data-pool-rarity="${rarity}" ${rarityItems.length ? "" : "disabled"}><span>${rarity}</span><strong>${rarityActive ? "On" : "Off"}</strong></button>`;
     }).join("")}
   </div>`;
+}
+
+function renameUpgradePoolPreset(index, name) {
+  initializeUpgradePoolEnabledState();
+  save.upgradePool.presets = normalizeUpgradePoolPresets(save.upgradePool.presets);
+  const preset = save.upgradePool.presets[index];
+  if (!preset) return;
+  preset.name = String(name || `Preset ${index + 1}`).trim().slice(0, 32) || `Preset ${index + 1}`;
+  saveGame();
+  renderUpgradePool();
+}
+
+function saveUpgradePoolPreset(index) {
+  initializeUpgradePoolEnabledState();
+  save.upgradePool.presets = normalizeUpgradePoolPresets(save.upgradePool.presets);
+  const preset = save.upgradePool.presets[index];
+  if (!preset) return;
+  const nameInput = upgradePoolGrid.querySelector(`[data-preset-name="${index}"]`);
+  preset.name = String(nameInput?.value || preset.name || `Preset ${index + 1}`).trim().slice(0, 32) || `Preset ${index + 1}`;
+  Object.assign(preset, getUpgradePoolPresetSnapshot());
+  preset.savedAt = Date.now();
+  saveGame();
+  renderUpgradePool();
+}
+
+function applyUpgradePoolPreset(index) {
+  initializeUpgradePoolEnabledState();
+  save.upgradePool.presets = normalizeUpgradePoolPresets(save.upgradePool.presets);
+  const preset = save.upgradePool.presets[index];
+  if (!preset || !preset.savedAt) return;
+  save.upgradePool.enabled = cloneUpgradePoolBucket(preset.enabled, ["upgrades", "relics", "talents"]);
+  save.upgradePool.disabled = cloneUpgradePoolBucket(preset.disabled, ["upgrades", "relics", "talents"]);
+  save.upgradePool.rarityDefaults = cloneUpgradePoolBucket(preset.rarityDefaults, ["upgrades", "relics"]);
+  saveGame();
+  renderUpgradePool();
+}
+
+function getUpgradePoolPresetSnapshot() {
+  const enabled = { upgrades: {}, relics: {}, talents: {} };
+  const disabled = { upgrades: {}, relics: {}, talents: {} };
+  getAllUpgradePoolEntries().forEach(item => {
+    const category = item.poolCategory;
+    if (category === "talents" || isStarterUpgrade(item) || !isUpgradePoolItemUnlocked(item)) return;
+    const id = item.poolId;
+    if (isUpgradePoolItemActive(item, category)) enabled[category][id] = true;
+    else disabled[category][id] = true;
+  });
+  return {
+    enabled,
+    disabled,
+    rarityDefaults: cloneUpgradePoolBucket(save.upgradePool.rarityDefaults, ["upgrades", "relics"])
+  };
+}
+
+function cloneUpgradePoolBucket(bucket, categories) {
+  return categories.reduce((copy, category) => {
+    copy[category] = { ...(bucket?.[category] || {}) };
+    return copy;
+  }, {});
 }
 
 function getBulkToggleItems(group) {
@@ -567,38 +698,37 @@ function renderUpgradePoolItem(category, item) {
 }
 
 function toggleUpgradePoolItem(category, id) {
-  save.upgradePool = save.upgradePool || defaultUpgradePool();
-  save.upgradePool.enabled = save.upgradePool.enabled || defaultUpgradePool().enabled;
-  save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
-  save.upgradePool.disabled = save.upgradePool.disabled || defaultUpgradePool().disabled;
-  save.upgradePool.disabled[category] = save.upgradePool.disabled[category] || {};
+  ensureUpgradePoolState(category);
   const items = getUpgradePoolItemsForCategory(category);
   const item = items.find(entry => entry.poolId === id);
   if (!item || !isUpgradePoolItemUnlocked(item) || isStarterUpgrade(item)) return;
-  if (save.upgradePool.enabled[category][id]) {
+  if (isUpgradePoolItemActive(item, category)) {
     const activeSameCategory = items.filter(entry => isUpgradePoolItemUnlocked(entry) && isUpgradePoolItemActive(entry, category));
     if (activeSameCategory.length <= getMinimumActivePoolCount()) return;
+    save.upgradePool.disabled[category][id] = true;
     delete save.upgradePool.enabled[category][id];
-  } else save.upgradePool.enabled[category][id] = true;
-  delete save.upgradePool.disabled[category][id];
+  } else {
+    save.upgradePool.enabled[category][id] = true;
+    delete save.upgradePool.disabled[category][id];
+  }
   saveGame();
   renderUpgradePool();
 }
 
 function setUpgradePoolTabState(group, active) {
   if (!group) return;
-  save.upgradePool = save.upgradePool || defaultUpgradePool();
-  save.upgradePool.enabled = save.upgradePool.enabled || defaultUpgradePool().enabled;
-  save.upgradePool.disabled = save.upgradePool.disabled || defaultUpgradePool().disabled;
   getUpgradePoolGroupItems(group).forEach(item => {
     const category = item.poolCategory || group.id;
     const id = item.poolId || getPoolItemId(item);
     if (!isUpgradePoolItemUnlocked(item) || isStarterUpgrade(item)) return;
-    save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
-    save.upgradePool.disabled[category] = save.upgradePool.disabled[category] || {};
-    if (active) save.upgradePool.enabled[category][id] = true;
-    else delete save.upgradePool.enabled[category][id];
-    delete save.upgradePool.disabled[category][id];
+    ensureUpgradePoolState(category);
+    if (active) {
+      save.upgradePool.enabled[category][id] = true;
+      delete save.upgradePool.disabled[category][id];
+    } else {
+      save.upgradePool.disabled[category][id] = true;
+      delete save.upgradePool.enabled[category][id];
+    }
   });
   saveGame();
   renderUpgradePool();
@@ -606,18 +736,24 @@ function setUpgradePoolTabState(group, active) {
 
 function setUpgradePoolRarityState(group, rarity, active) {
   if (!group || !rarity) return;
-  save.upgradePool = save.upgradePool || defaultUpgradePool();
-  save.upgradePool.enabled = save.upgradePool.enabled || defaultUpgradePool().enabled;
-  save.upgradePool.disabled = save.upgradePool.disabled || defaultUpgradePool().disabled;
+  const categories = new Set();
   getBulkToggleItems(group).forEach(item => {
     if ((item.rarity || "Common") !== rarity) return;
     const category = item.poolCategory || group.id;
     const id = item.poolId || getPoolItemId(item);
-    save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
-    save.upgradePool.disabled[category] = save.upgradePool.disabled[category] || {};
-    if (active) save.upgradePool.enabled[category][id] = true;
-    else delete save.upgradePool.enabled[category][id];
-    delete save.upgradePool.disabled[category][id];
+    ensureUpgradePoolState(category);
+    categories.add(category);
+    if (active) {
+      delete save.upgradePool.disabled[category][id];
+      delete save.upgradePool.enabled[category][id];
+    } else {
+      save.upgradePool.disabled[category][id] = true;
+      delete save.upgradePool.enabled[category][id];
+    }
+  });
+  categories.forEach(category => {
+    ensureUpgradePoolState(category);
+    if (save.upgradePool.rarityDefaults[category]) save.upgradePool.rarityDefaults[category][rarity] = active;
   });
   saveGame();
   renderUpgradePool();
@@ -682,7 +818,11 @@ function isUpgradePoolItemActive(item, category = null) {
   const poolCategory = category || (item.effect ? "relics" : item.tier ? "talents" : "upgrades");
   if (poolCategory === "talents") return true;
   if (isStarterUpgrade(item)) return true;
-  return !!save.upgradePool?.enabled?.[poolCategory]?.[item.poolId || getPoolItemId(item)];
+  const id = item.poolId || getPoolItemId(item);
+  if (save.upgradePool?.enabled?.[poolCategory]?.[id]) return true;
+  if (save.upgradePool?.disabled?.[poolCategory]?.[id]) return false;
+  const rarityDefault = save.upgradePool?.rarityDefaults?.[poolCategory]?.[item.rarity || "Common"];
+  return rarityDefault !== false;
 }
 
 function getMinimumActivePoolCount() {
@@ -690,10 +830,25 @@ function getMinimumActivePoolCount() {
 }
 
 function initializeUpgradePoolEnabledState() {
+  save.upgradePool = save.upgradePool || defaultUpgradePool();
   save.upgradePool.enabled = save.upgradePool.enabled || defaultUpgradePool().enabled;
+  save.upgradePool.disabled = save.upgradePool.disabled || defaultUpgradePool().disabled;
+  save.upgradePool.rarityDefaults = save.upgradePool.rarityDefaults || defaultUpgradePool().rarityDefaults;
   ["upgrades", "relics", "talents"].forEach(category => {
     save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
+    save.upgradePool.disabled[category] = save.upgradePool.disabled[category] || {};
   });
+  ["upgrades", "relics"].forEach(category => {
+    save.upgradePool.rarityDefaults[category] = save.upgradePool.rarityDefaults[category] || {};
+  });
+  save.upgradePool.presets = normalizeUpgradePoolPresets(save.upgradePool.presets);
+}
+
+function ensureUpgradePoolState(category) {
+  initializeUpgradePoolEnabledState();
+  save.upgradePool.enabled[category] = save.upgradePool.enabled[category] || {};
+  save.upgradePool.disabled[category] = save.upgradePool.disabled[category] || {};
+  if (!save.upgradePool.rarityDefaults[category] && category !== "talents") save.upgradePool.rarityDefaults[category] = {};
 }
 
 function getAllUpgradePoolEntries() {
@@ -805,7 +960,7 @@ function showSanctuaryGainPopup(amount, regen = 0) {
   const popup = document.createElement("div");
   popup.className = "sanctuary-gain-popup";
   popup.textContent = `+${amount} Max HP${regen ? `, +${regen} Regen` : ""}`;
-  mapScreen.appendChild(popup);
+  document.body.appendChild(popup);
   setTimeout(() => popup.remove(), 1100);
 }
 
@@ -1496,7 +1651,7 @@ function renderRewards() {
   const rerolls = getChoiceRerollsRemaining("reward");
   rewardRerollButton.disabled = rerolls <= 0;
   rewardRerollButton.textContent = `Reroll Rewards (${rerolls})`;
-  rewardCards.innerHTML = (run.rewardChoices || []).map((reward, index) => `<div class="card choice-card reward-card reward-${reward.rarity.toLowerCase()}" data-index="${index}" role="button" tabindex="0"><div class="choice-icon">${reward.abilityId ? getAbilityIconMarkup(RUN_ABILITIES[reward.abilityId]) : getItemIconMarkup(reward)}</div><h3>${reward.name}</h3><p>${getItemDisplayText(reward)}</p><p class="subtle">${reward.rarity} upgrade</p><button type="button">Choose</button></div>`).join("");
+  rewardCards.innerHTML = (run.rewardChoices || []).map((reward, index) => renderRunChoiceCard("reward", reward, index)).join("");
   rewardCards.querySelectorAll("[data-index]").forEach(card => {
     card.onclick = () => claimRewardChoice(Number(card.dataset.index));
     card.onkeydown = event => {
@@ -1593,8 +1748,79 @@ function renderRelicRewards() {
   const rerolls = getChoiceRerollsRemaining("relic");
   relicRerollButton.disabled = rerolls <= 0;
   relicRerollButton.textContent = `Reroll Relics (${rerolls})`;
-  relicCards.innerHTML = (run.relicChoices || []).map((relic, index) => `<div class="card choice-card relic-card relic-${relic.rarity.toLowerCase()}" data-index="${index}"><div class="choice-icon">${getItemIconMarkup(relic)}</div><h3>${relic.name}</h3><p>${getRelicDisplayDescription(relic)}</p><p class="subtle">${relic.rarity} Relic</p><button>Claim Relic</button></div>`).join("");
-  relicCards.querySelectorAll("[data-index]").forEach(card => card.querySelector("button").onclick = () => claimRelic(run.relicChoices[Number(card.dataset.index)]));
+  relicCards.innerHTML = (run.relicChoices || []).map((relic, index) => renderRunChoiceCard("relic", relic, index)).join("");
+  relicCards.querySelectorAll("[data-index]").forEach(card => {
+    card.onclick = () => claimRelic(run.relicChoices[Number(card.dataset.index)]);
+    card.onkeydown = event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        claimRelic(run.relicChoices[Number(card.dataset.index)]);
+      }
+    };
+  });
+}
+
+function renderRunChoiceCard(kind, item, index) {
+  const rarity = item.rarity || "Common";
+  const description = kind === "relic" ? getRelicDisplayDescription(item) : getItemDisplayText(item);
+  const icon = item.abilityId ? getAbilityIconMarkup(RUN_ABILITIES[item.abilityId]) : getItemIconMarkup(item);
+  const label = kind === "relic" ? "Relic" : item.abilityId ? "Skill Unlock" : "Run Upgrade";
+  const buttonText = kind === "relic" ? "Claim Relic" : "Choose";
+  return `<div class="card choice-card ${kind}-card run-choice-card ${kind}-${rarity.toLowerCase()}" data-index="${index}" role="button" tabindex="0">
+    <div class="run-choice-card-top">
+      <div class="choice-icon">${icon}</div>
+      <div class="run-choice-meta">
+        <span class="run-choice-type">${escapeHtml(label)}</span>
+        <span class="run-choice-rarity">${escapeHtml(rarity)}</span>
+      </div>
+    </div>
+    <h3>${escapeHtml(item.name)}</h3>
+    <p>${escapeHtml(description)}</p>
+    ${renderChoiceEffectBadges(item, description)}
+    <button type="button">${buttonText}</button>
+  </div>`;
+}
+
+function renderChoiceEffectBadges(item, description = "") {
+  const badges = getChoiceEffectBadges(item, description).slice(0, 3);
+  return badges.length ? `<div class="choice-effect-badges">${badges.map(badge => `<span>${getObjectIconMarkup(badge.icon, item.rarity || "Common")}<b>${escapeHtml(badge.label)}</b></span>`).join("")}</div>` : "";
+}
+
+function getChoiceEffectBadges(item, description = "") {
+  const effects = item.effects?.length ? item.effects : [];
+  const labels = [];
+  effects.forEach(effect => {
+    const label = getEffectBadgeLabel(effect);
+    if (label && !labels.some(entry => entry.label === label.label)) labels.push(label);
+  });
+  if (!labels.length) {
+    const text = `${item.name || ""} ${item.text || ""} ${item.description || ""} ${description || ""}`.toLowerCase();
+    [
+      [/damage|blade|edge|strike|attack/, "Damage", "sword"],
+      [/armor|shield|block|guard|aegis|ward/, "Defense", "shield"],
+      [/health|hp|regen|heart|vitality|heal/, "Sustain", "potion"],
+      [/speed|tempo|haste|rhythm|reflex/, "Speed", "boots"],
+      [/crit|execute|bleed|poison|evasion/, "Precision", "dagger"],
+      [/gold|coin|merchant|luck|fate|essence/, "Fortune", "coin"],
+      [/magic|spell|burn|ice|lightning|arcane|ability/, "Arcane", "rune"]
+    ].forEach(([pattern, label, icon]) => {
+      if (pattern.test(text) && !labels.some(entry => entry.label === label)) labels.push({ label, icon });
+    });
+  }
+  return labels.length ? labels : [{ label: "Power", icon: getItemIconKind(item) }];
+}
+
+function getEffectBadgeLabel(effect) {
+  const stat = effect.stat === "abilityStat" ? effect.targetStat : effect.stat;
+  const text = `${stat || ""} ${effect.type || ""}`.toLowerCase();
+  if (/damage|crit|execute|bleed|poison|burn|retaliate/.test(text)) return { label: effect.type === "stageGrowth" ? "Scaling Damage" : "Damage", icon: /bleed|poison|crit|execute/.test(text) ? "dagger" : "sword" };
+  if (/armor|shield|block|reduction|ward/.test(text)) return { label: effect.type === "stageGrowth" ? "Scaling Defense" : "Defense", icon: "shield" };
+  if (/maxhp|regen|lifesteal|health/.test(text)) return { label: effect.type === "stageGrowth" ? "Scaling HP" : "Sustain", icon: "potion" };
+  if (/attackspeed|speed|tempo|evasion|slow/.test(text)) return { label: "Speed", icon: "boots" };
+  if (/gold|luck|essence|reward|reroll/.test(text)) return { label: "Fortune", icon: "coin" };
+  if (/ability|splash|spell|mana|curse|ice|lightning/.test(text)) return { label: "Arcane", icon: "rune" };
+  if (effect.type === "stageGrowth") return { label: "Scaling", icon: "charm" };
+  return null;
 }
 
 function rerollRelics() {
@@ -1721,7 +1947,7 @@ function continueAfterRunChoice() {
   if (run.afterRewardAction === "completeRun") { run.afterRewardAction = null; return endRun(true); }
   if (run.afterRewardAction === "finalBoss") { run.afterRewardAction = null; recordLayer3VictoryBeforeEternalCrown(); return beginFinalBoss(); }
   if (isEndlessRun()) return beginNextEndlessStage();
-  showMap();
+  beginNextStandardStage();
 }
 
 function beginNextEndlessStage() {
@@ -1751,7 +1977,7 @@ function claimTalent(talent) { run.talents.push(talent); if (run.summary) run.su
 function continueAfterClassTalent() {
   if (run.afterRewardAction === "completeRun") { run.afterRewardAction = null; return endRun(true); }
   if (run.afterRewardAction === "finalBoss") { run.afterRewardAction = null; recordLayer3VictoryBeforeEternalCrown(); return beginFinalBoss(); }
-  return isEndlessRun() ? beginNextEndlessStage() : showMap();
+  return isEndlessRun() ? beginNextEndlessStage() : beginNextStandardStage();
 }
 function applyTalentToRun(talent) {
   applyItemEffects(run.hero, talent.effects || []);
@@ -1776,7 +2002,7 @@ function renderShop() {
 function getShopChoices(surcharge) { return getWeightedChoices(SHOP_ITEMS.filter(item => isAbilityLockedItemAvailable(item, run?.hero?.id || "")), 3).map(item => ({ ...item, cost: item.cost + surcharge, bought: false })); }
 function rerollShop() { if (!spendChoiceReroll("shop")) return; run.shopItems = getShopChoices(Math.max(0, (run.shopsVisited - 1) * 50)); renderShop(); }
 function buyShopItem(item) { if (item.bought || run.gold < item.cost) return; run.gold -= item.cost; const text = getItemDisplayText(item); applyRunItemToHero(item); item.bought = true; playSound("shop"); addRunUpgradeName(item.name, text, item.rarity || "Common"); renderShop(); updateRunHud(); }
-function leaveShop() { showMap(); }
+function leaveShop() { continueAfterRunChoice(); }
 
 function renderChoiceHeroStats(target) {
   if (!target || !run?.hero) return; const hero = run.hero;
@@ -1968,11 +2194,13 @@ function getSkillSpriteSheet(abilityId, hero = run?.hero) {
 }
 
 function renderBattle() {
-  battlefield.querySelectorAll(".unit,.float-text,.battle-particle,.skill-vfx,.boss-intro-overlay,.battle-result-panel").forEach(node => node.remove());
+  battlefield.querySelectorAll(".unit,.float-text,.battle-particle,.skill-vfx,.boss-intro-overlay,.battle-start-overlay,.battle-result-panel").forEach(node => node.remove());
   if (!battle || !run) return;
   battlefield.appendChild(createUnitEl(run.hero, true)); battle.enemies.filter(e => e.hp > 0 || (e.deathTimer || 0) > 0).forEach(e => battlefield.appendChild(createUnitEl(e, false)));
   battlefield.classList.toggle("boss-intro-shake", battle.bossIntroTimer > 0 && !save.settings.reduceAnimations && !save.settings.disableShake);
-  if (battle.bossIntroTimer > 0) renderBossIntro(); if (battle.state === "result") renderBattleResultPanel();
+  if (battle.startIntroActive) renderBattleStartIntro();
+  else if (battle.bossIntroTimer > 0) renderBossIntro();
+  if (battle.state === "result") renderBattleResultPanel();
   renderBattleParticles();
   const floats = isBuildTestRun() ? battle.floatingTexts.slice(-24) : battle.floatingTexts;
   floats.forEach(float => {
@@ -1990,6 +2218,7 @@ function renderBattle() {
     battlefield.appendChild(div);
   });
 }
+function renderBattleStartIntro() { const overlay = document.createElement("div"); overlay.className = "battle-start-overlay"; overlay.innerHTML = `<div class="battle-start-tint"></div><div class="battle-start-clash"><span class="battle-start-sword battle-start-sword-left"></span><span class="battle-start-sword battle-start-sword-right"></span><strong>Engage</strong></div>`; battlefield.appendChild(overlay); }
 function renderBattleParticles() {
   const scale = getBattleScale();
   const particles = isBuildTestRun() ? (battle.particles || []).slice(-48) : (battle.particles || []);
@@ -2025,9 +2254,12 @@ function renderBattleParticles() {
 }
 function renderBossIntro() { const boss = battle.enemies.find(e => e.boss); if (!boss) return; const progress = 1 - battle.bossIntroTimer / Math.max(.1, battle.bossIntroDuration || battle.bossIntroTimer), opacity = progress < .18 ? progress / .18 : progress > .72 ? Math.max(0, (1 - progress) / .28) : 1; const overlay = document.createElement("div"); overlay.className = `boss-intro-overlay${boss.finalBoss ? " boss-intro-final" : ""}`; overlay.style.opacity = opacity; overlay.style.setProperty("--intro-progress", progress); overlay.innerHTML = `<div class="boss-intro-tint"></div><div class="boss-intro-name"><small>${boss.finalBoss ? "THE CROWN AWAKENS" : "BOSS"}</small><h2>${escapeHtml(boss.name.toUpperCase())}</h2><strong>${boss.finalBoss ? "The Last Encounter" : "Final Encounter"}</strong></div>`; battlefield.appendChild(overlay); }
 function renderBattleResultPanel() { const r = battle.result, panel = document.createElement("div"); panel.className = `battle-result-panel${r.victory ? "" : " battle-result-defeat"}`; const finalCrown = battle.nodeType === "FinalBoss" || isFinalBossStage(run.stage), drop = r.equipmentDrop, gauntlet = isGauntletRun(), gauntletPoints = Math.floor(run.gauntlet?.earnedPoints || 0), autosold = !!r.equipmentAutosold; panel.innerHTML = `<div class="battle-result-kicker">${r.victory ? "Enemies Defeated" : finalCrown ? "The Crown Awakens" : "Hero Defeated"}</div><h2>${r.title}</h2><div class="battle-result-gains"><div><small>${gauntlet ? gauntletPoints < 0 ? "Points Lost" : "Points Gained" : "Gold Gained"}</small><strong>${gauntlet ? `${gauntletPoints >= 0 ? "+" : ""}${gauntletPoints}` : `+${Math.floor(r.gold)}`}</strong></div><div><small>${gauntlet ? "Coins Gained" : "Essence Gained"}</small><strong>+${Math.floor(gauntlet ? run.gauntlet?.earnedCoins || 0 : r.essence)}</strong></div>${drop ? `<div class="battle-equipment-drop equipment-rarity-${String(drop.rarity || "Common").toLowerCase()}"><small>${autosold ? "Equipment Autosold" : "Equipment Found"}</small><strong>${escapeHtml(drop.rarity)} ${escapeHtml(drop.name)}</strong><span>${autosold ? `+${Math.floor(r.equipmentAutosellValue || 0)} Essence` : escapeHtml(formatEquipmentItemSummary(drop))}</span></div>` : ""}</div><button onclick="continueBattleResult()">${r.nextLabel}</button>`; battlefield.appendChild(panel); }
+const BATTLEFIELD_LOGICAL_WIDTH = 900;
+const BATTLEFIELD_LOGICAL_HEIGHT = 500;
+
 function getBattleScale() {
-  const x = battlefield.clientWidth / 900;
-  const y = battlefield.clientHeight / 430;
+  const x = battlefield.clientWidth / BATTLEFIELD_LOGICAL_WIDTH;
+  const y = battlefield.clientHeight / BATTLEFIELD_LOGICAL_HEIGHT;
   const minUnitScale = battlefield.clientWidth <= 650 ? .46 : .58;
   return { x, y, unit: Math.max(minUnitScale, Math.min(x, y)) };
 }

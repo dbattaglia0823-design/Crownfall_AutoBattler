@@ -77,7 +77,7 @@
       <div class="panel center-card flow-panel upgrade-pool-panel">
         <div class="screen-ornament">&#9819; &#10022; &#9819;</div>
         <h2 class="screen-title">Unlocks</h2>
-        <p class="screen-text">Toggle unlocked run upgrades, relics, and talents. Newly unlocked options start off until you enable them; keep at least three active in each pool.</p>
+        <p class="screen-text">Toggle unlocked run upgrades, relics, and talents. Newly unlocked options start active, and you can turn them off when you want; keep at least three active in each pool.</p>
         <div class="actions mobile-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div id="upgradePoolSummary" class="upgrade-pool-summary"></div>
         <div id="upgradePoolTabs" class="upgrade-pool-tabs"></div>
@@ -258,7 +258,7 @@
 
     <section id="buildTestScreen" class="screen">
       <div class="panel center-card flow-panel build-test-panel">
-        <div class="screen-ornament">â™› âš™ â™›</div>
+        <div class="screen-ornament">&#9819; &#9881; &#9819;</div>
         <h2 class="screen-title">Build Test</h2>
         <p id="buildTestText" class="screen-text">Assemble a build, then fight the Eternal Crown.</p>
         <div class="actions mobile-top-actions"><button onclick="showScreen('classScreen')">Back</button></div>
@@ -339,6 +339,16 @@
           <div class="panel map-legend"><h3 class="section-title">Legend</h3><div id="mapLegend" class="legend-list"></div></div>
         </div>
         <div class="actions"><button onclick="showSettings('mapScreen')">Settings</button></div>
+      </div>
+    </section>
+
+    <section id="crossroadsScreen" class="screen">
+      <div class="panel center-card flow-panel crossroads-panel">
+        <div class="screen-ornament">◇ ◆ ◇</div>
+        <h2 class="screen-title">Crossroads</h2>
+        <p id="crossroadsSubtitle" class="screen-text">Choose how to approach the next stage.</p>
+        <div id="crossroadsChoices" class="crossroads-grid"></div>
+        <div class="actions"><button onclick="showSettings('crossroadsScreen')">Settings</button></div>
       </div>
     </section>
 
