@@ -2191,9 +2191,22 @@ function getSkillSpriteSheet(abilityId, hero = run?.hero) {
 }
 
 function renderBattle() {
-  battlefield.querySelectorAll(".unit,.float-text,.battle-particle,.skill-vfx,.boss-intro-overlay,.battle-start-overlay,.battle-result-panel").forEach(node => node.remove());
-  if (!battle || !run) return;
-  battlefield.appendChild(createUnitEl(run.hero, true)); battle.enemies.filter(e => e.hp > 0 || (e.deathTimer || 0) > 0).forEach(e => battlefield.appendChild(createUnitEl(e, false)));
+  battlefield.querySelectorAll(".float-text,.battle-particle,.skill-vfx,.boss-intro-overlay,.battle-start-overlay,.battle-result-panel").forEach(node => node.remove());
+  if (!battle || !run) {
+    battlefield.querySelectorAll(".unit").forEach(node => node.remove());
+    return;
+  }
+  const activeUnitKeys = new Set(["hero"]);
+  renderUnitEl(run.hero, true, "hero");
+  battle.enemies.forEach((enemy, index) => {
+    if (enemy.hp <= 0 && !(enemy.deathTimer || 0)) return;
+    const key = `enemy-${index}`;
+    activeUnitKeys.add(key);
+    renderUnitEl(enemy, false, key);
+  });
+  battlefield.querySelectorAll(".unit").forEach(node => {
+    if (!activeUnitKeys.has(node.dataset.unitKey)) node.remove();
+  });
   battlefield.classList.toggle("boss-intro-shake", battle.bossIntroTimer > 0 && !save.settings.reduceAnimations && !save.settings.disableShake);
   if (battle.startIntroActive) renderBattleStartIntro();
   else if (battle.bossIntroTimer > 0) renderBossIntro();
@@ -2260,7 +2273,49 @@ function getBattleScale() {
   const minUnitScale = battlefield.clientWidth <= 650 ? .46 : .58;
   return { x, y, unit: Math.max(minUnitScale, Math.min(x, y)) };
 }
-function createUnitEl(unit, isHero) { const el = document.createElement("div"), scale = getBattleScale(), size = (unit.finalBoss ? 156 : unit.boss ? 135.2 : unit.miniBoss ? 101.2 : isHero ? 92.4 : 85.8) * scale.unit; el.className = `unit ${isHero ? "player " + unit.colorClass : `enemy ${unit.className} ${unit.skinClass || ""}`}`; if (unit.spriteAnim?.type === "attack" || unit.spriteAnim?.type === "block") el.classList.add("attack-flash"); if ((unit.hitFlash || 0) > 0) el.classList.add("hit-flash"); if (unit.spriteAnim?.type === "downed" || (unit.hp <= 0 && !isHero)) el.classList.add("unit-downed"); el.style.left = unit.x * scale.x + "px"; el.style.top = unit.y * scale.y + "px"; el.style.width = size + "px"; el.style.height = size + "px"; const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100)), attackSpeed = isHero ? getHeroAttackSpeed(unit) : getEnemyAttackSpeed(unit), attackWindow = 1 / Math.max(.01, attackSpeed), attackProgress = Math.max(0, Math.min(100, (1 - Math.max(0, unit.attackCooldown || 0) / attackWindow) * 100)), hpText = unit.buildTestBoss ? "Infinite" : `${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}`; el.innerHTML = `<div class="attackbar"><div class="attackfill" style="width:${attackProgress}%"></div><span class="attacktext">${attackSpeed.toFixed(2)}/s</span></div><div class="hpbar"><div class="hpfill" style="width:${hp}%"></div><span class="hptext">${hpText}</span></div><div class="sprite"></div>`; const baseSheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : getEnemySpriteSheet(unit); const skin = isHero ? getHeroSkin(unit.id, unit.skinId || "base") : getEnemySkin(unit.id, unit.skinId || "base"); if (baseSheet) { el.classList.add("sprite-sheet-unit"); const sprite = el.querySelector(".sprite"); sprite.style.cssText = `${getSpriteBackgroundStyle(baseSheet, isHero ? "hero" : "enemy", unit.id, skin)};background-size:600% 100%;background-position:${getSpriteSheetPosition(unit)};`; } return el; }
+function renderUnitEl(unit, isHero, key) {
+  let el = battlefield.querySelector(`.unit[data-unit-key="${key}"]`);
+  if (!el) {
+    el = document.createElement("div");
+    el.dataset.unitKey = key;
+    el.innerHTML = `<div class="attackbar"><div class="attackfill"></div><span class="attacktext"></span></div><div class="hpbar"><div class="hpfill"></div><span class="hptext"></span></div><div class="sprite"></div>`;
+    battlefield.appendChild(el);
+  }
+
+  const scale = getBattleScale();
+  const size = (unit.finalBoss ? 156 : unit.boss ? 135.2 : unit.miniBoss ? 101.2 : isHero ? 92.4 : 85.8) * scale.unit;
+  const hp = Math.max(0, Math.min(100, unit.hp / unit.maxHp * 100));
+  const attackSpeed = isHero ? getHeroAttackSpeed(unit) : getEnemyAttackSpeed(unit);
+  const attackWindow = 1 / Math.max(.01, attackSpeed);
+  const attackProgress = Math.max(0, Math.min(100, (1 - Math.max(0, unit.attackCooldown || 0) / attackWindow) * 100));
+  const baseSheet = isHero ? SPRITE_SHEETS.heroes[unit.id] : getEnemySpriteSheet(unit);
+  const skin = isHero ? getHeroSkin(unit.id, unit.skinId || "base") : getEnemySkin(unit.id, unit.skinId || "base");
+  const classNames = ["unit", isHero ? "player" : "enemy"];
+  if (isHero && unit.colorClass) classNames.push(unit.colorClass);
+  if (!isHero && unit.className) classNames.push(unit.className);
+  if (!isHero && unit.skinClass) classNames.push(unit.skinClass);
+  if (baseSheet) classNames.push("sprite-sheet-unit");
+  if (unit.spriteAnim?.type === "attack" || unit.spriteAnim?.type === "block") classNames.push("attack-flash");
+  if ((unit.hitFlash || 0) > 0) classNames.push("hit-flash");
+  if (unit.spriteAnim?.type === "downed" || (unit.hp <= 0 && !isHero)) classNames.push("unit-downed");
+
+  el.className = classNames.join(" ");
+  el.style.left = unit.x * scale.x + "px";
+  el.style.top = unit.y * scale.y + "px";
+  el.style.width = size + "px";
+  el.style.height = size + "px";
+  el.querySelector(".attackfill").style.width = `${attackProgress}%`;
+  el.querySelector(".attacktext").textContent = `${attackSpeed.toFixed(2)}/s`;
+  el.querySelector(".hpfill").style.width = `${hp}%`;
+  el.querySelector(".hptext").textContent = unit.buildTestBoss ? "Infinite" : `${Math.ceil(Math.max(0, unit.hp))}/${Math.ceil(unit.maxHp)}`;
+
+  const sprite = el.querySelector(".sprite");
+  if (baseSheet) {
+    sprite.style.cssText = `${getSpriteBackgroundStyle(baseSheet, isHero ? "hero" : "enemy", unit.id, skin)};background-size:600% 100%;background-position:${getSpriteSheetPosition(unit)};`;
+  } else {
+    sprite.removeAttribute("style");
+  }
+}
 function spawnHeroAttackEffect(hero, enemy) { if (hero.id === "wizard") { playSound("magicCast"); spawnAbilityProjectile(hero, enemy, "magic"); return; } spawnSlashEffect(enemy, hero.id === "rogue" ? "rogue" : "sword"); }
 function spawnSlashEffect(target, type) { if (!battlefield || save.settings.reduceAnimations || !canSpawnBuildTestEffect(".attack-vfx")) return; const scale = getBattleScale(), slash = document.createElement("div"); slash.className = `attack-vfx ${type}-slash-vfx`; slash.style.left = target.x * scale.x + "px"; slash.style.top = target.y * scale.y + "px"; battlefield.appendChild(slash); setTimeout(() => slash.remove(), isBuildTestRun() ? 150 : 460); }
 function spawnAbilityProjectile(source, target, type = "magic", options = {}) {

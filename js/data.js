@@ -131,13 +131,13 @@ const EQUIPMENT_RARITIES = [
 ];
 
 const EQUIPMENT_STAT_RANGES = {
-  maxHp: { min: 3, max: 12, decimals: 0 },
-  damage: { min: 0.4, max: 2.4, decimals: 1 },
-  armor: { min: 1, max: 2, decimals: 0 },
-  attackSpeed: { min: 0.005, max: 0.025, decimals: 3 },
-  critChance: { min: 0.005, max: 0.025, decimals: 3 },
-  regen: { min: 0.05, max: 0.45, decimals: 1 },
-  luck: { min: 1, max: 1, decimals: 0 }
+  maxHp: { min: 3, max: 18, decimals: 0 },
+  damage: { min: 0.4, max: 5.4, decimals: 1 },
+  armor: { min: 1, max: 4, decimals: 0 },
+  attackSpeed: { min: 0.005, max: 0.035, decimals: 3 },
+  critChance: { min: 0.005, max: 0.035, decimals: 3 },
+  regen: { min: 0.05, max: 0.60, decimals: 1 },
+  luck: { min: 1, max: 2, decimals: 0 }
 };
 
 const EQUIPMENT_TEMPLATES = {
@@ -680,14 +680,14 @@ const DIFFICULTIES = {
     description: "A balanced siege route with steady danger and stronger rewards.",
     requiresDifficultyClear: "easy",
     enemyHealth: 1.2,
-    enemyDamage: 1.2,
+    enemyDamage: 1.1,
     stageHealthGrowth: 0.15,
     stageDamageGrowth: 0.15,
     armorGrowth: 4,
     essenceMultiplier: 1.1,
     enemyPool: AREA_ENEMY_POOLS.medium,
     themeIds: ["crownOutskirts", "ashLands", "necromancerTower"],
-    layerEnemyMultipliers: [1.4, 1.8, 2.2],
+    layerEnemyMultipliers: [1.3, 1.8, 2.2],
     layerDamageMultipliers: [1.2, 1.4, 1.6]
   },
   hard: {
@@ -695,15 +695,15 @@ const DIFFICULTIES = {
     description: "The crown's brutal inner keep. Enemies hit hard, scale fast, and reward bold runs.",
     requiresDifficultyClear: "medium",
     enemyHealth: 1.5,
-    enemyDamage: 1.5,
+    enemyDamage: 1.4,
     stageHealthGrowth: 0.22,
     stageDamageGrowth: 0.21,
     armorGrowth: 3,
     essenceMultiplier: 1.9,
     enemyPool: AREA_ENEMY_POOLS.hard,
     themeIds: ["kingdomEntrance", "royalDungeon", "kingsQuarters"],
-    layerEnemyMultipliers: [2.0, 2.7, 3.25],
-    layerDamageMultipliers: [1.4, 1.8, 2.1]
+    layerEnemyMultipliers: [1.8, 2.5, 3.1],
+    layerDamageMultipliers: [1.3, 1.7, 2.0]
   },
   endless: {
     name: "Endless Mode",
@@ -756,9 +756,9 @@ const DIFFICULTIES = {
 };
 
 const BOSSES = [
-  { id: "fallenKing", name: "The Fallen King", skillName: "Crownbreaker Slam", hp: 300, damage: 20, attackSpeed: 0.3, armor: 4, armorPiercing: 3, className: "boss", boss: true },
-  { id: "ashenRegent", name: "The Ashen Regent", skillName: "Ember Edict", hp: 420, damage: 28, attackSpeed: 0.26, armor: 6, armorPiercing: 4, className: "boss", boss: true },
-  { id: "crownfallTyrant", name: "The Crownfall Tyrant", skillName: "Imperial Ruin", hp: 620, damage: 34, attackSpeed: 0.25, armor: 8, armorPiercing: 5, className: "boss", boss: true }
+  { id: "fallenKing", name: "The Fallen King", skillName: "Crownbreaker Slam", hp: 300, damage: 20, attackSpeed: 0.4, armor: 4, armorPiercing: 3, className: "boss", boss: true },
+  { id: "ashenRegent", name: "The Ashen Regent", skillName: "Ember Edict", hp: 420, damage: 28, attackSpeed: 0.36, armor: 6, armorPiercing: 4, className: "boss", boss: true },
+  { id: "crownfallTyrant", name: "The Crownfall Tyrant", skillName: "Imperial Ruin", hp: 620, damage: 34, attackSpeed: 0.35, armor: 8, armorPiercing: 5, className: "boss", boss: true }
 ];
 
 const FINAL_BOSS = {
@@ -899,8 +899,11 @@ function addScaledDamage(hero, value) {
 
 function addScaledMaxHp(hero, value, heal = true) {
   const amount = getScaledDungeonValue(value, "maxHp");
-  hero.maxHp += amount;
-  if (heal) hero.hp += amount;
+  const oldMax = hero.maxHp;
+  hero.maxHp = Math.max(1, hero.maxHp + amount);
+  const delta = hero.maxHp - oldMax;
+  if (heal && delta > 0) hero.hp += delta;
+  hero.hp = Math.min(hero.hp, hero.maxHp);
 }
 
 function addScaledAttackSpeed(hero, value) {
@@ -920,9 +923,12 @@ function multiplyArmor(hero, multiplier) {
 }
 
 function addFlatMaxHp(hero, value, heal = true) {
-  const amount = Math.max(1, Math.round(value));
-  hero.maxHp += amount;
-  if (heal) hero.hp += amount;
+  const amount = Math.round(Number(value) || 0);
+  if (!amount) return;
+  const oldMax = hero.maxHp;
+  hero.maxHp = Math.max(1, hero.maxHp + amount);
+  const delta = hero.maxHp - oldMax;
+  if (heal && delta > 0) hero.hp += delta;
   hero.hp = Math.min(hero.hp, hero.maxHp);
 }
 
