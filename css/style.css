@@ -966,7 +966,7 @@ body.hide-tooltips .tooltip-item::after { display: none; }
   .mobile-top-actions { display: flex; margin: -2px 0 9px; position: relative; z-index: 3; }
   .mobile-top-actions button { flex: 0 1 180px; }
   .menu-actions { width: 100%; max-width: none; gap: 4px; margin-top: 7px; }
-  .menu-actions button { flex: 0 0 auto; width: 100%; min-height: 26px; padding: 2px 8px; font-size: 13px; line-height: 1.1; border-width: 1px; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 2px 0 #1d120a; }
+  .menu-actions button { flex: 0 0 auto; width: 100%; min-height: 30px; padding: 4px 8px; font-size: 13px; line-height: 1.1; border-width: 1px; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 2px 0 #1d120a; }
   .card, .choice-card { min-height: auto; }
   .map-node-button::after { display: none; }
 }
@@ -983,7 +983,7 @@ body.hide-tooltips .tooltip-item::after { display: none; }
   .menu-title { font-size: 22px; margin-bottom: 5px; }
   .menu-text { font-size: 12px; line-height: 1.25; margin-bottom: 7px; }
   .main-menu-panel { padding-top: 9px; padding-bottom: 10px; }
-  .menu-actions button { min-height: 24px; padding-top: 2px; padding-bottom: 2px; }
+  .menu-actions button { min-height: 28px; padding-top: 3px; padding-bottom: 3px; }
 }
 
 @media (max-width: 390px) {
