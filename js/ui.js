@@ -9,6 +9,7 @@ const rewardSubtitle = $("rewardSubtitle"), rewardHeroStats = $("rewardHeroStats
 const talentSubtitle = $("talentSubtitle"), talentCards = $("talentCards"), mapScreen = $("mapScreen"), mapSubtitle = $("mapSubtitle"), mapConnections = $("mapConnections"), mapBoard = $("mapBoard"), mapLegend = $("mapLegend");
 const crossroadsScreen = $("crossroadsScreen"), crossroadsSubtitle = $("crossroadsSubtitle"), crossroadsChoices = $("crossroadsChoices");
 const shopSubtitle = $("shopSubtitle"), shopGold = $("shopGold"), shopHeroStats = $("shopHeroStats"), shopCards = $("shopCards"), shopRerollButton = $("shopRerollButton"), runEndTitle = $("runEndTitle"), runEndText = $("runEndText");
+const equipmentScreenTitle = $("equipmentScreenTitle"), equipmentScreenText = $("equipmentScreenText"), equipmentScreenContent = $("equipmentScreenContent");
 const gauntletReturnButton = $("gauntletReturnButton"), gauntletFightAgainButton = $("gauntletFightAgainButton"), runEndStartButton = $("runEndStartButton"), runEndEssenceButton = $("runEndEssenceButton");
 const upgradeScreen = $("upgradeScreen"), treeCards = $("treeCards"), treeViewport = $("treeViewport"), treeDetails = $("treeDetails"), treeEssence = $("treeEssence"), treeTabs = $("treeTabs");
 const upgradePoolSummary = $("upgradePoolSummary"), upgradePoolTabs = $("upgradePoolTabs"), upgradePoolGrid = $("upgradePoolGrid");
@@ -19,7 +20,7 @@ const runGoldLabel = runGold?.closest(".stat-box")?.querySelector("small");
 const runEssenceLabel = runEssence?.closest(".stat-box")?.querySelector("small");
 
 let settingsReturnScreen = "menuScreen";
-let selectedTreeNodeId = "crown_legacy";
+let selectedTreeNodeId = "endurance";
 let selectedTreeTab = "global";
 let treeCamera = { x: 0, y: 0, zoom: 0.75 };
 let treePointer = null;
@@ -29,6 +30,10 @@ let treeHasInitialCenter = false;
 let characterBrowserTab = "heroes";
 let selectedCharacterId = "knight";
 let selectedEquipmentSlotTab = "all";
+let selectedEquipmentPanelTab = "inventory";
+let selectedEquipmentSort = "power";
+let selectedEquipmentSearch = "";
+let selectedEquipmentItem = { source: "", id: "", index: -1, slot: "" };
 let selectedUpgradePoolTab = "presets";
 let equipmentShopOffers = {};
 let equipmentShopRefreshAvailableAt = {};
@@ -46,7 +51,7 @@ let lastHudRenderAt = 0;
 const EQUIPMENT_SHOP_REFRESH_COOLDOWN_MS = 60000;
 const BUILD_TEST_ATTACK_SOUND_INTERVAL = 0.1;
 const BUILD_TEST_STACK_LIMIT = 100;
-const TREE_TAB_ROOTS = { global: "crown_legacy", knight: "knight_root", rogue: "rogue_root", wizard: "wizard_root" };
+const TREE_TAB_ROOTS = { global: "endurance", knight: "knight_root", rogue: "rogue_root", wizard: "wizard_root" };
 const BUILD_TEST_EFFECT_LIMITS = {
   ".attack-vfx": 10,
   ".battle-projectile": 6,
@@ -67,6 +72,7 @@ function showScreen(id) {
     if (!treeHasInitialCenter) requestAnimationFrame(() => { resetTreeView(); treeHasInitialCenter = true; });
   }
   if (id === "charactersScreen") renderCharacterBrowser();
+  if (id === "equipmentScreen") renderEquipmentScreen();
   if (id === "statsScreen") renderAccountStats();
   if (id === "achievementScreen") renderAchievements();
   if (id === "gauntletScreen") renderGauntletScreen();
@@ -1064,8 +1070,8 @@ function renderHeroCharacterDetails(classId) {
     ["Armor", Math.round(previewHero.armor)],
     ["Crit", formatPercentCap(previewHero.crit, STAT_CAPS.crit)]
   ];
-  characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview player ${[heroClass.colorClass, skin.className].filter(Boolean).join(" ")} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.heroes[classId], "hero", classId, skin)};background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><small>Equipped: ${escapeHtml(equippedSkin.name)}${skin.id !== equippedSkin.id ? ` | Previewing: ${escapeHtml(skin.name)}` : ""}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("hero", classId, HERO_SKINS[classId])}${renderHeroEquipmentPanel(classId)}`;
-  wireHeroEquipmentPanel(classId);
+  characterDetails.innerHTML = `<div class="character-detail-top"><div class="character-detail-preview player ${[heroClass.colorClass, skin.className].filter(Boolean).join(" ")} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.heroes[classId], "hero", classId, skin)};background-size:600% 100%;background-position:0% center;"></div></div><div><h3>${heroClass.name}</h3><p>${heroClass.description}</p><small>Equipped: ${escapeHtml(equippedSkin.name)}${skin.id !== equippedSkin.id ? ` | Previewing: ${escapeHtml(skin.name)}` : ""}</small></div></div>${renderCharacterStatGrid(stats)}${renderSkinPicker("hero", classId, HERO_SKINS[classId])}${renderHeroEquipmentPreview(classId)}`;
+  wireHeroEquipmentPreview(classId);
   wireSkinPicker("hero", classId);
 }
 
@@ -1115,115 +1121,440 @@ function renderCharacterStatGrid(stats) {
   return `<div class="character-stat-grid">${stats.map(([label, value]) => `<div><small>${label}</small><strong>${value}</strong></div>`).join("")}</div>`;
 }
 
+function renderHeroEquipmentPreview(classId) {
+  const equipment = getHeroEquipment(classId);
+  const filled = EQUIPMENT_SLOTS.filter(slot => equipment[slot.id]).length;
+  const slots = EQUIPMENT_SLOTS.map(slot => {
+    const item = equipment[slot.id] ? getInventoryItem(equipment[slot.id]) : null;
+    return `<div class="equipment-preview-slot ${item ? `equipment-rarity-${String(item.rarity || "Common").toLowerCase()}` : "equipment-slot-empty"}">
+      <span class="equipment-item-icon">${escapeHtml(getEquipmentSlotIcon(slot.id))}</span>
+      <div><small>${escapeHtml(slot.name)}</small><strong>${item ? escapeHtml(item.name) : "Empty"}</strong></div>
+    </div>`;
+  }).join("");
+  return `<section class="hero-equipment-preview">
+    <div class="equipment-panel-header">
+      <div>
+        <h4>Equipment</h4>
+        <p>${filled}/${EQUIPMENT_SLOTS.length} slots equipped. Manage gear, shop offers, and item comparisons on the equipment screen.</p>
+      </div>
+      <button data-open-equipment="${classId}">Manage Equipment</button>
+    </div>
+    <div class="equipment-preview-grid">${slots}</div>
+  </section>`;
+}
+
+function wireHeroEquipmentPreview(classId) {
+  const button = characterDetails.querySelector("[data-open-equipment]");
+  if (!button) return;
+  button.onclick = () => {
+    selectedCharacterId = classId;
+    characterBrowserTab = "heroes";
+    showScreen("equipmentScreen");
+  };
+}
+
+function renderEquipmentScreen() {
+  const classId = CLASSES[selectedCharacterId] ? selectedCharacterId : "knight";
+  selectedCharacterId = classId;
+  characterBrowserTab = "heroes";
+  const heroClass = CLASSES[classId] || CLASSES.knight;
+  if (equipmentScreenTitle) equipmentScreenTitle.textContent = `${heroClass.name} Equipment`;
+  if (equipmentScreenText) equipmentScreenText.textContent = "Manage equipped gear, inventory, shop offers, and comparisons.";
+  if (!equipmentScreenContent) return;
+  equipmentScreenContent.innerHTML = renderHeroEquipmentPanel(classId);
+  wireHeroEquipmentPanel(classId);
+}
+
+function refreshEquipmentInterface(classId) {
+  if (getActiveScreenId() === "equipmentScreen") renderEquipmentScreen();
+  else renderHeroCharacterDetails(classId);
+}
+
 function renderHeroEquipmentPanel(classId) {
   const equipment = getHeroEquipment(classId);
   const slotFilter = selectedEquipmentSlotTab === "all" ? null : selectedEquipmentSlotTab;
+  const heroClass = CLASSES[classId] || CLASSES.knight;
+  const skin = getPreviewSkin("hero", classId) || getSelectedHeroSkin(classId);
+  const shopOffers = getEquipmentShopOffers(classId);
+  const inventoryItems = getFilteredEquipmentInventoryItems(classId, slotFilter);
+  ensureEquipmentSelection(classId, inventoryItems, shopOffers, equipment);
+  const selectedSlot = getSelectedEquipmentSlot(classId, shopOffers) || slotFilter || "";
   const slots = EQUIPMENT_SLOTS.map(slot => {
     const item = equipment[slot.id] ? getInventoryItem(equipment[slot.id]) : null;
-    return `<div class="equipment-slot">
-      <small>${escapeHtml(slot.name)}</small>
-      <strong>${item ? escapeHtml(item.name) : "Empty"}</strong>
-      <span>${item ? escapeHtml(formatEquipmentItemSummary(item)) : "No item equipped"}</span>
-      ${item ? `<button data-unequip-slot="${slot.id}">Unequip</button>` : ""}
-    </div>`;
+    return renderEquipmentSlotCard(slot, item, selectedSlot === slot.id);
   }).join("");
-  const inventoryItems = sortEquipmentItems(getInventoryItemsForHero(classId, slotFilter).filter(item => !isInventoryItemEquipped(item.instanceId)));
-  const inventory = inventoryItems.length ? inventoryItems.map(item => {
-    return `<div class="inventory-item equipment-rarity-${String(item.rarity || "Common").toLowerCase()}">
-      <div>
-        <strong>${escapeHtml(item.name)}</strong>
-        <span>${escapeHtml(getEquipmentSlotName(item.slot))} / ${escapeHtml(item.rarity)} / Quality ${Math.round((item.quality || 0) * 100)}% / Power ${item.power || 0}</span>
-        <span>In Inventory</span>
-        <small>${escapeHtml(formatEquipmentItemSummary(item))}</small>
-      </div>
-      <div class="inventory-actions">
-        <button data-equip-item="${escapeHtml(item.instanceId)}">Equip</button>
-        <button data-sell-item="${escapeHtml(item.instanceId)}">Sell ${getEquipmentSellValue(item)}e</button>
-      </div>
-    </div>`;
-  }).join("") : `<div class="inventory-empty">No ${slotFilter ? escapeHtml(getEquipmentSlotName(slotFilter).toLowerCase()) : "equipment"} in inventory yet.</div>`;
-  const tabs = [{ id: "all", name: "All" }, ...EQUIPMENT_SLOTS].map(tab =>
-    `<button class="equipment-tab ${selectedEquipmentSlotTab === tab.id ? "equipment-tab-active" : ""}" data-equipment-tab="${tab.id}">${escapeHtml(tab.name)}</button>`
-  ).join("");
-  const shopOffers = getEquipmentShopOffers(classId);
+  const inventory = inventoryItems.length
+    ? inventoryItems.map(item => renderEquipmentItemCard(item, { source: "inventory", selected: selectedEquipmentItem.source === "inventory" && selectedEquipmentItem.id === item.instanceId })).join("")
+    : `<div class="inventory-empty">No equipment in this category. Purchase gear from the Shop or earn it during runs.</div>`;
   const refreshRemaining = getEquipmentShopRefreshRemainingSeconds(classId);
   scheduleEquipmentShopRefreshRender(classId);
-  const shop = shopOffers.map((item, index) => {
+  const shop = shopOffers.length ? shopOffers.map((item, index) => {
     const cost = getEquipmentBuyCost(item);
-    return `<div class="equipment-shop-item equipment-rarity-${String(item.rarity || "Common").toLowerCase()}">
-      <div>
-        <strong>${escapeHtml(item.name)}</strong>
-        <span>${escapeHtml(getEquipmentSlotName(item.slot))} / ${escapeHtml(item.rarity)} / Quality ${Math.round((item.quality || 0) * 100)}% / Power ${item.power || 0}</span>
-        <small>${escapeHtml(formatEquipmentItemSummary(item))}</small>
-      </div>
-      <button data-buy-equipment="${index}" ${save.essence < cost ? "disabled" : ""}>Buy ${cost}e</button>
-    </div>`;
-  }).join("");
+    const need = Math.max(0, cost - Math.floor(save.essence));
+    return renderEquipmentItemCard(item, {
+      source: "shop",
+      index,
+      selected: selectedEquipmentItem.source === "shop" && selectedEquipmentItem.index === index,
+      priceText: save.essence >= cost ? `${cost} Essence` : `Need ${need} more Essence`
+    });
+  }).join("") : `<div class="inventory-empty">The shop is sold out. Refresh offers to browse more gear.</div>`;
+  const content = selectedEquipmentPanelTab === "shop" ? shop : inventory;
+  const equippedStats = getEquipmentTotalStats(classId);
+  const statSummary = Object.entries(equippedStats).length
+    ? Object.entries(equippedStats).map(([stat, value]) => `<span><small>${escapeHtml(formatEquipmentStatName(stat))}</small><strong>${escapeHtml(formatSignedEquipmentValue(stat, value))}</strong></span>`).join("")
+    : `<span><small>Gear</small><strong>No bonuses</strong></span>`;
   return `<section class="hero-equipment-panel">
     <div class="equipment-panel-header">
       <div>
         <h4>Equipment</h4>
-        <p>Persistent slots for this hero. Buy and sell spare gear with Essence.</p>
+        <p>Persistent gear for this hero. Select an item to compare, equip, buy, or sell.</p>
       </div>
       <div class="equipment-essence">Essence <strong>${Math.floor(save.essence)}</strong></div>
     </div>
-    <div class="equipment-slot-grid">${slots}</div>
-    <div class="equipment-shop">
-      <div class="equipment-panel-header">
-        <h4>Essence Gear Shop</h4>
-        <button data-refresh-equipment-shop ${refreshRemaining > 0 ? "disabled" : ""}>${refreshRemaining > 0 ? `Refresh ${refreshRemaining}s` : "Refresh"}</button>
-      </div>
-      <div class="equipment-shop-list">${shop}</div>
+    <div class="equipment-workspace">
+      <aside class="equipment-equipped-column">
+        <div class="equipment-hero-card">
+          <div class="equipment-hero-preview player ${[heroClass.colorClass, skin.className].filter(Boolean).join(" ")} sprite-sheet-unit"><div class="sprite" style="${getSpriteBackgroundStyle(SPRITE_SHEETS.heroes[classId], "hero", classId, skin)};background-size:600% 100%;background-position:0% center;"></div></div>
+          <div><small>Equipped Gear</small><strong>${escapeHtml(heroClass.name)}</strong></div>
+        </div>
+        <div class="equipment-slot-grid">${slots}</div>
+        <div class="equipment-total-stats">${statSummary}</div>
+      </aside>
+      <section class="equipment-browser-column">
+        <div class="equipment-browser-tabs">
+          <div class="equipment-mode-group">
+            <button class="equipment-mode-tab ${selectedEquipmentPanelTab === "inventory" ? "equipment-mode-active" : ""}" data-equipment-panel-tab="inventory">Inventory</button>
+            <button class="equipment-mode-tab ${selectedEquipmentPanelTab === "shop" ? "equipment-mode-active" : ""}" data-equipment-panel-tab="shop">Shop</button>
+          </div>
+          <button data-refresh-equipment-shop ${refreshRemaining > 0 ? "disabled" : ""}>${refreshRemaining > 0 ? `Refresh ${refreshRemaining}s` : "Refresh Shop"}</button>
+        </div>
+        <div class="equipment-controls">
+          <div class="equipment-browse-label">${slotFilter ? `Browsing ${escapeHtml(getEquipmentSlotName(slotFilter))}` : "Browsing All Gear"}</div>
+          <select data-equipment-sort aria-label="Sort equipment">
+            ${["power", "quality", "rarity", "name", "newest"].map(option => `<option value="${option}" ${selectedEquipmentSort === option ? "selected" : ""}>${escapeHtml(option[0].toUpperCase() + option.slice(1))}</option>`).join("")}
+          </select>
+          <input data-equipment-search type="search" value="${escapeHtml(selectedEquipmentSearch)}" placeholder="Search gear">
+        </div>
+        <div class="inventory-list equipment-card-grid">${content}</div>
+      </section>
+      <aside class="equipment-compare-column">
+        ${renderEquipmentComparisonPanel(classId, shopOffers)}
+      </aside>
     </div>
-    <h4 class="inventory-title">Inventory</h4>
-    <div class="equipment-tabs">${tabs}</div>
-    <div class="inventory-list">${inventory}</div>
   </section>`;
 }
 
 function wireHeroEquipmentPanel(classId) {
-  characterDetails.querySelectorAll("[data-equip-item]").forEach(button => {
-    button.onclick = () => {
-      const inventoryScrollTop = characterDetails.querySelector(".inventory-list")?.scrollTop || 0;
-      equipInventoryItem(classId, button.dataset.equipItem);
-      renderHeroCharacterDetails(classId);
-      restoreEquipmentInventoryScroll(inventoryScrollTop);
+  const equipmentRoot = getActiveScreenId() === "equipmentScreen" ? equipmentScreenContent : characterDetails;
+  if (!equipmentRoot) return;
+  equipmentRoot.querySelectorAll("[data-select-inventory]").forEach(card => {
+    card.onclick = event => {
+      if (event.target.closest("button")) return;
+      selectEquipmentItem("inventory", { id: card.dataset.selectInventory });
+      refreshEquipmentInterface(classId);
+    };
+    card.onkeydown = event => {
+      if (!["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      selectEquipmentItem("inventory", { id: card.dataset.selectInventory });
+      refreshEquipmentInterface(classId);
+    };
+    card.ondblclick = () => {
+      selectEquipmentItem("inventory", { id: card.dataset.selectInventory });
+      equipSelectedEquipmentItem(classId);
+      refreshEquipmentInterface(classId);
     };
   });
-  characterDetails.querySelectorAll("[data-sell-item]").forEach(button => {
-    button.onclick = () => {
-      sellEquipmentItem(classId, button.dataset.sellItem);
-      renderHeroCharacterDetails(classId);
+  equipmentRoot.querySelectorAll("[data-select-shop]").forEach(card => {
+    card.onclick = event => {
+      if (event.target.closest("button")) return;
+      selectEquipmentItem("shop", { index: Number(card.dataset.selectShop) });
+      refreshEquipmentInterface(classId);
+    };
+    card.onkeydown = event => {
+      if (!["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      selectEquipmentItem("shop", { index: Number(card.dataset.selectShop) });
+      refreshEquipmentInterface(classId);
     };
   });
-  characterDetails.querySelectorAll("[data-equipment-tab]").forEach(button => {
-    button.onclick = () => {
-      selectedEquipmentSlotTab = button.dataset.equipmentTab || "all";
-      renderHeroCharacterDetails(classId);
+  equipmentRoot.querySelectorAll("[data-select-equipped]").forEach(card => {
+    card.onclick = event => {
+      selectedEquipmentSlotTab = selectedEquipmentSlotTab === card.dataset.selectEquipped ? "all" : card.dataset.selectEquipped;
+      selectEquipmentItem("equipped", { slot: card.dataset.selectEquipped });
+      refreshEquipmentInterface(classId);
+    };
+    card.onkeydown = event => {
+      if (!["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      selectedEquipmentSlotTab = selectedEquipmentSlotTab === card.dataset.selectEquipped ? "all" : card.dataset.selectEquipped;
+      selectEquipmentItem("equipped", { slot: card.dataset.selectEquipped });
+      refreshEquipmentInterface(classId);
     };
   });
-  characterDetails.querySelectorAll("[data-buy-equipment]").forEach(button => {
+  equipmentRoot.querySelectorAll("[data-equip-item]").forEach(button => {
     button.onclick = () => {
-      buyEquipmentOffer(classId, Number(button.dataset.buyEquipment));
-      renderHeroCharacterDetails(classId);
+      selectEquipmentItem("inventory", { id: button.dataset.equipItem });
+      equipSelectedEquipmentItem(classId);
+      refreshEquipmentInterface(classId);
     };
   });
-  const refreshButton = characterDetails.querySelector("[data-refresh-equipment-shop]");
+  equipmentRoot.querySelectorAll("[data-sell-item]").forEach(button => {
+    button.onclick = () => {
+      selectEquipmentItem("inventory", { id: button.dataset.sellItem });
+      sellSelectedEquipmentItem(classId);
+      refreshEquipmentInterface(classId);
+    };
+  });
+  equipmentRoot.querySelectorAll("[data-equipment-panel-tab]").forEach(button => {
+    button.onclick = () => {
+      selectedEquipmentPanelTab = button.dataset.equipmentPanelTab || "inventory";
+      selectedEquipmentItem = { source: "", id: "", index: -1, slot: "" };
+      refreshEquipmentInterface(classId);
+    };
+  });
+  const sortControl = equipmentRoot.querySelector("[data-equipment-sort]");
+  if (sortControl) sortControl.onchange = () => {
+    selectedEquipmentSort = sortControl.value || "power";
+    refreshEquipmentInterface(classId);
+  };
+  const searchControl = equipmentRoot.querySelector("[data-equipment-search]");
+  if (searchControl) searchControl.oninput = () => {
+    selectedEquipmentSearch = searchControl.value || "";
+    refreshEquipmentInterface(classId);
+  };
+  equipmentRoot.querySelectorAll("[data-buy-equipment]").forEach(button => {
+    button.onclick = () => {
+      selectEquipmentItem("shop", { index: Number(button.dataset.buyEquipment) });
+      buySelectedEquipmentOffer(classId);
+      refreshEquipmentInterface(classId);
+    };
+  });
+  const refreshButton = equipmentRoot.querySelector("[data-refresh-equipment-shop]");
   if (refreshButton) refreshButton.onclick = () => {
     if (getEquipmentShopRefreshRemainingSeconds(classId) > 0) return;
     equipmentShopOffers[classId] = createEquipmentShopOffers(classId);
     equipmentShopRefreshAvailableAt[classId] = Date.now() + EQUIPMENT_SHOP_REFRESH_COOLDOWN_MS;
-    renderHeroCharacterDetails(classId);
+    selectedEquipmentItem = { source: "", id: "", index: -1, slot: "" };
+    refreshEquipmentInterface(classId);
     scheduleEquipmentShopRefreshRender(classId);
   };
-  characterDetails.querySelectorAll("[data-unequip-slot]").forEach(button => {
+  equipmentRoot.onkeydown = event => {
+    if (event.key !== "Escape" || !selectedEquipmentItem.source) return;
+    selectedEquipmentItem = { source: "", id: "", index: -1, slot: "" };
+    refreshEquipmentInterface(classId);
+  };
+  equipmentRoot.querySelectorAll("[data-unequip-slot]").forEach(button => {
     button.onclick = () => {
-      const inventoryScrollTop = characterDetails.querySelector(".inventory-list")?.scrollTop || 0;
-      unequipHeroSlot(classId, button.dataset.unequipSlot);
-      renderHeroCharacterDetails(classId);
-      restoreEquipmentInventoryScroll(inventoryScrollTop);
+      selectEquipmentItem("equipped", { slot: button.dataset.unequipSlot });
+      unequipSelectedEquipmentItem(classId);
+      refreshEquipmentInterface(classId);
     };
   });
+}
+
+function renderEquipmentSlotCard(slot, item, matchesSelection) {
+  const rarityClass = item ? `equipment-rarity-${String(item.rarity || "Common").toLowerCase()}` : "equipment-slot-empty";
+  const meta = item ? `${escapeHtml(item.rarity)} / Q${getEquipmentQualityPercent(item)} / P${item.power || 0}` : "Open slot";
+  const stat = item ? escapeHtml(getImportantEquipmentStats(item, 1).join(" / ") || "No stats") : "";
+  return `<button class="equipment-slot ${rarityClass} ${matchesSelection ? "equipment-slot-match" : ""}" data-select-equipped="${slot.id}">
+    <span class="equipment-item-icon">${escapeHtml(getEquipmentSlotIcon(slot.id))}</span>
+    <span class="equipment-slot-copy">
+      <small>${escapeHtml(slot.name)}</small>
+      <strong>${item ? escapeHtml(item.name) : "Empty"}</strong>
+      <em>${meta}</em>
+      ${stat ? `<b>${stat}</b>` : ""}
+    </span>
+  </button>`;
+}
+
+function renderEquipmentItemCard(item, options = {}) {
+  const rarity = String(item.rarity || "Common");
+  const selectedClass = options.selected ? "equipment-card-selected" : "";
+  const sourceAttrs = options.source === "shop"
+    ? `data-select-shop="${options.index}"`
+    : `data-select-inventory="${escapeHtml(item.instanceId)}"`;
+  const stats = getImportantEquipmentStats(item, 2).map(stat => `<span>${escapeHtml(stat)}</span>`).join("");
+  const action = options.source === "shop"
+    ? `<button data-buy-equipment="${options.index}" ${save.essence < getEquipmentBuyCost(item) ? "disabled" : ""}>Buy</button>`
+    : `<button data-equip-item="${escapeHtml(item.instanceId)}">Equip</button><button data-sell-item="${escapeHtml(item.instanceId)}">Sell</button>`;
+  return `<div class="equipment-card equipment-rarity-${rarity.toLowerCase()} ${selectedClass}" ${sourceAttrs} tabindex="0">
+    <div class="equipment-card-top">
+      <span class="equipment-item-icon">${escapeHtml(getEquipmentSlotIcon(item.slot))}</span>
+      <div>
+        <strong>${escapeHtml(item.name)}</strong>
+        <small>${escapeHtml(getEquipmentSlotName(item.slot))} / ${escapeHtml(rarity)}</small>
+      </div>
+    </div>
+    <div class="equipment-card-meta"><span>Q${getEquipmentQualityPercent(item)}</span><span>P${item.power || 0}</span>${options.priceText ? `<span>${escapeHtml(options.priceText)}</span>` : ""}</div>
+    <div class="equipment-card-stats">${stats || "<span>No stat bonus</span>"}</div>
+    <div class="equipment-card-actions">${action}</div>
+  </div>`;
+}
+
+function renderEquipmentComparisonPanel(classId, shopOffers) {
+  const selected = getSelectedEquipmentContext(classId, shopOffers);
+  if (!selected.item) return `<div class="equipment-compare-empty">Select an item to compare it with your currently equipped gear.</div>`;
+  const current = getEquippedItem(classId, selected.item.slot);
+  return `<div class="equipment-compare-panel">
+    <div class="equipment-compare-sides">
+      ${renderEquipmentCompareSide(current, "Currently Equipped", selected.item.slot, "equipped")}
+      ${renderEquipmentCompareSide(selected.item, selected.source === "shop" ? "Shop Item" : selected.source === "equipped" ? "Equipped Item" : "Selected Item", selected.item.slot, selected.source)}
+    </div>
+    ${renderEquipmentStatDiffs(current, selected.item)}
+    ${renderEquipmentComparisonActions(classId, selected)}
+  </div>`;
+}
+
+function renderEquipmentCompareSide(item, title, slotId, source) {
+  if (!item) return `<div class="equipment-compare-side equipment-compare-empty-side">
+    <small>${escapeHtml(title)}</small>
+    <span class="equipment-item-icon">${escapeHtml(getEquipmentSlotIcon(slotId))}</span>
+    <strong>Nothing Equipped</strong>
+    <em>${escapeHtml(getEquipmentSlotName(slotId))}</em>
+  </div>`;
+  const price = source === "shop" ? `Buy ${getEquipmentBuyCost(item)} Essence` : `Sell ${getEquipmentSellValue(item)} Essence`;
+  return `<div class="equipment-compare-side equipment-rarity-${String(item.rarity || "Common").toLowerCase()}">
+    <small>${escapeHtml(title)}</small>
+    <span class="equipment-item-icon">${escapeHtml(getEquipmentSlotIcon(item.slot))}</span>
+    <strong>${escapeHtml(item.name)}</strong>
+    <em>${escapeHtml(getEquipmentSlotName(item.slot))} / ${escapeHtml(item.rarity)} / Q${getEquipmentQualityPercent(item)} / P${item.power || 0}</em>
+    <b>${escapeHtml(price)}</b>
+    ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
+    <ul>${Object.entries(item.stats || {}).map(([stat, value]) => `<li><span>${escapeHtml(formatEquipmentStatName(stat))}</span><strong>${escapeHtml(formatSignedEquipmentValue(stat, value))}</strong></li>`).join("") || "<li><span>Stats</span><strong>None</strong></li>"}</ul>
+  </div>`;
+}
+
+function renderEquipmentStatDiffs(currentItem, selectedItem) {
+  const stats = [...new Set([...Object.keys(currentItem?.stats || {}), ...Object.keys(selectedItem?.stats || {})])];
+  if (!stats.length) return `<div class="equipment-diff-list"><div class="equipment-diff-row equipment-diff-neutral"><span>No stat differences</span><strong>0</strong></div></div>`;
+  return `<div class="equipment-diff-list">${stats.map(stat => {
+    const current = Number(currentItem?.stats?.[stat]) || 0;
+    const next = Number(selectedItem?.stats?.[stat]) || 0;
+    const diff = next - current;
+    const kind = diff > 0 ? "positive" : diff < 0 ? "negative" : "neutral";
+    const marker = diff > 0 ? "UP +" : diff < 0 ? "DOWN -" : "EVEN ";
+    return `<div class="equipment-diff-row equipment-diff-${kind}">
+      <span>${escapeHtml(formatEquipmentStatName(stat))}</span>
+      <strong>${escapeHtml(formatEquipmentValue(stat, current))} -> ${escapeHtml(formatEquipmentValue(stat, next))} (${marker}${escapeHtml(formatEquipmentValue(stat, Math.abs(diff)))})</strong>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function renderEquipmentComparisonActions(classId, selected) {
+  if (selected.source === "shop") {
+    const cost = getEquipmentBuyCost(selected.item);
+    const disabled = save.essence < cost ? "disabled" : "";
+    const label = save.essence < cost ? `Need ${cost - Math.floor(save.essence)} Essence` : getEquippedItem(classId, selected.item.slot) ? "Buy and Choose Equip" : "Buy";
+    return `<div class="equipment-compare-actions"><button data-buy-equipment="${selected.index}" ${disabled}>${escapeHtml(label)}</button></div>`;
+  }
+  if (selected.source === "equipped") {
+    return `<div class="equipment-compare-actions"><button data-unequip-slot="${selected.item.slot}">Unequip</button><button data-sell-item="${escapeHtml(selected.item.instanceId)}">Sell ${getEquipmentSellValue(selected.item)}e</button></div>`;
+  }
+  return `<div class="equipment-compare-actions"><button data-equip-item="${escapeHtml(selected.item.instanceId)}">Equip</button><button data-sell-item="${escapeHtml(selected.item.instanceId)}">Sell ${getEquipmentSellValue(selected.item)}e</button></div>`;
+}
+
+function ensureEquipmentSelection(classId, inventoryItems, shopOffers, equipment) {
+  if (selectedEquipmentItem.source === "inventory" && inventoryItems.some(item => item.instanceId === selectedEquipmentItem.id)) return;
+  if (selectedEquipmentItem.source === "shop" && shopOffers[selectedEquipmentItem.index]) return;
+  if (selectedEquipmentItem.source === "equipped" && equipment[selectedEquipmentItem.slot]) return;
+  selectedEquipmentItem = { source: "", id: "", index: -1, slot: "" };
+}
+
+function getSelectedEquipmentContext(classId, shopOffers = getEquipmentShopOffers(classId)) {
+  if (selectedEquipmentItem.source === "inventory") return { source: "inventory", item: getInventoryItem(selectedEquipmentItem.id), id: selectedEquipmentItem.id, index: -1 };
+  if (selectedEquipmentItem.source === "shop") return { source: "shop", item: shopOffers[selectedEquipmentItem.index] || null, index: selectedEquipmentItem.index };
+  if (selectedEquipmentItem.source === "equipped") return { source: "equipped", item: getEquippedItem(classId, selectedEquipmentItem.slot), slot: selectedEquipmentItem.slot };
+  return { source: "", item: null, index: -1 };
+}
+
+function selectEquipmentItem(source, details = {}) {
+  selectedEquipmentItem = { source, id: details.id || "", index: Number.isInteger(details.index) ? details.index : -1, slot: details.slot || "" };
+}
+
+function getSelectedEquipmentSlot(classId, shopOffers) {
+  const selected = getSelectedEquipmentContext(classId, shopOffers);
+  return selected.item?.slot || selected.slot || "";
+}
+
+function getFilteredEquipmentInventoryItems(classId, slotFilter) {
+  const search = selectedEquipmentSearch.trim().toLowerCase();
+  const items = getInventoryItemsForHero(classId, slotFilter).filter(item => !isInventoryItemEquipped(item.instanceId));
+  const filtered = search ? items.filter(item => {
+    const haystack = `${item.name} ${item.rarity} ${getEquipmentSlotName(item.slot)} ${formatEquipmentItemSummary(item)}`.toLowerCase();
+    return haystack.includes(search);
+  }) : items;
+  return sortEquipmentItems(filtered, selectedEquipmentSort);
+}
+
+function equipSelectedEquipmentItem(classId) {
+  const selected = getSelectedEquipmentContext(classId);
+  if (!selected.item || selected.source !== "inventory") return false;
+  const equipped = getEquippedItem(classId, selected.item.slot);
+  if (equipped && !confirm(`Replace ${equipped.name} with ${selected.item.name}?`)) return false;
+  return equipInventoryItem(classId, selected.item.instanceId);
+}
+
+function buySelectedEquipmentOffer(classId) {
+  const offers = getEquipmentShopOffers(classId);
+  const selected = getSelectedEquipmentContext(classId, offers);
+  if (!selected.item || selected.source !== "shop") return false;
+  const bought = buyEquipmentOffer(classId, selected.index);
+  if (!bought) return false;
+  const inventoryItem = save.inventory.items[save.inventory.items.length - 1];
+  selectedEquipmentPanelTab = "inventory";
+  selectedEquipmentItem = { source: "inventory", id: inventoryItem?.instanceId || "", index: -1, slot: "" };
+  if (inventoryItem && confirm(`Equip ${inventoryItem.name} now?`)) equipInventoryItem(classId, inventoryItem.instanceId);
+  return true;
+}
+
+function sellSelectedEquipmentItem(classId) {
+  const selected = getSelectedEquipmentContext(classId);
+  if (!selected.item || !["inventory", "equipped"].includes(selected.source)) return false;
+  const valuable = getEquipmentRarityRank(selected.item.rarity) >= getEquipmentRarityRank("Rare") || (selected.item.quality || 0) >= 0.75;
+  if (valuable && !confirm(`Sell ${selected.item.rarity} ${selected.item.name} for ${getEquipmentSellValue(selected.item)} Essence?`)) return false;
+  const sold = sellEquipmentItem(classId, selected.item.instanceId);
+  if (sold) selectedEquipmentItem = { source: "", id: "", index: -1, slot: "" };
+  return sold;
+}
+
+function unequipSelectedEquipmentItem(classId) {
+  const selected = getSelectedEquipmentContext(classId);
+  if (!selected.item || selected.source !== "equipped") return false;
+  return unequipHeroSlot(classId, selected.item.slot);
+}
+
+function getEquipmentTotalStats(classId) {
+  return EQUIPMENT_SLOTS.reduce((totals, slot) => {
+    const item = getEquippedItem(classId, slot.id);
+    Object.entries(item?.stats || {}).forEach(([stat, value]) => {
+      totals[stat] = (totals[stat] || 0) + (Number(value) || 0);
+    });
+    return totals;
+  }, {});
+}
+
+function getEquipmentSlotIcon(slotId) {
+  return ({ head: "HD", body: "BD", mainHand: "MH", offHand: "OH", legs: "LG", feet: "FT" })[slotId] || "EQ";
+}
+
+function getEquipmentQualityPercent(item) {
+  return `${Math.round((item?.quality || 0) * 100)}%`;
+}
+
+function getImportantEquipmentStats(item, limit = 2) {
+  const entries = Object.entries(item?.stats || {});
+  const weights = { damage: 7, maxHp: 4, armor: 6, attackSpeed: 5, critChance: 5, regen: 3, luck: 2 };
+  return entries
+    .sort((a, b) => (weights[b[0]] || 1) * Math.abs(Number(b[1]) || 0) - (weights[a[0]] || 1) * Math.abs(Number(a[1]) || 0))
+    .slice(0, limit)
+    .map(([stat, value]) => `${formatEquipmentStatName(stat)} ${formatSignedEquipmentValue(stat, value)}`);
+}
+
+function formatEquipmentValue(key, value) {
+  const number = Number(value) || 0;
+  if (key === "attackSpeed" || key.toLowerCase().includes("chance") || Math.abs(number) < 1) return `${number < 0 ? "-" : ""}${formatDisplayPercent(Math.abs(number))}`;
+  return String(Math.round(number * 10) / 10);
 }
 
 function getEquipmentShopOffers(classId) {
@@ -1249,8 +1580,10 @@ function scheduleEquipmentShopRefreshRender(classId) {
 }
 
 function updateEquipmentShopRefreshButton(classId) {
-  if (characterBrowserTab !== "heroes" || selectedCharacterId !== classId || getActiveScreenId() !== "charactersScreen") return false;
-  const refreshButton = characterDetails?.querySelector("[data-refresh-equipment-shop]");
+  const activeScreen = getActiveScreenId();
+  if (selectedCharacterId !== classId || !["charactersScreen", "equipmentScreen"].includes(activeScreen)) return false;
+  const root = activeScreen === "equipmentScreen" ? equipmentScreenContent : characterDetails;
+  const refreshButton = root?.querySelector("[data-refresh-equipment-shop]");
   if (!refreshButton) return false;
   const remaining = getEquipmentShopRefreshRemainingSeconds(classId);
   refreshButton.disabled = remaining > 0;
@@ -1297,19 +1630,24 @@ function sellEquipmentItem(classId, instanceId) {
 
 function restoreEquipmentInventoryScroll(scrollTop) {
   requestAnimationFrame(() => {
-    const inventoryList = characterDetails.querySelector(".inventory-list");
+    const root = getActiveScreenId() === "equipmentScreen" ? equipmentScreenContent : characterDetails;
+    const inventoryList = root?.querySelector(".inventory-list");
     if (inventoryList) inventoryList.scrollTop = scrollTop;
   });
 }
 
-function sortEquipmentItems(items) {
+function sortEquipmentItems(items, sortBy = "power") {
   const slotOrder = EQUIPMENT_SLOTS.reduce((order, slot, index) => ({ ...order, [slot.id]: index }), {});
-  return [...(items || [])].sort((a, b) =>
-    (slotOrder[a.slot] ?? 99) - (slotOrder[b.slot] ?? 99) ||
-    getRarityRank(b.rarity) - getRarityRank(a.rarity) ||
-    (b.power || 0) - (a.power || 0) ||
-    a.name.localeCompare(b.name)
-  );
+  return [...(items || [])].sort((a, b) => {
+    if (sortBy === "name") return a.name.localeCompare(b.name);
+    if (sortBy === "quality") return (b.quality || 0) - (a.quality || 0) || (b.power || 0) - (a.power || 0);
+    if (sortBy === "rarity") return getEquipmentRarityRank(b.rarity) - getEquipmentRarityRank(a.rarity) || (b.power || 0) - (a.power || 0);
+    if (sortBy === "newest") return String(b.instanceId || "").localeCompare(String(a.instanceId || ""));
+    return (b.power || 0) - (a.power || 0) ||
+      getEquipmentRarityRank(b.rarity) - getEquipmentRarityRank(a.rarity) ||
+      (slotOrder[a.slot] ?? 99) - (slotOrder[b.slot] ?? 99) ||
+      a.name.localeCompare(b.name);
+  });
 }
 
 function getEquipmentSlotName(slotId) {
@@ -2013,7 +2351,7 @@ function addRunUpgradeName(name, description, rarity = "Common") {
 function getRunUpgradeStacks() { return (run.rewardNames || []).map(name => ({ name, count: run.rewardCounts?.[name] || 1, rarity: run.rewardRarities?.[name] || (REWARDS.find(r => r.name === name) || SHOP_ITEMS.find(i => i.name === name) || {}).rarity || "Common", source: REWARDS.find(r => r.name === name) || SHOP_ITEMS.find(i => i.name === name) || { name } })); }
 
 function renderMapLegend() {
-  mapLegend.innerHTML = ["Heal", "Merchant", "Treasure", "Battle", "Elite", "Boss"].filter(type => MAP_TYPES[type] && (type !== "Treasure" || hasPermanentUnlock("unlock_events"))).map(type => `<div class="legend-item"><div class="legend-icon ${MAP_TYPES[type].className}">${MAP_TYPES[type].icon}</div><div><strong>${MAP_TYPES[type].label}</strong><br><span class="subtle">${MAP_TYPES[type].description}</span></div></div>`).join("");
+  mapLegend.innerHTML = ["Heal", "Merchant", "Treasure", "Battle", "Elite", "Boss"].filter(type => MAP_TYPES[type]).map(type => `<div class="legend-item"><div class="legend-icon ${MAP_TYPES[type].className}">${MAP_TYPES[type].icon}</div><div><strong>${MAP_TYPES[type].label}</strong><br><span class="subtle">${MAP_TYPES[type].description}</span></div></div>`).join("");
 }
 
 function renderRoguelikeMap() {
@@ -2166,7 +2504,7 @@ function renderEnemyStats() { const enemies = battle?.enemies || []; enemyStats.
 function statCell(label, value, tooltip) { return `<div class="tooltip-item" data-tooltip="${escapeHtml(tooltip)}"><small>${label}</small><strong>${value}</strong></div>`; }
 function getArmorTooltip(armor) {
   const reduction = typeof getArmorDamageReduction === "function" ? getArmorDamageReduction(armor) : 0;
-  return `Reduces incoming hit damage by ${formatExactPercent(reduction).replace(/^\+/, "")}. Each 5 armor gives a smaller reduction than the previous 5, but high armor still gives at least 0.1% reduction per armor, up to 85%.`;
+  return `Reduces incoming hit damage by ${formatExactPercent(reduction).replace(/^\+/, "")}. Each 5 armor gives a smaller reduction than the previous 5, but high armor still gives at least 0.25% reduction per armor, up to 85%.`;
 }
 
 function getBleedTooltip(hero) {
@@ -2384,12 +2722,12 @@ function log(message, type = "info") { if (isBuildTestRun()) return; const line 
 function renderTree() {
   if (!treeCards) return;
   const visibleNodes = getVisibleTreeNodes();
-  if (!visibleNodes.some(node => node.id === selectedTreeNodeId)) selectedTreeNodeId = TREE_TAB_ROOTS[selectedTreeTab] || "crown_legacy";
+  if (!visibleNodes.some(node => node.id === selectedTreeNodeId)) selectedTreeNodeId = TREE_TAB_ROOTS[selectedTreeTab] || visibleNodes[0]?.id || "endurance";
   treeEssence.textContent = Math.floor(save.essence);
   renderTreeTabs();
   treeCards.innerHTML = createTreeMenuHtml(visibleNodes);
   bindTreeNodeButtons();
-  renderTreeDetails(TREE[selectedTreeNodeId] || TREE.crown_legacy);
+  renderTreeDetails(TREE[selectedTreeNodeId] || visibleNodes[0] || TREE.endurance);
   applyTreeCamera();
   refreshTopbar();
 }
@@ -2440,6 +2778,9 @@ function getTreeConnectionPath({ parent, node, siblingIndex, siblingCount }) {
   return `M ${p0.x} ${p0.y} C ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}, ${p3.x} ${p3.y}`;
 }
 function createTreeMenuHtml(nodes) {
+  if (selectedTreeTab === "global") {
+    return `<div class="skill-menu-list skill-menu-list-global">${getTreeNodesInDependencyOrder(nodes).map(createTreeMenuItemHtml).join("")}</div>`;
+  }
   const branches = new Map();
   getTreeNodesInDependencyOrder(nodes).forEach(node => {
     if (!branches.has(node.branch)) branches.set(node.branch, []);
@@ -2483,9 +2824,9 @@ function renderTreeDetails(node) {
 function getTreeUpgradeCost(node, level) {
   if (node.costs) return node.costs[Math.min(level, node.costs.length - 1)];
   if (node.type === "ability") return node.cost;
-  const multiplier = node.classId === "global" ? GLOBAL_TREE_COST_MULTIPLIER : 1;
+  if (level <= 0) return node.cost;
   const growth = node.classId === "global" ? GLOBAL_TREE_COST_GROWTH : TREE_COST_GROWTH;
-  return Math.ceil((node.cost * multiplier * Math.pow(growth, level)) / 10) * 10;
+  return Math.ceil((node.cost * Math.pow(growth, level)) / 10) * 10;
 }
 function isTreeNodeLocked(node) { return node.prerequisites.some(id => getTreeLevel(id) <= 0); }
 function getTreeNodeInitials(node) { return node.name.split(/\s+/).map(word => word[0]).join("").slice(0, 2).toUpperCase(); }

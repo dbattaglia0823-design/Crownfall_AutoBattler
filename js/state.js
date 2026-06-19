@@ -778,11 +778,6 @@ function getEnemySpriteSheet(enemy) {
 function migrateTreeSave(tree, oldTree) {
   const oldLevels = oldTree || {};
   let migrated = Object.keys(oldLevels).some(id => !TREE[id] && oldLevels[id] > 0);
-  const hadAnyProgress = Object.values(oldLevels).some(level => level > 0);
-  if (hadAnyProgress && !oldLevels.crown_legacy) {
-    tree.crown_legacy = 1;
-    migrated = true;
-  }
 
   const oldClassUnlocks = {
     knight_root: ["knight_vigor", "knight_edge", "knight_bulwark", "knight_banner"],
@@ -803,6 +798,28 @@ function migrateTreeSave(tree, oldTree) {
   if (oldLevels.rogue_plunder && !tree.fortune) { tree.fortune = Math.min(TREE.fortune.maxLevel, oldLevels.rogue_plunder); migrated = true; }
   if (oldLevels.wizard_conduit && !tree.wizard_focus) { tree.wizard_focus = Math.min(TREE.wizard_focus.maxLevel, oldLevels.wizard_conduit); migrated = true; }
   if (oldLevels.wizard_ward && !tree.wizard_mana_shield) { tree.wizard_mana_shield = Math.min(TREE.wizard_mana_shield.maxLevel, oldLevels.wizard_ward); migrated = true; }
+
+  const retiredGlobalNodeIds = ["field_drills", "marching_songs", "crown_purse", "royal_tithe", "old_campaigns", "castle_stores", "crown_doctrine", "ancient_charter", "battle_trance"];
+  if (retiredGlobalNodeIds.some(id => oldLevels[id] > 0)) {
+    const globalStatMigrations = [
+      { target: "endurance", perLevel: 10, total: (oldLevels.endurance || 0) * 5 + (oldLevels.old_campaigns || 0) + (oldLevels.castle_stores || 0) * 25 + (oldLevels.crown_doctrine || 0) * 35 },
+      { target: "might", perLevel: 2, total: (oldLevels.might || 0) * 2 + (oldLevels.field_drills || 0) + (oldLevels.crown_doctrine || 0) * 3 + (oldLevels.battle_trance || 0) * 3 },
+      { target: "haste", perLevel: 0.04, total: (oldLevels.haste || 0) * 0.04 + (oldLevels.field_drills || 0) * 0.02 + (oldLevels.marching_songs || 0) * 0.03 + (oldLevels.battle_trance || 0) * 0.05 },
+      { target: "armor", perLevel: 1, total: (oldLevels.armor || 0) + (oldLevels.old_campaigns || 0) },
+      { target: "fortune", perLevel: 10, total: (oldLevels.fortune || 0) * 10 + (oldLevels.crown_purse || 0) * 8 + (oldLevels.royal_tithe || 0) * 5 + (oldLevels.castle_stores || 0) * 8 },
+      { target: "lucky_omens", perLevel: 1, total: (oldLevels.lucky_omens || 0) + (oldLevels.royal_tithe || 0) },
+      { target: "essence", perLevel: 0.03, total: (oldLevels.essence || 0) * 0.04 + (oldLevels.royal_tithe || 0) * 0.02 + (oldLevels.crown_doctrine || 0) * 0.02 + (oldLevels.ancient_charter || 0) * 0.05 }
+    ];
+
+    globalStatMigrations.forEach(({ target, perLevel, total }) => {
+      if (!TREE[target] || total <= 0) return;
+      const nextLevel = Math.min(TREE[target].maxLevel, Math.ceil((total - Number.EPSILON) / perLevel));
+      if (tree[target] !== nextLevel) {
+        tree[target] = nextLevel;
+        migrated = true;
+      }
+    });
+  }
 
   Object.keys(tree).forEach(id => {
     if (!TREE[id]) {

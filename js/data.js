@@ -10,9 +10,7 @@ const ENDLESS_ESSENCE_PER_STAGE = 1.15;
 const ENDLESS_ESSENCE_CAP = 50;
 const ROGUE_BASE_BLEED_MAX_HP_PERCENT = 0.04;
 const TREE_COST_GROWTH = 1.75;
-const GLOBAL_TREE_COST_MULTIPLIER = 0.75;
 const GLOBAL_TREE_COST_GROWTH = 1.5;
-const TREE_UNLOCK_ESSENCE_COST = 300;
 const PLAYER_BASE_STAT_MULTIPLIER = 1.05;
 const ENEMY_BASE_STAT_MULTIPLIER = 1.3;
 const HERO_SKIN_ESSENCE_COST = 200;
@@ -828,31 +826,31 @@ const GAUNTLET_ACHIEVEMENTS = [
 ];
 
 const ACHIEVEMENTS = [
-  { id: "first_steps", name: "First Steps", description: "Start your first run.", goal: "Start 1 run", condition: save => save.stats.runsStarted >= 1, essenceReward: 3, bonus: { maxHp: 2 } },
-  { id: "first_victory", name: "First Victory", description: "Win your first battle.", goal: "Win 1 battle", condition: save => save.stats.battlesWon >= 1, essenceReward: 3, bonus: { damageMultiplier: 0.005 } },
-  { id: "ten_battles", name: "Battle Tested", description: "Win 10 battles.", goal: "Win 10 battles", condition: save => save.stats.battlesWon >= 10, essenceReward: 5, bonus: { maxHp: 4 } },
-  { id: "fifty_battles", name: "Veteran Blade", description: "Win 50 battles.", goal: "Win 50 battles", condition: save => save.stats.battlesWon >= 50, essenceReward: 10, bonus: { damageMultiplier: 0.01 } },
-  { id: "hundred_enemies", name: "Line Breaker", description: "Defeat 100 enemies.", goal: "Defeat 100 enemies", condition: save => save.stats.enemiesDefeated >= 100, essenceReward: 10, bonus: { attackSpeedMultiplier: 0.01 } },
-  { id: "elite_hunter", name: "Elite Hunter", description: "Defeat 10 elites.", goal: "Defeat 10 elites", condition: save => save.stats.elitesDefeated >= 10, essenceReward: 10, bonus: { armor: 1 } },
-  { id: "elite_reaper", name: "Elite Reaper", description: "Defeat 500 elites.", goal: "Defeat 500 elites", condition: save => save.stats.elitesDefeated >= 500, essenceReward: 20, bonus: { armor: 1, damageMultiplier: 0.005 } },
-  { id: "boss_breaker", name: "Boss Breaker", description: "Defeat 3 bosses.", goal: "Defeat 3 bosses", condition: save => save.stats.bossesDefeated >= 3, essenceReward: 10, bonus: { damageMultiplier: 0.015 } },
-  { id: "boss_conqueror", name: "Boss Conqueror", description: "Defeat 100 bosses.", goal: "Defeat 100 bosses", condition: save => save.stats.bossesDefeated >= 100, essenceReward: 20, bonus: { damageMultiplier: 0.01, maxHp: 3 } },
-  { id: "deep_delver", name: "Deep Delver", description: "Reach Stage 20.", goal: "Reach Stage 20", condition: save => save.highestClear >= 20, essenceReward: 10, bonus: { maxHp: 5 } },
-  { id: "third_map", name: "Third March", description: "Reach Stage 30.", goal: "Reach Stage 30", condition: save => save.highestClear >= 30, essenceReward: 20, bonus: { essenceMultiplier: 0.01 } },
-  { id: "essence_hoard", name: "Essence Hoard", description: "Bank 500 total Essence.", goal: "Earn 500 Essence", condition: save => save.stats.totalEssenceEarned >= 500, essenceReward: 10, bonus: { luck: 1 } },
-  { id: "gold_hand", name: "Gold Hand", description: "Earn 500 total gold.", goal: "Earn 500 gold", condition: save => save.stats.totalGoldEarned >= 500, essenceReward: 5, bonus: { startingGold: 5 } },
-  { id: "skill_spark", name: "Skill Spark", description: "Trigger 25 skills.", goal: "Trigger 25 skills", condition: save => save.stats.skillsTriggered >= 25, essenceReward: 5, bonus: { attackSpeedMultiplier: 0.005 } },
-  { id: "skill_storm", name: "Skill Storm", description: "Trigger 150 skills.", goal: "Trigger 150 skills", condition: save => save.stats.skillsTriggered >= 150, essenceReward: 10, bonus: { damageMultiplier: 0.01 } },
-  { id: "hard_path", name: "Crownfall Trial", description: "Clear at least 15 stages on hard.", goal: "Clear 15 hard stages", condition: save => save.stats.hardStagesCleared >= 15, essenceReward: 20, bonus: { armor: 1 } },
-  { id: "merchant_friend", name: "Merchant Friend", description: "Visit 10 shops.", goal: "Visit 10 shops", condition: save => save.stats.shopsVisited >= 10, essenceReward: 5, bonus: { startingGold: 8 } },
-  { id: "relic_keeper", name: "Relic Keeper", description: "Claim 15 relics.", goal: "Claim 15 relics", condition: save => save.stats.relicsClaimed >= 15, essenceReward: 10, bonus: { luck: 1 } },
-  { id: "reward_seeker", name: "Reward Seeker", description: "Choose 30 run upgrades.", goal: "Choose 30 upgrades", condition: save => save.stats.rewardsClaimed >= 30, essenceReward: 10, bonus: { maxHp: 3 } },
-  { id: "knight_oath", name: "Knight Oath", description: "Start 5 Knight runs.", goal: "Start 5 Knight runs", condition: save => save.stats.knightRuns >= 5, essenceReward: 5, bonus: { knightArmor: 1 } },
-  { id: "rogue_contract", name: "Rogue Contract", description: "Start 5 Rogue runs.", goal: "Start 5 Rogue runs", condition: save => save.stats.rogueRuns >= 5, essenceReward: 5, bonus: { rogueCritChance: 0.01 } },
-  { id: "knight_layer3_clear", name: "Golden Oath", description: "Win a run with the Knight by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Knight", condition: save => save.stats.knightLayer3Clears >= 1, essenceReward: 20, bonus: { skin: "Knight Golden Oath", knightArmor: 1 } },
-  { id: "rogue_layer3_clear", name: "Gilded Contract", description: "Win a run with the Rogue by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Rogue", condition: save => save.stats.rogueLayer3Clears >= 1, essenceReward: 20, bonus: { skin: "Rogue Gilded Contract", rogueCritChance: 0.01 } },
-  { id: "wizard_layer3_clear", name: "Auric Arcana", description: "Win a run with the Wizard by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Wizard", condition: save => save.stats.wizardLayer3Clears >= 1, essenceReward: 20, bonus: { skin: "Wizard Auric Arcana", damageMultiplier: 0.01 } },
-  { id: "eternal_crown", name: "Eternal Crownbreaker", description: "Kill the final boss with 1,000,000 HP.", goal: "Defeat The Eternal Crown", condition: save => save.stats.finalBossKills >= 1, essenceReward: 100, bonus: { unlock: "Endless Mode", damageMultiplier: 0.08, maxHp: 40, armor: 3, luck: 3, essenceMultiplier: 0.05 } },
+  { id: "first_steps", name: "First Steps", description: "Start your first run.", goal: "Start 1 run", condition: save => save.stats.runsStarted >= 1, essenceReward: 10, bonus: { maxHp: 2 } },
+  { id: "first_victory", name: "First Victory", description: "Win your first battle.", goal: "Win 1 battle", condition: save => save.stats.battlesWon >= 1, essenceReward: 10, bonus: { damageMultiplier: 0.005 } },
+  { id: "ten_battles", name: "Battle Tested", description: "Win 10 battles.", goal: "Win 10 battles", condition: save => save.stats.battlesWon >= 10, essenceReward: 20, bonus: { maxHp: 4 } },
+  { id: "fifty_battles", name: "Veteran Blade", description: "Win 50 battles.", goal: "Win 50 battles", condition: save => save.stats.battlesWon >= 50, essenceReward: 20, bonus: { damageMultiplier: 0.01 } },
+  { id: "hundred_enemies", name: "Line Breaker", description: "Defeat 100 enemies.", goal: "Defeat 100 enemies", condition: save => save.stats.enemiesDefeated >= 100, essenceReward: 20, bonus: { attackSpeedMultiplier: 0.01 } },
+  { id: "elite_hunter", name: "Elite Hunter", description: "Defeat 10 elites.", goal: "Defeat 10 elites", condition: save => save.stats.elitesDefeated >= 10, essenceReward: 20, bonus: { armor: 1 } },
+  { id: "elite_reaper", name: "Elite Reaper", description: "Defeat 500 elites.", goal: "Defeat 500 elites", condition: save => save.stats.elitesDefeated >= 500, essenceReward: 200, bonus: { armor: 2, damageMultiplier: 0.005 } },
+  { id: "boss_breaker", name: "Boss Breaker", description: "Defeat 3 bosses.", goal: "Defeat 3 bosses", condition: save => save.stats.bossesDefeated >= 3, essenceReward: 40, bonus: { damageMultiplier: 0.015 } },
+  { id: "boss_conqueror", name: "Boss Conqueror", description: "Defeat 100 bosses.", goal: "Defeat 100 bosses", condition: save => save.stats.bossesDefeated >= 100, essenceReward: 500, bonus: { damageMultiplier: 0.01, maxHp: 40 } },
+  { id: "deep_delver", name: "Deep Delver", description: "Reach Stage 20.", goal: "Reach Stage 20", condition: save => save.highestClear >= 20, essenceReward: 50, bonus: { maxHp: 25 } },
+  { id: "third_map", name: "Third March", description: "Reach Stage 30.", goal: "Reach Stage 30", condition: save => save.highestClear >= 30, essenceReward: 100, bonus: { essenceMultiplier: 0.1 } },
+  { id: "essence_hoard", name: "Essence Hoard", description: "Bank 500 total Essence.", goal: "Earn 500 Essence", condition: save => save.stats.totalEssenceEarned >= 500, essenceReward: 200, bonus: { luck: 2 } },
+  { id: "gold_hand", name: "Gold Hand", description: "Earn 500 total gold.", goal: "Earn 500 gold", condition: save => save.stats.totalGoldEarned >= 500, essenceReward: 30, bonus: { startingGold: 15 } },
+  { id: "skill_spark", name: "Skill Spark", description: "Trigger 25 skills.", goal: "Trigger 25 skills", condition: save => save.stats.skillsTriggered >= 25, essenceReward: 20, bonus: { attackSpeedMultiplier: 0.005 } },
+  { id: "skill_storm", name: "Skill Storm", description: "Trigger 150 skills.", goal: "Trigger 150 skills", condition: save => save.stats.skillsTriggered >= 150, essenceReward: 50, bonus: { damageMultiplier: 0.01 } },
+  { id: "hard_path", name: "Crownfall Trial", description: "Clear at least 15 stages on hard.", goal: "Clear 15 hard stages", condition: save => save.stats.hardStagesCleared >= 25, essenceReward: 150, bonus: { armor: 1 } },
+  { id: "merchant_friend", name: "Merchant Friend", description: "Visit 10 shops.", goal: "Visit 10 shops", condition: save => save.stats.shopsVisited >= 10, essenceReward: 20, bonus: { startingGold: 8 } },
+  { id: "relic_keeper", name: "Relic Keeper", description: "Claim 15 relics.", goal: "Claim 15 relics", condition: save => save.stats.relicsClaimed >= 15, essenceReward: 40, bonus: { luck: 1 } },
+  { id: "reward_seeker", name: "Reward Seeker", description: "Choose 30 run upgrades.", goal: "Choose 30 upgrades", condition: save => save.stats.rewardsClaimed >= 30, essenceReward: 40, bonus: { maxHp: 10 } },
+  { id: "knight_oath", name: "Knight Oath", description: "Start 5 Knight runs.", goal: "Start 5 Knight runs", condition: save => save.stats.knightRuns >= 5, essenceReward: 50, bonus: { knightArmor: 1 } },
+  { id: "rogue_contract", name: "Rogue Contract", description: "Start 5 Rogue runs.", goal: "Start 5 Rogue runs", condition: save => save.stats.rogueRuns >= 5, essenceReward: 50, bonus: { rogueCritChance: 0.01 } },
+  { id: "knight_layer3_clear", name: "Golden Oath", description: "Win a run with the Knight by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Knight", condition: save => save.stats.knightLayer3Clears >= 1, essenceReward: 300, bonus: { skin: "Knight Golden Oath", knightArmor: 1 } },
+  { id: "rogue_layer3_clear", name: "Gilded Contract", description: "Win a run with the Rogue by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Rogue", condition: save => save.stats.rogueLayer3Clears >= 1, essenceReward: 300, bonus: { skin: "Rogue Gilded Contract", rogueCritChance: 0.01 } },
+  { id: "wizard_layer3_clear", name: "Auric Arcana", description: "Win a run with the Wizard by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Wizard", condition: save => save.stats.wizardLayer3Clears >= 1, essenceReward: 300, bonus: { skin: "Wizard Auric Arcana", damageMultiplier: 0.01 } },
+  { id: "eternal_crown", name: "Eternal Crownbreaker", description: "Kill the final boss with 1,000,000 HP.", goal: "Defeat The Eternal Crown", condition: save => save.stats.finalBossKills >= 1, essenceReward: 1000, bonus: { unlock: "Endless Mode", damageMultiplier: 0.15, maxHp: 100, armor: 5, luck: 5, essenceMultiplier: 0.2 } },
   ...GAUNTLET_ACHIEVEMENTS,
   ...ENEMY_KILL_ACHIEVEMENTS
 ];
@@ -954,12 +952,12 @@ const REWARDS = [
   { name: "Hardy Bread", rarity: "Common", stats: { maxHp: 35 } },
   { name: "Quick Buckle", rarity: "Common", stats: { attackSpeed: 0.08 } },
   { name: "Scout's Dice", rarity: "Common", stats: { luck: 2 } },
-  { requiresNode: "unlock_starting_bonuses", name: "Prepared Camp", rarity: "Common", stats: { shield: 10 } },
+  { name: "Prepared Camp", rarity: "Common", stats: { shield: 10 } },
   { name: "Triage Kit", rarity: "Common", stats: { maxHp: 28, regen: 1 } },
   { name: "Risky Footwork", rarity: "Common", stats: { attackSpeed: 0.14, armor: -2 } },
   { name: "Royal Purse", rarity: "Common", stats: { gold: 50 } },
   { name: "Leeching Edge", rarity: "Rare", stats: { lifeSteal: 0.03 } },
-  { requiresNode: "unlock_starting_bonuses", name: "Opening Gambit", rarity: "Rare", stats: { gold: 60, luck: 2 } },
+  { name: "Opening Gambit", rarity: "Rare", stats: { gold: 60, luck: 2 } },
   { name: "Vitality Draught", rarity: "Rare", stats: { maxHp: 65 } },
   { name: "Lucky Charm", rarity: "Rare", stats: { critChance: 0.06 } },
   { name: "Knightly Edge", rarity: "Rare", stats: { damage: 28 } },
@@ -1006,39 +1004,39 @@ const REWARDS = [
   { name: "Crown Duelist", rarity: "Legendary", unlockRequirement: { type: "finalBossKills", count: 1 }, stats: { attackSpeed: 0.50, critChance: 0.16 } },
 
   // Hero Upgrades
-  { classId: "knight", name: "Shield Drill", rarity: "Common", stats: { shield: 20 } },
+  { classId: "knight", name: "Shield Drill", rarity: "Common", stats: { shield: 50 } },
   { classId: "knight", name: "Plate Fitting", rarity: "Common", stats: { armor: 3, maxHp: 30 } },
-  { classId: "knight", name: "Shield Timing", rarity: "Common", stats: { blockChance: 0.04 } },
-  { classId: "rogue", name: "Serrated Oil", rarity: "Common", stats: { bleedMaxHpPercent: 0.013 } },
+  { classId: "knight", name: "Shield Timing", rarity: "Common", stats: { blockChance: 0.05 } },
+  { classId: "rogue", name: "Serrated Oil", rarity: "Common", stats: { bleedMaxHpPercent: 0.015 } },
   { classId: "rogue", name: "Quickstep", rarity: "Common", stats: { attackSpeed: 0.1, evasion: 0.03 } },
   { classId: "wizard", name: "Kindling Rune", rarity: "Common", stats: { burnChance: 0.15 } },
-  { classId: "wizard", name: "Arcane Focus", rarity: "Common", stats: { damage: 9, splashDamageMultiplier: 0.05 } },
-  { classId: "knight", name: "Guard Stance", rarity: "Rare", stats: { blockChance: 0.07 } },
-  { classId: "knight", name: "Bulwark Drill", rarity: "Rare", stats: { blockChance: 0.04, shield: 30 } },
-  { classId: "knight", name: "Spiked Shield", rarity: "Rare", stats: { retaliateBlock: 0.15 } },
-  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", stats: { bleedMaxHpPercent: 0.014 } },
+  { classId: "wizard", name: "Arcane Focus", rarity: "Common", stats: { damage: 10, splashDamageMultiplier: 0.05 } },
+  { classId: "knight", name: "Guard Stance", rarity: "Rare", stats: { blockChance: 0.1 } },
+  { classId: "knight", name: "Bulwark Drill", rarity: "Rare", stats: { blockChance: 0.08, shield: 70 } },
+  { classId: "knight", name: "Spiked Shield", rarity: "Rare", stats: { retaliateBlock: 0.20 } },
+  { classId: "rogue", name: "Rending Cuts", rarity: "Rare", stats: { bleedMaxHpPercent: 0.02 } },
   { classId: "rogue", name: "Assassin's Eye", rarity: "Rare", stats: { critChance: 0.1, executeDamage: 0.1 } },
   { classId: "wizard", name: "Frost Thread", rarity: "Rare", stats: { slowChance: 0.2, slowValue: 0.2 } },
-  { classId: "wizard", name: "Mana Ward", rarity: "Rare", stats: { splashShield: 12 } },
-  { classId: "wizard", name: "Scorching Brand", rarity: "Rare", stats: { burnMaxHpPercent: 0.004 } },
-  { classId: "knight", name: "Unbroken Vow", rarity: "Epic", stats: { maxHp: 90, shield: 40 } },
-  { classId: "knight", name: "Castle Guard", rarity: "Epic", stats: { blockChance: 0.15 } },
-  { classId: "rogue", name: "Blood Rush", rarity: "Epic", stats: { bleedMaxHpPercent: 0.018, bleedAttackSpeed: 0.08 } },
+  { classId: "wizard", name: "Mana Ward", rarity: "Rare", stats: { splashShield: 15 } },
+  { classId: "wizard", name: "Scorching Brand", rarity: "Rare", stats: { burnMaxHpPercent: 0.005 } },
+  { classId: "knight", name: "Unbroken Vow", rarity: "Epic", stats: { maxHp: 90, shield: 50 } },
+  { classId: "knight", name: "Castle Guard", rarity: "Epic", stats: { blockChance: 0.20 } },
+  { classId: "rogue", name: "Blood Rush", rarity: "Epic", stats: { bleedMaxHpPercent: 0.03, bleedAttackSpeed: 0.1 } },
   { classId: "wizard", name: "Chain Spell", rarity: "Epic", stats: { splashDamageMultiplier: 0.10 } },
-  { classId: "knight", name: "Oathbreaker Lessons", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "oathbreaker", count: 20 }, stats: { armor: 8, shield: 10 } },
-  { classId: "rogue", name: "Acolyte's Black Oil", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "blood_acolyte", count: 20 }, stats: { abilityDamage: 12 } },
+  { classId: "knight", name: "Oathbreaker Lessons", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "oathbreaker", count: 20 }, stats: { armor: 8, shield: 50 } },
+  { classId: "rogue", name: "Acolyte's Black Oil", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "blood_acolyte", count: 20 }, stats: { abilityDamage: 15 } },
   { classId: "wizard", name: "Necromancer's Margin", rarity: "Epic", unlockRequirement: { type: "enemyKills", enemyId: "necromancer", count: 20 }, stats: { splashDamageMultiplier: 0.10, abilityStats: { runBurnDamage: 10 } } },
   { classId: "knight", name: "Royal Bastion", rarity: "Legendary", stats: { armor: 12, maxHp: 170 } },
   { classId: "rogue", name: "Deathblow Contract", rarity: "Legendary", stats: { executeDamage: 0.4, executeThreshold: 0.4 } },
-  { classId: "wizard", name: "Inferno Thesis", rarity: "Legendary", stats: { abilityStats: { runBurnDamage: 15, runBurningEnemyDamage: 0.16 } } },
+  { classId: "wizard", name: "Inferno Thesis", rarity: "Legendary", stats: { abilityStats: { runBurnDamage: 40, runBurningEnemyDamage: 0.16 } } },
 
   // Ability Upgrades
-  { requiresAbility: "wizard_curse", name: "Cruel Hex", rarity: "Rare", stats: { abilityStats: { runCurseDuration: 1.5, runCurseDamageTaken: 0.06 } } },
+  { requiresAbility: "wizard_curse", name: "Cruel Hex", rarity: "Rare", stats: { abilityStats: { runCurseDuration: 1.5, runCurseDamageTaken: 0.1 } } },
   { requiresAbility: "wizard_iceball", name: "Packed Ice", rarity: "Rare", stats: { abilityStats: { runIceballDamage: 0.2, runIceballDuration: 1 } } },
-  { requiresAbility: "rogue_poison", name: "Toxic Reservoir", rarity: "Rare", stats: { abilityStat: "runPoisonAbilityDamage", abilityValue: 6 } },
-  { requiresAbility: "rogue_bleed", name: "Barbed Trap", rarity: "Rare", stats: { abilityStat: "runTrapSlow", abilityValue: 0.08 } },
-  { requiresAbility: "rogue_burn", name: "Pitch Powder", rarity: "Rare", stats: { abilityStat: "runBurnAbilityDuration", abilityValue: 1.5 } },
-  { requiresAbility: "rogue_burn", name: "Charcoal Powder", rarity: "Rare", stats: { abilityStat: "runBurnDamage", abilityValue: 4, burnMaxHpPercent: 0.0025 } },
+  { requiresAbility: "rogue_poison", name: "Toxic Reservoir", rarity: "Rare", stats: { abilityStat: "runPoisonAbilityDamage", abilityValue: 12 } },
+  { requiresAbility: "rogue_bleed", name: "Barbed Trap", rarity: "Rare", stats: { abilityStat: "runTrapSlow", abilityValue: 0.12 } },
+  { requiresAbility: "rogue_burn", name: "Pitch Powder", rarity: "Rare", stats: { abilityStat: "runBurnAbilityDuration", abilityValue: 1.8 } },
+  { requiresAbility: "rogue_burn", name: "Charcoal Powder", rarity: "Rare", stats: { abilityStat: "runBurnDamage", abilityValue: 10, burnMaxHpPercent: 0.02 } },
   { requiresAbility: "knight_heavy_attack", name: "Crushing Windup", rarity: "Rare", stats: { abilityStat: "runHeavyAttackMaxHpDamage", abilityValue: 0.06 } },
   { requiresAbility: "knight_holy_shield", name: "Consecrated Guard", rarity: "Rare", stats: { abilityStat: "runHolyShieldHits", abilityValue: 1 } },
   { requiresAbility: "wizard_lightning", name: "Forked Storm", rarity: "Epic", stats: { abilityStat: "runLightningTargets", abilityValue: 1 } },
@@ -1501,39 +1499,26 @@ function formatGrowthStat(stat = "") {
 const TREE_CANVAS = { width: 3200, height: 2660 };
 
 const TREE_NODES = [
-  { id: "crown_legacy", classId: "global", branch: "Crown", name: "Crown Legacy", description: "Unlocks class upgrade branches. +5 starting HP and +1 starting damage to all classes.", cost: 25, maxLevel: 1, effect: { maxHp: 5, damage: 1 }, x: 1300, y: 1050, prerequisites: [], type: "center" },
-
-  { id: "endurance", classId: "global", branch: "Crown", name: "Veteran Blood", description: "+5 starting HP per level for all classes.", cost: 35, maxLevel: 6, effect: { maxHp: 5 }, x: 1120, y: 900, prerequisites: ["crown_legacy"], type: "stat" },
-  { id: "might", classId: "global", branch: "Crown", name: "Sharpened Instincts", description: "+2 starting damage per level for all classes.", cost: 35, maxLevel: 6, effect: { damage: 2 }, x: 1480, y: 900, prerequisites: ["crown_legacy"], type: "stat" },
-  { id: "haste", classId: "global", branch: "Crown", name: "Battle Tempo", description: "+0.04 attack speed per level for all classes.", cost: 45, maxLevel: 5, effect: { attackSpeed: 0.04 }, x: 1020, y: 760, prerequisites: ["endurance"], type: "stat" },
-  { id: "fortune", classId: "global", branch: "Crown", name: "Royal Fortune", description: "+10 starting gold per level for all classes.", cost: 45, maxLevel: 5, effect: { startingGold: 10 }, x: 1580, y: 760, prerequisites: ["might"], type: "stat" },
-  { id: "lucky_omens", classId: "global", branch: "Crown", name: "Lucky Omens", description: "+1 Luck per level for all classes. Luck improves reward, relic, and shop rolls.", cost: 50, maxLevel: 5, effect: { luck: 1 }, x: 1640, y: 610, prerequisites: ["fortune"], type: "stat" },
-  { id: "armor", classId: "global", branch: "Crown", name: "Royal Armory", description: "+1 starting armor per level for all classes.", cost: 50, maxLevel: 5, effect: { armor: 1 }, x: 760, y: 620, prerequisites: ["endurance"], type: "stat" },
-  { id: "essence", classId: "global", branch: "Crown", name: "Essence Mastery", description: "+4% Essence earned per level.", cost: 75, maxLevel: 5, effect: { essenceMultiplier: 0.04 }, x: 980, y: 610, prerequisites: ["haste"], type: "notable" },
-  { id: "crown_purse", classId: "global", branch: "Crown", name: "Crown Purse", description: "+8 starting gold per level for all classes.", cost: 55, maxLevel: 4, effect: { startingGold: 8 }, x: 1840, y: 620, prerequisites: ["fortune"], type: "stat" },
-  { id: "field_drills", classId: "global", branch: "Crown", name: "Field Drills", description: "+1 starting damage and +0.02 attack speed per level.", cost: 65, maxLevel: 5, effect: { damage: 1, attackSpeed: 0.02 }, x: 1300, y: 840, prerequisites: ["crown_legacy"], type: "stat" },
-  { id: "royal_tithe", classId: "global", branch: "Crown", name: "Royal Tithe", description: "+2% Essence earned, +5 starting gold, and +1 Luck per level.", cost: 90, maxLevel: 4, effect: { essenceMultiplier: 0.02, startingGold: 5, luck: 1 }, x: 2020, y: 500, prerequisites: ["crown_purse"], type: "notable" },
-  { id: "old_campaigns", classId: "global", branch: "Crown", name: "Old Campaigns", description: "+1 starting HP and +1 armor per level.", cost: 90, maxLevel: 4, effect: { maxHp: 1, armor: 1 }, x: 580, y: 500, prerequisites: ["armor"], type: "notable" },
-  { id: "duelist_lessons", classId: "global", branch: "Crown", name: "Duelist Lessons", description: "+2% crit chance per level for all classes.", cost: 95, maxLevel: 5, effect: { critChance: 0.02 }, x: 1440, y: 670, prerequisites: ["field_drills"], type: "stat" },
-  { id: "life_siphon", classId: "global", branch: "Crown", name: "Life Siphon", description: "+1% life steal per level for all classes.", cost: 90, maxLevel: 5, effect: { lifeSteal: 0.01 }, x: 1300, y: 540, prerequisites: ["field_drills"], type: "stat" },
-  { id: "marching_songs", classId: "global", branch: "Crown", name: "Marching Songs", description: "+0.03 attack speed per level for all classes.", cost: 95, maxLevel: 5, effect: { attackSpeed: 0.03 }, x: 1220, y: 670, prerequisites: ["field_drills"], type: "stat" },
-  { id: "veteran_bounty", classId: "global", branch: "Crown", name: "Veteran Bounty", description: "Elite fights grant +4% gold and Essence per level.", cost: 130, maxLevel: 3, effect: { eliteRewardMultiplier: 0.04 }, x: 2180, y: 360, prerequisites: ["royal_tithe"], type: "notable" },
-  { id: "castle_stores", classId: "global", branch: "Crown", name: "Castle Stores", description: "+25 starting HP and +8 starting gold per level.", cost: 130, maxLevel: 3, effect: { maxHp: 25, startingGold: 8 }, x: 420, y: 360, prerequisites: ["old_campaigns"], type: "notable" },
-  { id: "crown_doctrine", classId: "global", branch: "Crown", name: "Crown Doctrine", description: "A costly general mastery node for all classes: +3 damage, +35 HP, and +2% Essence earned.", cost: 240, maxLevel: 2, effect: { damage: 3, maxHp: 35, essenceMultiplier: 0.02 }, x: 980, y: 430, prerequisites: ["essence"], type: "capstone" },
-  { id: "royal_mender", classId: "global", branch: "Crown", name: "Royal Mender", description: "+1 HP regen while in battle per level.", cost: 150, maxLevel: 5, effect: { regen: 1 }, x: 300, y: 220, prerequisites: ["castle_stores"], type: "notable" },
+  { id: "endurance", classId: "global", branch: "Crown", name: "Veteran Blood", description: "+20 starting HP per level for all classes.", cost: 30, maxLevel: 20, effect: { maxHp: 20 }, x: 1240, y: 1010, prerequisites: [], type: "stat" },
+  { id: "might", classId: "global", branch: "Crown", name: "Sharpened Instincts", description: "+5 starting damage per level for all classes.", cost: 30, maxLevel: 15, effect: { damage: 5 }, x: 1480, y: 1010, prerequisites: [], type: "stat" },
+  { id: "haste", classId: "global", branch: "Crown", name: "Battle Tempo", description: "+0.04 attack speed per level for all classes.", cost: 40, maxLevel: 15, effect: { attackSpeed: 0.04 }, x: 1720, y: 1010, prerequisites: [], type: "stat" },
+  { id: "armor", classId: "global", branch: "Crown", name: "Royal Armory", description: "+1 starting armor per level for all classes.", cost: 40, maxLevel: 10, effect: { armor: 1 }, x: 760, y: 620, prerequisites: ["endurance"], type: "stat" },
+  { id: "fortune", classId: "global", branch: "Crown", name: "Royal Fortune", description: "+10 starting gold per level for all classes.", cost: 40, maxLevel: 10, effect: { startingGold: 10 }, x: 1480, y: 820, prerequisites: [], type: "stat" },
+  { id: "lucky_omens", classId: "global", branch: "Crown", name: "Lucky Omens", description: "+1 Luck per level for all classes. Luck improves reward, relic, and shop rolls.", cost: 40, maxLevel: 10, effect: { luck: 1 }, x: 1640, y: 610, prerequisites: ["fortune"], type: "stat" },
+  { id: "essence", classId: "global", branch: "Crown", name: "Essence Mastery", description: "+3% Essence earned per level.", cost: 30, maxLevel: 20, effect: { essenceMultiplier: 0.03 }, x: 1920, y: 840, prerequisites: [], type: "notable" },
+  { id: "duelist_lessons", classId: "global", branch: "Crown", name: "Duelist Lessons", description: "+2% crit chance per level for all classes.", cost: 50, maxLevel: 5, effect: { critChance: 0.02 }, x: 1440, y: 670, prerequisites: ["might"], type: "stat" },
+  { id: "life_siphon", classId: "global", branch: "Crown", name: "Life Siphon", description: "+1% life steal per level for all classes.", cost: 50, maxLevel: 5, effect: { lifeSteal: 0.01 }, x: 1300, y: 540, prerequisites: ["haste"], type: "stat" },
+  { id: "veteran_bounty", classId: "global", branch: "Crown", name: "Veteran Bounty", description: "Elite fights grant +4% gold and Essence per level.", cost: 60, maxLevel: 3, effect: { eliteRewardMultiplier: 0.04 }, x: 2180, y: 360, prerequisites: ["essence"], type: "notable" },
+  { id: "royal_mender", classId: "global", branch: "Crown", name: "Royal Mender", description: "+3 HP regen while in battle per level.", cost: 60, maxLevel: 5, effect: { regen: 3 }, x: 300, y: 220, prerequisites: ["armor"], type: "notable" },
   { id: "sanctuary_blessing", classId: "global", branch: "Crown", name: "Sanctuary Blessing", description: "Sanctuaries grant +50 max HP and +1 HP regen per level.", costs: [100, 200, 300], maxLevel: 3, effect: { sanctuaryMaxHp: 50, sanctuaryRegen: 1 }, x: 520, y: 80, prerequisites: ["royal_mender"], type: "notable" },
-  { id: "battle_trance", classId: "global", branch: "Crown", name: "Battle Trance", description: "+3 damage and +0.05 attack speed per level.", cost: 155, maxLevel: 3, effect: { damage: 3, attackSpeed: 0.05 }, x: 2300, y: 220, prerequisites: ["veteran_bounty"], type: "notable" },
-  { id: "crown_dice", classId: "global", branch: "Crown", name: "Crown Dice", description: "+1 reroll per reward, relic, and shop offer per level.", costs: [100, 200], maxLevel: 2, effect: { rerolls: 1 }, x: 2480, y: 220, prerequisites: ["battle_trance"], type: "notable" },
-  { id: "ancient_charter", classId: "global", branch: "Crown", name: "Ancient Charter", description: "+5% Essence earned per level.", cost: 50, maxLevel: 5, effect: { essenceMultiplier: 0.05 }, x: 820, y: 270, prerequisites: ["crown_doctrine"], type: "capstone" },
-  { id: "unlock_relics", classId: "global", branch: "Unlocks", name: "Sealed Reliquary", description: "Unlocks new relics in future runs.", cost: 180, maxLevel: 1, effect: {}, x: 560, y: 160, prerequisites: ["royal_mender"], type: "unlock" },
-  { id: "unlock_events", classId: "global", branch: "Unlocks", name: "Hidden Roads", description: "Unlocks treasure route events on the map.", cost: 160, maxLevel: 1, effect: {}, x: 1040, y: 160, prerequisites: ["ancient_charter"], type: "unlock" },
-  { id: "unlock_merchants", classId: "global", branch: "Unlocks", name: "Black Market", description: "Unlocks additional merchant stock in shops.", cost: 170, maxLevel: 1, effect: {}, x: 2180, y: 80, prerequisites: ["battle_trance"], type: "unlock" },
-  { id: "unlock_enemies", classId: "global", branch: "Unlocks", name: "Wanted Posters", description: "Unlocks dangerous new enemies that can drop higher rewards.", cost: 150, maxLevel: 1, effect: {}, x: 2480, y: 260, prerequisites: ["battle_trance"], type: "unlock" },
-  { id: "unlock_starting_bonuses", classId: "global", branch: "Unlocks", name: "Campaign Kit", description: "Unlocks starting bonus rewards and grants +10 battle-start shield.", cost: 155, maxLevel: 1, effect: { battleStartShield: 10 }, x: 300, y: 80, prerequisites: ["royal_mender"], type: "unlock" },
+  { id: "crown_dice", classId: "global", branch: "Crown", name: "Crown Dice", description: "+1 reroll per reward, relic, and shop offer per level.", costs: [100, 200], maxLevel: 2, effect: { rerolls: 1 }, x: 2480, y: 220, prerequisites: ["lucky_omens"], type: "notable" },
+  { id: "unlock_relics", classId: "global", branch: "Crown", name: "Sealed Reliquary", description: "Unlocks new relics in future runs.", cost: 150, maxLevel: 1, effect: {}, x: 560, y: 160, prerequisites: ["royal_mender"], type: "unlock" },
+  { id: "unlock_merchants", classId: "global", branch: "Crown", name: "Black Market", description: "Unlocks additional merchant stock in shops.", cost: 150, maxLevel: 1, effect: {}, x: 2180, y: 80, prerequisites: ["veteran_bounty"], type: "unlock" },
+  { id: "unlock_enemies", classId: "global", branch: "Crown", name: "Wanted Posters", description: "Unlocks dangerous new enemies that can drop higher rewards.", cost: 150, maxLevel: 1, effect: {}, x: 2480, y: 260, prerequisites: ["veteran_bounty"], type: "unlock" },
 
-  { id: "knight_root", classId: "knight", branch: "Knight", name: "Knight Branch", description: "Unlocks Knight upgrades. +10 starting HP and +1 armor.", cost: 50, maxLevel: 1, effect: { maxHp: 10, armor: 1 }, x: 980, y: 1050, prerequisites: ["crown_legacy"], type: "class" },
-  { id: "wizard_root", classId: "wizard", branch: "Wizard", name: "Wizard Branch", description: "Unlocks Wizard upgrades. +2 starting damage and +15 starting HP.", cost: 50, maxLevel: 1, effect: { damage: 2, maxHp: 15 }, x: 1620, y: 1050, prerequisites: ["crown_legacy"], type: "class" },
-  { id: "rogue_root", classId: "rogue", branch: "Rogue", name: "Rogue Branch", description: "Unlocks Rogue upgrades. +1 starting damage and +0.03 attack speed.", cost: 50, maxLevel: 1, effect: { damage: 1, attackSpeed: 0.03 }, x: 1300, y: 1320, prerequisites: ["crown_legacy"], type: "class" },
+  { id: "knight_root", classId: "knight", branch: "Knight", name: "Knight Branch", description: "Unlocks Knight upgrades. +10 starting HP and +1 armor.", cost: 50, maxLevel: 1, effect: { maxHp: 10, armor: 1 }, x: 520, y: 1500, prerequisites: [], type: "class" },
+  { id: "wizard_root", classId: "wizard", branch: "Wizard", name: "Wizard Branch", description: "Unlocks Wizard upgrades. +2 starting damage and +15 starting HP.", cost: 50, maxLevel: 1, effect: { damage: 2, maxHp: 15 }, x: 2680, y: 1500, prerequisites: [], type: "class" },
+  { id: "rogue_root", classId: "rogue", branch: "Rogue", name: "Rogue Branch", description: "Unlocks Rogue upgrades. +1 starting damage and +0.03 attack speed.", cost: 50, maxLevel: 1, effect: { damage: 1, attackSpeed: 0.03 }, x: 1600, y: 1760, prerequisites: [], type: "class" },
 
   { id: "knight_plate", classId: "knight", branch: "Armor/Health", name: "Plate Training", description: "+2 starting armor per level.", cost: 55, maxLevel: 4, effect: { armor: 2 }, x: 780, y: 780, prerequisites: ["knight_root"], type: "stat" },
   { id: "knight_vigor", classId: "knight", branch: "Armor/Health", name: "Oathbound Vigor", description: "+14 starting HP per level.", cost: 70, maxLevel: 4, effect: { maxHp: 14 }, x: 580, y: 720, prerequisites: ["knight_plate"], type: "stat" },
@@ -1608,156 +1593,7 @@ const TREE_NODES = [
   { id: "wizard_lightning_unlock", classId: "wizard", branch: "Ability Unlock", name: "Lightning", description: "Unlocks Lightning: every 2s, strike up to 3 enemies for 90%/75%/60% damage.", cost: 500, maxLevel: 1, effect: { unlockRunAbility: "wizard_lightning" }, x: 2620, y: 1230, prerequisites: ["wizard_archmage_sigil"], type: "ability" }
 ];
 
-applyUniformTreeLayout();
-applyOrderedTreeDependencies();
 syncDataDescriptions();
-
-function applyUniformTreeLayout() {
-  const positions = {
-    crown_legacy: [1600, 1180],
-
-    endurance: [1280, 1000], armor: [1060, 820], old_campaigns: [840, 640], castle_stores: [620, 460], royal_mender: [460, 280], sanctuary_blessing: [520, 120],
-    unlock_starting_bonuses: [260, 120], unlock_relics: [660, 120],
-
-    field_drills: [1600, 960], haste: [1380, 780], essence: [1200, 600], crown_doctrine: [1160, 420], ancient_charter: [1160, 240],
-    unlock_events: [960, 100],
-    marching_songs: [1560, 760], life_siphon: [1600, 600], duelist_lessons: [1780, 760],
-
-    might: [1920, 1000], fortune: [2160, 820], lucky_omens: [2060, 640], crown_purse: [2340, 660], royal_tithe: [2520, 500],
-    veteran_bounty: [2680, 340], battle_trance: [2680, 180], crown_dice: [2480, 160], unlock_merchants: [2480, 80], unlock_enemies: [2880, 80],
-
-    knight_root: [520, 1500], rogue_root: [1600, 1760], wizard_root: [2680, 1500],
-
-    knight_plate: [170, 1660], knight_vigor: [170, 1820], knight_iron_will: [170, 1980], knight_iron_bastion: [170, 2140], knight_heavy_attack_unlock: [170, 2380],
-    knight_bulwark: [410, 1660], knight_guard: [410, 1820], knight_sanctuary: [410, 1980], knight_aegis_eternal: [410, 2140], knight_holy_shield_unlock: [410, 2380],
-    knight_counter: [650, 1660], knight_unbroken: [650, 1820], knight_spiked_guard: [650, 1980], knight_retribution: [650, 2140], knight_holy_sword_unlock: [650, 2380],
-    knight_hold_line: [890, 1660], knight_crown_guard_meta: [890, 1820], knight_banner: [890, 1980], knight_warlord_oath: [890, 2140],
-
-    rogue_serrated: [1120, 1920], rogue_open_wounds: [1120, 2080], rogue_blood_scent: [1120, 2240], rogue_crimson_execution: [1120, 2400], rogue_poison_unlock: [1120, 2560],
-    rogue_precision: [1440, 1920], rogue_backstab_meta: [1440, 2080], rogue_deadly_rhythm: [1440, 2240], rogue_perfect_strike: [1440, 2400], rogue_bleed_unlock: [1440, 2560],
-    rogue_reflex: [1760, 1920], rogue_smoke_step: [1760, 2080], rogue_opportunist: [1760, 2240], rogue_ghostblade: [1760, 2400], rogue_burn_unlock: [1760, 2560],
-    rogue_mark_weakness: [2080, 1920], rogue_killers_instinct: [2080, 2080], rogue_finishing_dash: [2080, 2240], rogue_death_sentence: [2080, 2400],
-
-    wizard_ember: [2310, 1660], wizard_wildfire_meta: [2310, 1820], wizard_scorching_focus: [2310, 1980], wizard_inferno_crown: [2310, 2140],
-    wizard_mana_shield: [2550, 1660], wizard_warding_glyph: [2550, 1820], wizard_prismatic_shell: [2550, 1980], wizard_archmage_aegis: [2550, 2140], wizard_iceball_unlock: [2550, 2380],
-    wizard_focus: [2790, 1660], wizard_rune_battery: [2790, 1820], wizard_chain_spark: [2790, 1980], wizard_archmage_sigil: [2790, 2140], wizard_lightning_unlock: [2790, 2380],
-    wizard_frost_hex_meta: [3030, 1660], wizard_time_thread: [3030, 1820], wizard_binding_rune: [3030, 1980], wizard_chrono_seal: [3030, 2140], wizard_curse_unlock: [3030, 2380]
-  };
-
-  TREE_NODES.forEach(node => {
-    const position = positions[node.id];
-    if (!position) return;
-    [node.x, node.y] = position;
-  });
-}
-
-function applyOrderedTreeDependencies() {
-  const dependencies = {
-    crown_legacy: [],
-
-    endurance: ["crown_legacy"],
-    armor: ["endurance"],
-    old_campaigns: ["armor"],
-    castle_stores: ["old_campaigns"],
-    royal_mender: ["castle_stores"],
-    sanctuary_blessing: ["royal_mender"],
-
-    field_drills: ["crown_legacy"],
-    haste: ["field_drills"],
-    essence: ["haste"],
-    crown_doctrine: ["essence"],
-    ancient_charter: ["crown_doctrine"],
-    marching_songs: ["field_drills"],
-    life_siphon: ["marching_songs"],
-    duelist_lessons: ["life_siphon"],
-
-    might: ["crown_legacy"],
-    fortune: ["might"],
-    lucky_omens: ["fortune"],
-    crown_purse: ["lucky_omens"],
-    royal_tithe: ["crown_purse"],
-    veteran_bounty: ["royal_tithe"],
-    battle_trance: ["veteran_bounty"],
-    crown_dice: ["battle_trance"],
-
-    knight_root: [],
-    knight_plate: ["knight_root"],
-    knight_vigor: ["knight_plate"],
-    knight_iron_will: ["knight_vigor"],
-    knight_iron_bastion: ["knight_iron_will"],
-    knight_heavy_attack_unlock: ["knight_iron_bastion"],
-    knight_bulwark: ["knight_root"],
-    knight_guard: ["knight_bulwark"],
-    knight_sanctuary: ["knight_guard"],
-    knight_aegis_eternal: ["knight_sanctuary"],
-    knight_holy_shield_unlock: ["knight_aegis_eternal"],
-    knight_counter: ["knight_root"],
-    knight_unbroken: ["knight_counter"],
-    knight_spiked_guard: ["knight_unbroken"],
-    knight_retribution: ["knight_spiked_guard"],
-    knight_holy_sword_unlock: ["knight_retribution"],
-    knight_hold_line: ["knight_root"],
-    knight_crown_guard_meta: ["knight_hold_line"],
-    knight_banner: ["knight_crown_guard_meta"],
-    knight_warlord_oath: ["knight_banner"],
-
-    rogue_root: [],
-    rogue_serrated: ["rogue_root"],
-    rogue_open_wounds: ["rogue_serrated"],
-    rogue_blood_scent: ["rogue_open_wounds"],
-    rogue_crimson_execution: ["rogue_blood_scent"],
-    rogue_poison_unlock: ["rogue_crimson_execution"],
-    rogue_precision: ["rogue_root"],
-    rogue_backstab_meta: ["rogue_precision"],
-    rogue_deadly_rhythm: ["rogue_backstab_meta"],
-    rogue_perfect_strike: ["rogue_deadly_rhythm"],
-    rogue_bleed_unlock: ["rogue_perfect_strike"],
-    rogue_reflex: ["rogue_root"],
-    rogue_smoke_step: ["rogue_reflex"],
-    rogue_opportunist: ["rogue_smoke_step"],
-    rogue_ghostblade: ["rogue_opportunist"],
-    rogue_burn_unlock: ["rogue_ghostblade"],
-    rogue_mark_weakness: ["rogue_root"],
-    rogue_killers_instinct: ["rogue_mark_weakness"],
-    rogue_finishing_dash: ["rogue_killers_instinct"],
-    rogue_death_sentence: ["rogue_finishing_dash"],
-
-    wizard_root: [],
-    wizard_ember: ["wizard_root"],
-    wizard_wildfire_meta: ["wizard_ember"],
-    wizard_scorching_focus: ["wizard_wildfire_meta"],
-    wizard_inferno_crown: ["wizard_scorching_focus"],
-    wizard_mana_shield: ["wizard_root"],
-    wizard_warding_glyph: ["wizard_mana_shield"],
-    wizard_prismatic_shell: ["wizard_warding_glyph"],
-    wizard_archmage_aegis: ["wizard_prismatic_shell"],
-    wizard_iceball_unlock: ["wizard_archmage_aegis"],
-    wizard_focus: ["wizard_root"],
-    wizard_rune_battery: ["wizard_focus"],
-    wizard_chain_spark: ["wizard_rune_battery"],
-    wizard_archmage_sigil: ["wizard_chain_spark"],
-    wizard_lightning_unlock: ["wizard_archmage_sigil"],
-    wizard_frost_hex_meta: ["wizard_root"],
-    wizard_time_thread: ["wizard_frost_hex_meta"],
-    wizard_binding_rune: ["wizard_time_thread"],
-    wizard_chrono_seal: ["wizard_binding_rune"],
-    wizard_curse_unlock: ["wizard_chrono_seal"]
-  };
-
-  TREE_NODES.forEach(node => {
-    if (node.type === "unlock") {
-      node.cost = TREE_UNLOCK_ESSENCE_COST;
-      node.costs = undefined;
-      node.prerequisites = [];
-      return;
-    }
-    if (node.type === "ability") {
-      node.cost = TREE_UNLOCK_ESSENCE_COST;
-      node.costs = undefined;
-    }
-    if (dependencies[node.id]) node.prerequisites = dependencies[node.id];
-  });
-}
 
 function syncDataDescriptions() {
   Object.values(RUN_ABILITIES).forEach(ability => {

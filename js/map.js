@@ -169,7 +169,7 @@ function getThemeEventNodes(themeId) {
   const theme = BIOME_THEMES[themeId || (run && run.themeId)];
   const events = theme && theme.eventNodes && theme.eventNodes.length ? [...theme.eventNodes] : ["Merchant", "Heal"];
   if (!events.includes("Heal")) events.push("Heal");
-  if (hasPermanentUnlock("unlock_events") && !events.includes("Treasure")) events.push("Treasure");
+  if (!events.includes("Treasure")) events.push("Treasure");
   return events;
 }
 

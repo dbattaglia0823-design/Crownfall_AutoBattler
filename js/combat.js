@@ -1544,8 +1544,8 @@ function getArmorMitigatedDamage(amount, armor) {
 
 const ARMOR_BAND_SIZE = 5;
 const ARMOR_BASE_REDUCTION_PER_POINT = 0.015;
-const ARMOR_REDUCTION_DECAY_PER_BAND = 0.72;
-const ARMOR_MIN_REDUCTION_PER_POINT = 0.001;
+const ARMOR_REDUCTION_DECAY_PER_BAND = 0.86;
+const ARMOR_MIN_REDUCTION_PER_POINT = 0.0025;
 const ARMOR_MAX_DAMAGE_REDUCTION = 0.85;
 
 function getArmorDamageReduction(armor) {
