@@ -79,6 +79,7 @@ function showCrossroads(stage = run.stage + 1) {
   applyMapBackground();
   showScreen("crossroadsScreen");
   crossroadsSubtitle.textContent = `${getRunStageLabelForStage(stage)}. Choose the next stop.`;
+  if (crossroadsGold) crossroadsGold.innerHTML = `Gold <strong>${Math.floor(run.gold || 0)}</strong>`;
   const choices = [
     { type: "Battle", title: "Fight", icon: MAP_TYPES.Battle.icon, description: "Enter combat and keep pushing forward.", button: "Fight" },
     { type: "Merchant", title: "Shop", icon: MAP_TYPES.Merchant.icon, description: "Spend gold on temporary upgrades before the next fight.", button: "Visit Shop" },

@@ -1035,6 +1035,7 @@ function getRunEndExtraRows(endlessResult) {
 
 function renderRunSummary(victory, routeName, essence, message, extraRows = []) {
   const summary = run.summary || {};
+  const performance = getRunPerformanceHighlights(summary, victory, essence);
   const rows = [
     ...extraRows,
     ["Class", CLASSES[run.classId].name],
@@ -1051,10 +1052,26 @@ function renderRunSummary(victory, routeName, essence, message, extraRows = []) 
   ];
   return `
     <span class="run-end-message">${message || (victory ? "Layer 3 has fallen. Crownfall is broken, even if the crown still hungers." : "Your champion falls, but the Essence returns to the crown vault.")}</span>
+    <span class="run-summary-spotlight">
+      ${performance.map(item => `<span class="run-summary-highlight ${item.className}"><small>${item.label}</small><strong>${item.value}</strong><em>${item.note}</em></span>`).join("")}
+    </span>
     <span class="run-summary-grid">
       ${rows.map(([label, value]) => `<span><small>${label}</small><strong>${value}</strong></span>`).join("")}
     </span>
   `;
+}
+
+function getRunPerformanceHighlights(summary, victory, essence) {
+  const dealt = Math.round(summary.damageDealt || 0);
+  const taken = Math.round(summary.damageTaken || 0);
+  const enemies = Math.round(summary.enemiesDefeated || 0);
+  const efficiency = taken > 0 ? dealt / taken : dealt > 0 ? dealt : 0;
+  const grade = victory ? efficiency >= 28 ? "S" : efficiency >= 16 ? "A" : efficiency >= 8 ? "B" : "C" : enemies >= 8 ? "B" : "C";
+  return [
+    { label: "Run Grade", value: grade, note: victory ? "Victory sealed" : "Progress banked", className: `run-grade-${grade.toLowerCase()}` },
+    { label: "Damage Flow", value: dealt.toLocaleString(), note: taken ? `${Math.max(0, Math.round(efficiency * 10) / 10)} dealt per taken` : "Untouched pressure", className: "run-grade-damage" },
+    { label: "Essence Banked", value: `+${Math.floor(essence)}`, note: `${enemies} enemies defeated`, className: "run-grade-essence" }
+  ];
 }
 
 const FLOAT_TEXT_LIFETIME = 0.75;
@@ -1492,7 +1509,7 @@ function applyLifeSteal(damageDone) {
   const heal = Math.min(run.hero.maxHp - run.hero.hp, damageDone * lifeSteal);
   if (heal <= 0) return;
   run.hero.hp += heal;
-  if (heal >= 1) addFloat(run.hero.x, run.hero.y - 62, `+${Math.round(heal)}`, "#86efac");
+  if (heal >= 1) addFloat(run.hero.x, run.hero.y - 62, `+${Math.round(heal)}`, "#86efac", { variant: "heal" });
 }
 
 function onEnemyDeath(enemy) {
@@ -1522,7 +1539,7 @@ function addHeroShield(amount, source) {
   run.hero.shield = nextShield;
 
   if (gained > 0) {
-    addFloat(run.hero.x, run.hero.y - 58, `+${Math.round(gained)} Shield`, "#bae6fd");
+    addFloat(run.hero.x, run.hero.y - 58, `+${Math.round(gained)} Shield`, "#bae6fd", { variant: "block" });
     if (source) log(`${source} grants ${Math.round(gained)} shield.`);
   } else if (source) {
     addFloat(run.hero.x, run.hero.y - 58, "Shield capped", "#bae6fd");
