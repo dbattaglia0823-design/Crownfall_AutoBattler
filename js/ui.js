@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const essenceTop = $("essenceTop"), highestClearTop = $("highestClearTop"), accountStatsGrid = $("accountStatsGrid"), achievementGrid = $("achievementGrid");
+const essenceTop = $("essenceTop"), highestClearTop = $("highestClearTop"), recordsMenuBadge = $("recordsMenuBadge"), achievementGrid = $("achievementGrid");
 const characterList = $("characterList"), characterDetails = $("characterDetails"), heroCharacterTab = $("heroCharacterTab"), enemyCharacterTab = $("enemyCharacterTab");
 const difficultyTitle = $("difficultyTitle"), difficultyText = $("difficultyText"), classTitle = $("classTitle"), classText = $("classText");
 const difficultyCards = $("difficultyCards"), classCards = $("classCards"), battleScreen = $("battleScreen"), runDifficulty = $("runDifficulty"), runClass = $("runClass"), runStage = $("runStage"), runGold = $("runGold"), runEssence = $("runEssence"), battleSpeedSelect = $("battleSpeedSelect");
@@ -34,6 +34,8 @@ let selectedEquipmentPanelTab = "inventory";
 let selectedEquipmentSort = "power";
 let selectedEquipmentSearch = "";
 let selectedEquipmentItem = { source: "", id: "", index: -1, slot: "" };
+let selectedAchievementTab = "achievements";
+let selectedAchievementCategory = "All";
 let selectedUpgradePoolTab = "presets";
 let equipmentShopOffers = {};
 let equipmentShopRefreshAvailableAt = {};
@@ -62,9 +64,24 @@ const BUILD_TEST_EFFECT_LIMITS = {
 function refreshTopbar() {
   essenceTop.textContent = Math.floor(save.essence);
   highestClearTop.textContent = "Stage " + save.highestClear;
+  updateRecordsBadge();
 }
 
+function updateRecordsBadge() {
+  if (!recordsMenuBadge) return;
+  const count = save?.records?.unreadAchievements ? Object.keys(save.records.unreadAchievements).filter(id => save.records.unreadAchievements[id]).length : 0;
+  recordsMenuBadge.hidden = count <= 0;
+  recordsMenuBadge.textContent = count > 9 ? "9+" : count ? String(count) : "!";
+  recordsMenuBadge.setAttribute("aria-label", count ? `${count} unread Records milestone${count === 1 ? "" : "s"}` : "No unread Records milestones");
+}
+
+window.updateRecordsBadge = updateRecordsBadge;
+
 function showScreen(id) {
+  if (id === "statsScreen") {
+    selectedAchievementTab = "stats";
+    id = "achievementScreen";
+  }
   screens.forEach(screen => screen.classList.toggle("active", screen.id === id));
   document.body.classList.toggle("build-test-mode", id === "battleScreen" && isBuildTestRun());
   if (id === "upgradeScreen") {
@@ -73,13 +90,23 @@ function showScreen(id) {
   }
   if (id === "charactersScreen") renderCharacterBrowser();
   if (id === "equipmentScreen") renderEquipmentScreen();
-  if (id === "statsScreen") renderAccountStats();
-  if (id === "achievementScreen") renderAchievements();
+  if (id === "achievementScreen") {
+    renderAchievements();
+    if (typeof markAllRecordsViewed === "function") markAllRecordsViewed();
+  }
   if (id === "gauntletScreen") renderGauntletScreen();
   if (id === "battleScreen") syncMobileBattleDropdowns();
   if (id === "runEndScreen") resetRunEndActions();
   requestAnimationFrame(() => focusActiveScreen(id));
 }
+
+function showRecords(tab = "achievements") {
+  selectedAchievementTab = tab === "stats" ? "stats" : "achievements";
+  showScreen("achievementScreen");
+}
+
+window.showRecords = showRecords;
+window.showChronicles = showRecords;
 
 function focusActiveScreen(id) {
   const screen = $(id);
@@ -452,18 +479,428 @@ function exitRunToMainMenu() {
 }
 
 function renderAccountStats() {
-  const stats = { ...defaultAccountStats(), ...(save.stats || {}) };
-  const rows = [["Runs Started", stats.runsStarted], ["Victories", stats.victories], ["Defeats", stats.defeats], ["Highest Clear", `Stage ${save.highestClear}`], ["Stages Cleared", stats.stagesCleared], ["Enemies Defeated", stats.enemiesDefeated], ["Bosses Defeated", stats.bossesDefeated], ["Gold Earned", Math.round(stats.totalGoldEarned)], ["Essence Banked", Math.round(stats.totalEssenceEarned)], ["Damage Dealt", Math.round(stats.totalDamageDealt)], ["Damage Taken", Math.round(stats.totalDamageTaken)], ["Skills Triggered", stats.skillsTriggered]];
-  accountStatsGrid.innerHTML = rows.map(([label, value]) => `<div class="account-stat"><small>${label}</small><strong>${value}</strong></div>`).join("");
+  // Legacy shim: statistics now render through Records.
 }
 
 function renderAchievements() {
   checkAchievements();
-  achievementGrid.innerHTML = ACHIEVEMENTS.map(achievement => {
-    const unlocked = save.achievements && save.achievements[achievement.id];
-    return `<div class="achievement-card ${unlocked ? "achievement-unlocked" : "achievement-locked"}"><div class="achievement-medal">${unlocked ? "*" : "?"}</div><div><h3>${achievement.name}</h3><p>${achievement.description}</p><small>${achievement.goal}</small><strong>${unlocked ? formatAchievementReward(achievement) : "Reward hidden"}</strong></div></div>`;
-  }).join("");
+  const groups = getVisibleAchievementGroups();
+  const filteredGroups = getAchievementsByCategory(selectedAchievementCategory);
+  const totalTiers = groups.reduce((total, group) => total + group.tiers.length, 0);
+  const completedTiers = groups.reduce((total, group) => total + group.tiers.filter(tier => isAchievementTierComplete(tier)).length, 0);
+  const percent = totalTiers ? Math.round(completedTiers / totalTiers * 100) : 0;
+  achievementGrid.innerHTML = `
+    <div class="achievement-dashboard">
+      <div class="achievement-tabs">
+        <button class="${selectedAchievementTab === "achievements" ? "achievement-tab-active" : ""}" type="button" onclick="setAchievementTab('achievements')">Achievements</button>
+        <button class="${selectedAchievementTab === "stats" ? "achievement-tab-active" : ""}" type="button" onclick="setAchievementTab('stats')">Statistics</button>
+      </div>
+      <div class="achievement-summary-panel">
+        <div><small>Completed</small><strong>${completedTiers}/${totalTiers}</strong></div>
+        <div><small>Completion</small><strong>${percent}%</strong></div>
+        <div><small>Essence Rewards</small><strong>${Math.round(getCompletedAchievementEssenceTotal()).toLocaleString()}</strong></div>
+      </div>
+      <div class="achievement-bonus-panel">
+        <h3>Current Bonuses</h3>
+        <div class="achievement-bonus-list">${renderAchievementBonusSummary()}</div>
+      </div>
+    </div>
+    ${selectedAchievementTab === "stats" ? renderStatisticsTab() : renderAchievementTab(filteredGroups)}`;
 }
+
+function setAchievementTab(tab) {
+  selectedAchievementTab = tab === "stats" ? "stats" : "achievements";
+  renderAchievements();
+}
+
+window.setAchievementTab = setAchievementTab;
+
+function renderAchievementTab(groups) {
+  return `
+    ${renderRecentMilestones()}
+    <div class="achievement-filter-row">
+      ${getAchievementCategories().map(category => `<button type="button" class="${selectedAchievementCategory === category ? "achievement-filter-active" : ""}" onclick="setAchievementCategory('${escapeHtml(category)}')">${escapeHtml(category)}</button>`).join("")}
+    </div>
+    ${groups.length ? `<div class="achievement-group-list">${groups.map(renderAchievementGroup).join("")}</div>` : `<div class="achievement-empty-state">No Records in this category yet.</div>`}`;
+}
+
+function setAchievementCategory(category) {
+  selectedAchievementCategory = getAchievementCategories().includes(category) ? category : "All";
+  renderAchievements();
+}
+
+window.setAchievementCategory = setAchievementCategory;
+
+function getAchievementCategories() {
+  const categories = [...new Set(getVisibleAchievementGroups().map(group => group.category).filter(Boolean))];
+  return ["All", ...["Combat", "Progression", "Classes", "Economy", "Exploration", "Challenges"].filter(category => categories.includes(category))];
+}
+
+function getAchievementsByCategory(category = "All") {
+  const groups = getVisibleAchievementGroups();
+  if (category === "All") return groups;
+  return groups.filter(group => group.category === category);
+}
+
+function renderRecentMilestones() {
+  const milestones = getRecentMilestones(3);
+  if (!milestones.length) return "";
+  return `<section class="achievement-recent">
+    <h3>Recent Milestones</h3>
+    <div>${milestones.map(({ group, tier }) => `<button type="button" onclick="openAchievementTierModal('${escapeHtml(tier.id)}')">
+      <span class="achievement-group-icon">${getAchievementIconMarkup(group.icon)}</span>
+      <span><strong>${escapeHtml(group.name)}</strong><small>Tier ${escapeHtml(tier.tierLabel || getAchievementTierLabel(tier.tier))} · ${escapeHtml(formatAchievementReward(tier) || "No reward")}</small></span>
+      <em>${escapeHtml(formatAchievementCompletedDate(tier.id))}</em>
+    </button>`).join("")}</div>
+  </section>`;
+}
+
+function getRecentMilestones(limit = 3) {
+  return getVisibleAchievementGroups()
+    .flatMap(group => group.tiers.filter(tier => isAchievementTierComplete(tier)).map(tier => ({ group, tier, completedAt: Number(save?.achievementCompletedAt?.[tier.id]) || 0 })))
+    .sort((a, b) => b.completedAt - a.completedAt || (b.tier.tier || 0) - (a.tier.tier || 0))
+    .slice(0, limit);
+}
+
+function formatAchievementCompletedDate(id) {
+  const value = Number(save?.achievementCompletedAt?.[id]) || 0;
+  return value ? new Date(value).toLocaleDateString() : "Recently completed";
+}
+
+function renderStatisticsTab() {
+  return `<div class="records-stats">
+    <div class="records-highlight-grid">${getRecordsHighlights().map(renderRecordsStatCard).join("")}</div>
+    ${getRecordsStatSections().map(section => `<section class="records-stat-section"><h3>${escapeHtml(section.title)}</h3><div class="achievement-stats-grid">${section.rows.map(renderRecordsStatCard).join("")}</div></section>`).join("")}
+  </div>`;
+}
+
+function getRecordsStats() {
+  return { ...defaultAccountStats(), ...(save.stats || {}) };
+}
+
+function getRecordsHighlights() {
+  const stats = getRecordsStats();
+  return [
+    { label: "Highest Endless Stage", value: stats.highestEndlessStage ? `Stage ${formatRecordsNumber(stats.highestEndlessStage)}` : "Not yet achieved", note: "Best endless push" },
+    { label: "Total Victories", value: formatRecordsNumber(stats.victories), note: "Completed runs" },
+    { label: "Favorite Class", value: getFavoriteClassName(), note: "Most runs started" },
+    { label: "Total Playtime", value: formatRecordsDuration(stats.totalPlaytimeSeconds, "Not recorded"), note: "Completed run time" }
+  ];
+}
+
+function getRecordsStatSections() {
+  const stats = getRecordsStats();
+  const runsEnded = Number(stats.runsEnded) || 0;
+  const classRows = Object.entries(CLASSES).flatMap(([classId, heroClass]) => {
+    const runs = Number(stats[`${classId}Runs`]) || 0;
+    const wins = Number(stats[`${classId}Victories`]) || Number(stats[`${classId}Layer3Clears`]) || 0;
+    return [
+      { label: `${heroClass.name} Runs`, value: formatRecordsNumber(runs), note: "Started" },
+      { label: `${heroClass.name} Completed`, value: formatRecordsNumber(wins), note: `${formatRecordsPercent(wins, runs)} win rate` },
+      { label: `${heroClass.name} Best Endless`, value: stats[`${classId}HighestEndlessStage`] ? `Stage ${formatRecordsNumber(stats[`${classId}HighestEndlessStage`])}` : "Not yet achieved", note: "Class record" },
+      { label: `${heroClass.name} Fastest Victory`, value: formatRecordsDuration(stats[`${classId}FastestVictorySeconds`], "Not yet achieved"), note: "Full route" }
+    ];
+  });
+
+  return [
+    {
+      title: "General",
+      rows: [
+        { label: "Runs Started", value: formatRecordsNumber(stats.runsStarted) },
+        { label: "Runs Completed", value: formatRecordsNumber(stats.victories) },
+        { label: "Win Rate", value: formatRecordsPercent(stats.victories, runsEnded) },
+        { label: "Highest Difficulty", value: getHighestDifficultyCompleted() },
+        { label: "Highest Clear", value: `Stage ${formatRecordsNumber(save.highestClear || 0)}` },
+        { label: "Current Win Streak", value: formatRecordsNumber(stats.currentWinStreak) },
+        { label: "Best Win Streak", value: formatRecordsNumber(stats.bestWinStreak) }
+      ]
+    },
+    {
+      title: "Combat",
+      rows: [
+        { label: "Enemies Defeated", value: formatRecordsNumber(stats.enemiesDefeated) },
+        { label: "Elites Defeated", value: formatRecordsNumber(stats.elitesDefeated) },
+        { label: "Bosses Defeated", value: formatRecordsNumber(stats.bossesDefeated) },
+        { label: "Damage Dealt", value: formatRecordsNumber(stats.totalDamageDealt) },
+        { label: "Damage Taken", value: formatRecordsNumber(stats.totalDamageTaken) },
+        { label: "Critical Hits", value: formatRecordsNumber(stats.criticalHits) },
+        { label: "Highest Single Hit", value: stats.highestSingleHit ? formatRecordsNumber(stats.highestSingleHit) : "Not yet achieved" },
+        { label: "Most Enemies / Run", value: stats.mostEnemiesRun ? formatRecordsNumber(stats.mostEnemiesRun) : "Not yet achieved" }
+      ]
+    },
+    {
+      title: "Run Records",
+      rows: [
+        { label: "Fastest Completed Run", value: formatRecordsDuration(stats.fastestVictorySeconds, "Not yet achieved") },
+        { label: "Longest Run", value: formatRecordsDuration(stats.longestRunSeconds, "Not recorded") },
+        { label: "Most Gold / Run", value: stats.mostGoldEarnedRun ? formatRecordsNumber(stats.mostGoldEarnedRun) : "Not yet achieved" },
+        { label: "Most Relics / Run", value: stats.mostRelicsRun ? formatRecordsNumber(stats.mostRelicsRun) : "Not yet achieved" },
+        { label: "Most Damage / Run", value: stats.mostDamageDealtRun ? formatRecordsNumber(stats.mostDamageDealtRun) : "Not yet achieved" },
+        { label: "Most Bosses / Run", value: stats.mostBossesRun ? formatRecordsNumber(stats.mostBossesRun) : "Not yet achieved" }
+      ]
+    },
+    { title: "Class Statistics", rows: classRows },
+    {
+      title: "Economy",
+      rows: [
+        { label: "Gold Earned", value: formatRecordsNumber(stats.totalGoldEarned) },
+        { label: "Gold Spent", value: formatRecordsNumber(stats.totalGoldSpent) },
+        { label: "Essence Earned", value: formatRecordsNumber(stats.totalEssenceEarned) },
+        { label: "Essence Spent", value: formatRecordsNumber(stats.totalEssenceSpent) },
+        { label: "Items Purchased", value: formatRecordsNumber(stats.itemsPurchased) },
+        { label: "Items Sold", value: formatRecordsNumber(stats.itemsSold) },
+        { label: "Merchant Visits", value: formatRecordsNumber(stats.shopsVisited) },
+        { label: "Relics Collected", value: formatRecordsNumber(stats.relicsClaimed) }
+      ]
+    }
+  ];
+}
+
+function renderRecordsStatCard(row) {
+  return `<div class="records-stat-card"${row.tooltip ? ` data-tooltip="${escapeHtml(row.tooltip)}"` : ""}>
+    <small>${escapeHtml(row.label)}</small>
+    <strong>${escapeHtml(String(row.value))}</strong>
+    ${row.note ? `<em>${escapeHtml(row.note)}</em>` : ""}
+  </div>`;
+}
+
+function formatRecordsNumber(value) {
+  const number = Math.round(Number(value) || 0);
+  if (typeof formatCompactNumber === "function" && Math.abs(number) >= 10000) return formatCompactNumber(number);
+  return number.toLocaleString();
+}
+
+function formatRecordsPercent(part, total) {
+  const denominator = Number(total) || 0;
+  if (denominator <= 0) return "0%";
+  const percent = Math.max(0, (Number(part) || 0) / denominator * 100);
+  return `${percent >= 10 ? Math.round(percent) : Math.round(percent * 10) / 10}%`;
+}
+
+function formatRecordsDuration(seconds, emptyText = "Not recorded") {
+  const total = Math.round(Number(seconds) || 0);
+  if (total <= 0) return emptyText;
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  if (hours) return `${hours}h ${minutes}m`;
+  if (minutes) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+}
+
+function getFavoriteClassName() {
+  const stats = getRecordsStats();
+  const entries = Object.entries(CLASSES).map(([classId, heroClass]) => ({
+    name: heroClass.name,
+    runs: Number(stats[`${classId}Runs`]) || 0
+  })).sort((a, b) => b.runs - a.runs);
+  return entries[0]?.runs ? entries[0].name : "Not recorded";
+}
+
+function getHighestDifficultyCompleted() {
+  const clears = save.difficultyClears || {};
+  const completed = Object.entries(DIFFICULTIES)
+    .filter(([, difficulty]) => !difficulty.mode)
+    .filter(([id]) => clears[id])
+    .map(([, difficulty]) => difficulty.name);
+  if (completed.length) return completed[completed.length - 1];
+  return Number(save.highestClear) >= STAGE_COUNT ? "Easy" : "Not yet achieved";
+}
+
+function getAchievementStatRows() {
+  const stats = { ...defaultAccountStats(), ...(save.stats || {}) };
+  return [
+    ["Runs Started", stats.runsStarted],
+    ["Runs Ended", stats.runsEnded],
+    ["Victories", stats.victories],
+    ["Defeats", stats.defeats],
+    ["Highest Clear", `Stage ${save.highestClear}`],
+    ["Stages Cleared", stats.stagesCleared],
+    ["Battles Won", stats.battlesWon],
+    ["Enemies Defeated", stats.enemiesDefeated],
+    ["Elites Defeated", stats.elitesDefeated],
+    ["Bosses Defeated", stats.bossesDefeated],
+    ["Gold Earned", Math.round(stats.totalGoldEarned).toLocaleString()],
+    ["Essence Earned", Math.round(stats.totalEssenceEarned).toLocaleString()],
+    ["Damage Dealt", Math.round(stats.totalDamageDealt).toLocaleString()],
+    ["Damage Taken", Math.round(stats.totalDamageTaken).toLocaleString()],
+    ["Skills Triggered", stats.skillsTriggered],
+    ["Relics Claimed", stats.relicsClaimed],
+    ["Upgrades Chosen", stats.rewardsClaimed],
+    ["Shops Visited", stats.shopsVisited]
+  ];
+}
+
+function getVisibleAchievementGroups() {
+  const groups = typeof ACHIEVEMENT_GROUPS !== "undefined" ? ACHIEVEMENT_GROUPS : [];
+  return groups.filter(group => !group.hidden || group.tiers.some(tier => isAchievementTierComplete(tier) || getAchievementTierProgress(group, tier).current > 0));
+}
+
+function renderAchievementGroup(group) {
+  const completed = group.tiers.filter(tier => isAchievementTierComplete(tier)).length;
+  const nextTier = group.tiers.find(tier => !isAchievementTierComplete(tier));
+  const progress = nextTier ? getAchievementTierProgress(group, nextTier) : getAchievementTierProgress(group, group.tiers[group.tiers.length - 1]);
+  const percent = progress.target ? Math.min(100, Math.round(progress.current / progress.target * 100)) : completed === group.tiers.length ? 100 : 0;
+  const progressText = nextTier
+    ? `${formatAchievementProgressValue(progress.current)} / ${formatAchievementProgressValue(progress.target)}`
+    : `${formatAchievementProgressValue(progress.current)} reached`;
+  const rewardPreview = nextTier ? formatAchievementReward(nextTier) : "All rewards earned";
+  return `<section class="achievement-group-card">
+    <div class="achievement-group-header">
+      <div class="achievement-group-icon">${getAchievementIconMarkup(group.icon)}</div>
+      <div class="achievement-group-copy">
+        <span class="achievement-category-pill">${escapeHtml(group.category || "Records")}</span>
+        <h3>${escapeHtml(group.name)}</h3>
+        <p>${escapeHtml(group.description || "")}</p>
+        <small>${escapeHtml(nextTier?.progressLabel || group.progressLabel || "Current progress")}: ${progressText}</small>
+      </div>
+      <div class="achievement-tier-count">${completed}/${group.tiers.length}</div>
+    </div>
+    <div class="achievement-group-progress">
+      <span><b style="width:${percent}%"></b></span>
+      <small>${nextTier ? `Next: ${escapeHtml(nextTier.tierLabel || getAchievementTierLabel(nextTier.tier))}` : "Completed"} · ${escapeHtml(rewardPreview || "No reward")}</small>
+    </div>
+    <div class="achievement-tier-grid">
+      ${group.tiers.map(tier => renderAchievementTierCard(group, tier, tier === nextTier)).join("")}
+    </div>
+  </section>`;
+}
+
+function renderAchievementTierCard(group, tier, isCurrent) {
+  const complete = isAchievementTierComplete(tier);
+  const prerequisiteLocked = isAchievementTierPrerequisiteLocked(group, tier);
+  const state = complete ? "complete" : prerequisiteLocked ? "locked" : isCurrent ? "current" : "future";
+  const unread = !!save?.records?.unreadAchievements?.[tier.id];
+  const progress = getAchievementTierProgress(group, tier);
+  const percent = progress.target ? Math.min(100, Math.round(progress.current / progress.target * 100)) : complete ? 100 : 0;
+  const tierId = escapeHtml(tier.id || `${group.id}_${tier.tier}`);
+  return `<button class="achievement-tier-card achievement-tier-${state}${unread ? " achievement-tier-new" : ""}" type="button" data-achievement-tier="${tierId}" onclick="openAchievementTierModal('${tierId}')" aria-label="${escapeHtml(`${group.name} tier ${tier.tierLabel || getAchievementTierLabel(tier.tier)} ${complete ? "completed" : prerequisiteLocked ? "locked" : "in progress"}`)}">
+    <span class="achievement-tier-label">${escapeHtml(tier.tierLabel || getAchievementTierLabel(tier.tier))}</span>
+    <strong>${unread ? "New" : complete ? "✓" : prerequisiteLocked ? "Lock" : `${percent}%`}</strong>
+    <small>${escapeHtml(formatAchievementProgressValue(progress.target))}</small>
+    <em>${escapeHtml(formatAchievementReward(tier) || "No reward")}</em>
+  </button>`;
+}
+
+function isAchievementTierComplete(tier) {
+  return !!save?.achievements?.[tier.id];
+}
+
+function isAchievementTierPrerequisiteLocked(group, tier) {
+  if (!tier.prerequisiteTier) return false;
+  const prerequisite = group.tiers.find(entry => entry.tier === tier.prerequisiteTier || entry.id === tier.prerequisiteTier);
+  return prerequisite ? !isAchievementTierComplete(prerequisite) : false;
+}
+
+function getAchievementTierProgress(group, tier) {
+  const source = tier.progress || group.progress;
+  const statKey = tier.statKey || group.statKey;
+  const target = Math.max(1, Number(tier.target) || 1);
+  if (typeof source === "function") return { current: Math.max(0, Number(source(save)) || 0), target };
+  if (statKey) return { current: Math.max(0, Number(save?.stats?.[statKey]) || 0), target };
+  const complete = tier.condition ? tier.condition(save) : isAchievementTierComplete(tier);
+  return { current: complete ? target : 0, target };
+}
+
+function getCompletedAchievementEssenceTotal() {
+  return (ACHIEVEMENTS || []).reduce((total, achievement) => save?.achievements?.[achievement.id] ? total + getAchievementEssenceReward(achievement) : total, 0);
+}
+
+function renderAchievementBonusSummary() {
+  const totals = {};
+  (ACHIEVEMENTS || []).forEach(achievement => {
+    if (!save?.achievements?.[achievement.id] || !achievement.bonus) return;
+    Object.entries(achievement.bonus).forEach(([key, value]) => {
+      if (typeof value !== "number") return;
+      totals[key] = (totals[key] || 0) + value;
+    });
+  });
+  const rows = Object.entries(totals).filter(([, value]) => value);
+  if (!rows.length) return `<span class="achievement-bonus-empty">No permanent bonuses yet</span>`;
+  return rows.map(([key, value]) => `<span><small>${escapeHtml(formatAchievementBonusName(key))}</small><strong>${escapeHtml(formatAchievementBonusValue(key, value))}</strong></span>`).join("");
+}
+
+function formatAchievementBonusName(key) {
+  return ({
+    maxHp: "Starting HP",
+    damageMultiplier: "Damage",
+    attackSpeedMultiplier: "Attack Speed",
+    essenceMultiplier: "Essence Gain",
+    startingGold: "Starting Gold",
+    armor: "Armor",
+    luck: "Luck",
+    knightArmor: "Knight Armor",
+    rogueCritChance: "Rogue Crit"
+  })[key] || formatEquipmentStatName(key);
+}
+
+function formatAchievementBonusValue(key, value) {
+  if (key.toLowerCase().includes("multiplier") || key.toLowerCase().includes("chance") || Math.abs(value) < 1) return formatExactPercent(value);
+  return `+${Math.round(value * 10) / 10}`;
+}
+
+function formatAchievementProgressValue(value) {
+  if (typeof formatCompactNumber === "function") return formatCompactNumber(value);
+  return Math.floor(Number(value) || 0).toLocaleString();
+}
+
+function getAchievementIconMarkup(icon) {
+  return ({ crown: "CR", sword: "SW", enemy: "EN", shield: "SH", skull: "SK", map: "MP", coin: "GD", rune: "RN", chest: "CH", helm: "HM", banner: "BN" })[icon] || "AC";
+}
+
+function openAchievementTierModal(tierId) {
+  const found = findAchievementTier(tierId);
+  if (!found) return;
+  if (typeof markAchievementViewed === "function") markAchievementViewed(tierId);
+  closeAchievementTierModal();
+  const { group, tier } = found;
+  const complete = isAchievementTierComplete(tier);
+  const locked = isAchievementTierPrerequisiteLocked(group, tier);
+  const progress = getAchievementTierProgress(group, tier);
+  const percent = progress.target ? Math.min(100, Math.round(progress.current / progress.target * 100)) : complete ? 100 : 0;
+  const completedAt = save?.achievementCompletedAt?.[tier.id] ? new Date(save.achievementCompletedAt[tier.id]).toLocaleDateString() : "";
+  const overlay = document.createElement("div");
+  overlay.className = "achievement-modal-backdrop";
+  overlay.innerHTML = `<div class="achievement-modal" role="dialog" aria-modal="true">
+    <button class="achievement-modal-close" type="button" aria-label="Close achievement details">×</button>
+    <div class="achievement-modal-icon">${getAchievementIconMarkup(group.icon)}</div>
+    <small>${escapeHtml(group.name)} — Tier ${escapeHtml(tier.tierLabel || getAchievementTierLabel(tier.tier))}</small>
+    <h3>${escapeHtml(tier.name || group.name)}</h3>
+    <div class="achievement-modal-state achievement-modal-${complete ? "complete" : locked ? "locked" : "current"}">${complete ? "Completed" : locked ? "Locked" : "In Progress"}</div>
+    <p>${escapeHtml(tier.goal || `${group.progressLabel || tier.progressLabel || "Progress"}: ${formatAchievementProgressValue(tier.target)}`)}</p>
+    <div class="achievement-modal-progress">
+      <span><b>${escapeHtml(formatAchievementProgressValue(progress.current))}</b><em>${escapeHtml(formatAchievementProgressValue(progress.target))}</em></span>
+      <i><b style="width:${percent}%"></b></i>
+      <strong>${percent}%</strong>
+    </div>
+    <div class="achievement-modal-reward"><small>Reward</small><strong>${escapeHtml(formatAchievementReward(tier) || "No reward")}</strong></div>
+    ${completedAt ? `<div class="achievement-modal-date">Completed ${escapeHtml(completedAt)}</div>` : ""}
+  </div>`;
+  overlay.onclick = event => { if (event.target === overlay) closeAchievementTierModal(); };
+  overlay.querySelector(".achievement-modal-close").onclick = closeAchievementTierModal;
+  document.body.appendChild(overlay);
+  document.addEventListener("keydown", handleAchievementModalKeydown);
+}
+
+function closeAchievementTierModal() {
+  document.querySelector(".achievement-modal-backdrop")?.remove();
+  document.removeEventListener("keydown", handleAchievementModalKeydown);
+}
+
+function handleAchievementModalKeydown(event) {
+  if (event.key === "Escape") closeAchievementTierModal();
+}
+
+function findAchievementTier(tierId) {
+  for (const group of getVisibleAchievementGroups()) {
+    const tier = group.tiers.find(entry => entry.id === tierId);
+    if (tier) return { group, tier };
+  }
+  return null;
+}
+
+window.openAchievementTierModal = openAchievementTierModal;
+window.closeAchievementTierModal = closeAchievementTierModal;
 
 function showUpgradePoolScreen() {
   try {
@@ -942,7 +1379,8 @@ function formatAchievementReward(achievement) {
 function showAchievementPopup(achievement) {
   const popup = document.createElement("div");
   popup.className = "achievement-toast";
-  popup.innerHTML = `<div class="achievement-toast-medal">!</div><div><small>Achievement Unlocked</small><strong>${escapeHtml(achievement.name)}</strong><p>${escapeHtml(achievement.goal || achievement.description)}</p><em>${escapeHtml(formatAchievementReward(achievement))}</em></div>`;
+  const tier = achievement.tierLabel ? ` Tier ${achievement.tierLabel}` : "";
+  popup.innerHTML = `<div class="achievement-toast-medal">!</div><div><small>Achievement Complete${escapeHtml(tier)}</small><strong>${escapeHtml(achievement.name)}</strong><p>${escapeHtml(achievement.goal || achievement.description)}</p><em>${escapeHtml(formatAchievementReward(achievement))}</em></div>`;
   showStackedToast(popup);
 }
 
@@ -1618,6 +2056,8 @@ function buyEquipmentOffer(classId, index) {
   const cost = getEquipmentBuyCost(item);
   if (save.essence < cost) return false;
   save.essence -= cost;
+  trackStatistic("totalEssenceSpent", cost);
+  trackStatistic("itemsPurchased", 1);
   addInventoryItem(item);
   offers.splice(index, 1);
   playSound("shop");
@@ -1629,6 +2069,7 @@ function sellEquipmentItem(classId, instanceId) {
   const item = getInventoryItem(instanceId);
   if (!item || !canHeroEquipItem(classId, item)) return false;
   save.essence += getEquipmentSellValue(item);
+  trackStatistic("itemsSold", 1);
   removeInventoryItem(instanceId);
   playSound("shop");
   saveGame();
@@ -1759,6 +2200,7 @@ function equipSkin(kind, ownerId, skinId) {
     const cost = skin.unlock?.cost || 0;
     if (save.essence < cost) return;
     save.essence -= cost;
+    trackStatistic("totalEssenceSpent", cost);
     if (!save.skinPurchases) save.skinPurchases = defaultSkinPurchases();
     const bucket = kind === "hero" ? "heroes" : "enemies";
     if (!save.skinPurchases[bucket][ownerId]) save.skinPurchases[bucket][ownerId] = { base: true };
@@ -2346,7 +2788,7 @@ function renderShop() {
 }
 function getShopChoices(surcharge) { return getWeightedChoices(SHOP_ITEMS.filter(item => isAbilityLockedItemAvailable(item, run?.hero?.id || "")), 3).map(item => ({ ...item, cost: item.cost + surcharge, bought: false })); }
 function rerollShop() { if (!spendChoiceReroll("shop")) return; run.shopItems = getShopChoices(Math.max(0, (run.shopsVisited - 1) * 50)); renderShop(); }
-function buyShopItem(item) { if (item.bought || run.gold < item.cost) return; run.gold -= item.cost; const text = getItemDisplayText(item); applyRunItemToHero(item); item.bought = true; playSound("shop"); addRunUpgradeName(item.name, text, item.rarity || "Common"); renderShop(); updateRunHud(); }
+function buyShopItem(item) { if (item.bought || run.gold < item.cost) return; run.gold -= item.cost; trackStatistic("totalGoldSpent", item.cost); trackStatistic("itemsPurchased", 1); const text = getItemDisplayText(item); applyRunItemToHero(item); item.bought = true; playSound("shop"); addRunUpgradeName(item.name, text, item.rarity || "Common"); renderShop(); updateRunHud(); }
 function leaveShop() { continueAfterRunChoice(); }
 
 function renderChoiceHeroStats(target) {
@@ -2949,7 +3391,7 @@ function getTreeUpgradeCost(node, level) {
 }
 function isTreeNodeLocked(node) { return node.prerequisites.some(id => getTreeLevel(id) <= 0); }
 function getTreeNodeInitials(node) { return node.name.split(/\s+/).map(word => word[0]).join("").slice(0, 2).toUpperCase(); }
-function purchaseTreeNode(id) { const node = TREE[id], level = getTreeLevel(id), cost = getTreeUpgradeCost(node, level); if (isTreeNodeLocked(node) || level >= node.maxLevel || save.essence < cost) return; save.essence -= cost; save.tree[id] = level + 1; selectedTreeNodeId = id; checkUpgradePoolUnlocks(); saveGame(); renderTree(); }
+function purchaseTreeNode(id) { const node = TREE[id], level = getTreeLevel(id), cost = getTreeUpgradeCost(node, level); if (isTreeNodeLocked(node) || level >= node.maxLevel || save.essence < cost) return; save.essence -= cost; trackStatistic("totalEssenceSpent", cost); save.tree[id] = level + 1; selectedTreeNodeId = id; checkUpgradePoolUnlocks(); saveGame(); renderTree(); }
 function getTreeNodesInDependencyOrder(nodes) {
   const byId = new Map(nodes.map(node => [node.id, node]));
   const ordered = [];

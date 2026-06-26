@@ -825,35 +825,210 @@ const GAUNTLET_ACHIEVEMENTS = [
   { id: "gauntlet_enemy_board", name: "Monster Bracket", description: "Defeat 5 enemies from the Enemy leaderboard.", goal: "Defeat 5 ranked enemies", condition: save => getDefeatedGauntletEnemyLeaders(save) >= 5, essenceReward: 25, bonus: { damageMultiplier: 0.015 } }
 ];
 
-const ACHIEVEMENTS = [
-  { id: "first_steps", name: "First Steps", description: "Start your first run.", goal: "Start 1 run", condition: save => save.stats.runsStarted >= 1, essenceReward: 10, bonus: { maxHp: 2 } },
-  { id: "first_victory", name: "First Victory", description: "Win your first battle.", goal: "Win 1 battle", condition: save => save.stats.battlesWon >= 1, essenceReward: 10, bonus: { damageMultiplier: 0.005 } },
-  { id: "ten_battles", name: "Battle Tested", description: "Win 10 battles.", goal: "Win 10 battles", condition: save => save.stats.battlesWon >= 10, essenceReward: 20, bonus: { maxHp: 4 } },
-  { id: "fifty_battles", name: "Veteran Blade", description: "Win 50 battles.", goal: "Win 50 battles", condition: save => save.stats.battlesWon >= 50, essenceReward: 20, bonus: { damageMultiplier: 0.01 } },
-  { id: "hundred_enemies", name: "Line Breaker", description: "Defeat 100 enemies.", goal: "Defeat 100 enemies", condition: save => save.stats.enemiesDefeated >= 100, essenceReward: 20, bonus: { attackSpeedMultiplier: 0.01 } },
-  { id: "elite_hunter", name: "Elite Hunter", description: "Defeat 10 elites.", goal: "Defeat 10 elites", condition: save => save.stats.elitesDefeated >= 10, essenceReward: 20, bonus: { armor: 1 } },
-  { id: "elite_reaper", name: "Elite Reaper", description: "Defeat 500 elites.", goal: "Defeat 500 elites", condition: save => save.stats.elitesDefeated >= 500, essenceReward: 200, bonus: { armor: 2, damageMultiplier: 0.005 } },
-  { id: "boss_breaker", name: "Boss Breaker", description: "Defeat 3 bosses.", goal: "Defeat 3 bosses", condition: save => save.stats.bossesDefeated >= 3, essenceReward: 40, bonus: { damageMultiplier: 0.015 } },
-  { id: "boss_conqueror", name: "Boss Conqueror", description: "Defeat 100 bosses.", goal: "Defeat 100 bosses", condition: save => save.stats.bossesDefeated >= 100, essenceReward: 500, bonus: { damageMultiplier: 0.01, maxHp: 40 } },
-  { id: "deep_delver", name: "Deep Delver", description: "Reach Stage 20.", goal: "Reach Stage 20", condition: save => save.highestClear >= 20, essenceReward: 50, bonus: { maxHp: 25 } },
-  { id: "third_map", name: "Third March", description: "Reach Stage 30.", goal: "Reach Stage 30", condition: save => save.highestClear >= 30, essenceReward: 100, bonus: { essenceMultiplier: 0.1 } },
-  { id: "essence_hoard", name: "Essence Hoard", description: "Bank 500 total Essence.", goal: "Earn 500 Essence", condition: save => save.stats.totalEssenceEarned >= 500, essenceReward: 200, bonus: { luck: 2 } },
-  { id: "gold_hand", name: "Gold Hand", description: "Earn 500 total gold.", goal: "Earn 500 gold", condition: save => save.stats.totalGoldEarned >= 500, essenceReward: 30, bonus: { startingGold: 15 } },
-  { id: "skill_spark", name: "Skill Spark", description: "Trigger 25 skills.", goal: "Trigger 25 skills", condition: save => save.stats.skillsTriggered >= 25, essenceReward: 20, bonus: { attackSpeedMultiplier: 0.005 } },
-  { id: "skill_storm", name: "Skill Storm", description: "Trigger 150 skills.", goal: "Trigger 150 skills", condition: save => save.stats.skillsTriggered >= 150, essenceReward: 50, bonus: { damageMultiplier: 0.01 } },
-  { id: "hard_path", name: "Crownfall Trial", description: "Clear at least 15 stages on hard.", goal: "Clear 15 hard stages", condition: save => save.stats.hardStagesCleared >= 25, essenceReward: 150, bonus: { armor: 1 } },
-  { id: "merchant_friend", name: "Merchant Friend", description: "Visit 10 shops.", goal: "Visit 10 shops", condition: save => save.stats.shopsVisited >= 10, essenceReward: 20, bonus: { startingGold: 8 } },
-  { id: "relic_keeper", name: "Relic Keeper", description: "Claim 15 relics.", goal: "Claim 15 relics", condition: save => save.stats.relicsClaimed >= 15, essenceReward: 40, bonus: { luck: 1 } },
-  { id: "reward_seeker", name: "Reward Seeker", description: "Choose 30 run upgrades.", goal: "Choose 30 upgrades", condition: save => save.stats.rewardsClaimed >= 30, essenceReward: 40, bonus: { maxHp: 10 } },
-  { id: "knight_oath", name: "Knight Oath", description: "Start 5 Knight runs.", goal: "Start 5 Knight runs", condition: save => save.stats.knightRuns >= 5, essenceReward: 50, bonus: { knightArmor: 1 } },
-  { id: "rogue_contract", name: "Rogue Contract", description: "Start 5 Rogue runs.", goal: "Start 5 Rogue runs", condition: save => save.stats.rogueRuns >= 5, essenceReward: 50, bonus: { rogueCritChance: 0.01 } },
-  { id: "knight_layer3_clear", name: "Golden Oath", description: "Win a run with the Knight by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Knight", condition: save => save.stats.knightLayer3Clears >= 1, essenceReward: 300, bonus: { skin: "Knight Golden Oath", knightArmor: 1 } },
-  { id: "rogue_layer3_clear", name: "Gilded Contract", description: "Win a run with the Rogue by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Rogue", condition: save => save.stats.rogueLayer3Clears >= 1, essenceReward: 300, bonus: { skin: "Rogue Gilded Contract", rogueCritChance: 0.01 } },
-  { id: "wizard_layer3_clear", name: "Auric Arcana", description: "Win a run with the Wizard by clearing Layer 3 on any difficulty.", goal: "Clear Layer 3 as Wizard", condition: save => save.stats.wizardLayer3Clears >= 1, essenceReward: 300, bonus: { skin: "Wizard Auric Arcana", damageMultiplier: 0.01 } },
-  { id: "eternal_crown", name: "Eternal Crownbreaker", description: "Kill the final boss with 1,000,000 HP.", goal: "Defeat The Eternal Crown", condition: save => save.stats.finalBossKills >= 1, essenceReward: 1000, bonus: { unlock: "Endless Mode", damageMultiplier: 0.15, maxHp: 100, armor: 5, luck: 5, essenceMultiplier: 0.2 } },
-  ...GAUNTLET_ACHIEVEMENTS,
-  ...ENEMY_KILL_ACHIEVEMENTS
+const ACHIEVEMENT_GROUPS = [
+  {
+    id: "run_vanguard",
+    name: "Run Vanguard",
+    description: "Begin runs and learn the rhythm of Crownfall.",
+    category: "Progression",
+    icon: "crown",
+    statKey: "runsStarted",
+    tiers: [
+      { id: "first_steps", tier: 1, target: 1, essenceReward: 10, bonus: { maxHp: 2 } },
+      { id: "run_vanguard_2", tier: 2, target: 5, essenceReward: 20, bonus: { startingGold: 4 } },
+      { id: "run_vanguard_3", tier: 3, target: 20, essenceReward: 50, bonus: { maxHp: 6 } }
+    ]
+  },
+  {
+    id: "battle_victories",
+    name: "Battle Tested",
+    description: "Win battles across your runs.",
+    category: "Combat",
+    icon: "sword",
+    statKey: "battlesWon",
+    tiers: [
+      { id: "first_victory", tier: 1, target: 1, essenceReward: 10, bonus: { damageMultiplier: 0.005 } },
+      { id: "ten_battles", tier: 2, target: 10, essenceReward: 20, bonus: { maxHp: 4 } },
+      { id: "fifty_battles", tier: 3, target: 50, essenceReward: 20, bonus: { damageMultiplier: 0.01 } },
+      { id: "battle_victories_4", tier: 4, target: 150, essenceReward: 75, bonus: { maxHp: 12 } },
+      { id: "battle_victories_5", tier: 5, target: 500, essenceReward: 150, bonus: { damageMultiplier: 0.015 } }
+    ]
+  },
+  {
+    id: "enemy_slayer",
+    name: "Enemy Slayer",
+    description: "Defeat enemies across all game modes.",
+    category: "Combat",
+    icon: "enemy",
+    statKey: "enemiesDefeated",
+    tiers: [
+      { id: "enemy_slayer_1", tier: 1, target: 25, essenceReward: 10, bonus: { maxHp: 2 } },
+      { id: "hundred_enemies", tier: 2, target: 100, essenceReward: 20, bonus: { attackSpeedMultiplier: 0.01 } },
+      { id: "enemy_slayer_3", tier: 3, target: 500, essenceReward: 75, bonus: { damageMultiplier: 0.01 } },
+      { id: "enemy_slayer_4", tier: 4, target: 2000, essenceReward: 200, bonus: { attackSpeedMultiplier: 0.015 } },
+      { id: "enemy_slayer_5", tier: 5, target: 10000, essenceReward: 500, bonus: { damageMultiplier: 0.025, maxHp: 25 } }
+    ]
+  },
+  {
+    id: "elite_hunter_group",
+    name: "Elite Hunter",
+    description: "Defeat elite encounters.",
+    category: "Combat",
+    icon: "shield",
+    statKey: "elitesDefeated",
+    tiers: [
+      { id: "elite_hunter", tier: 1, target: 10, essenceReward: 20, bonus: { armor: 1 } },
+      { id: "elite_hunter_2", tier: 2, target: 50, essenceReward: 75, bonus: { damageMultiplier: 0.005 } },
+      { id: "elite_reaper", tier: 3, target: 500, essenceReward: 200, bonus: { armor: 2, damageMultiplier: 0.005 } }
+    ]
+  },
+  {
+    id: "boss_breaker_group",
+    name: "Boss Breaker",
+    description: "Bring down bosses and crown horrors.",
+    category: "Combat",
+    icon: "skull",
+    statKey: "bossesDefeated",
+    tiers: [
+      { id: "boss_breaker", tier: 1, target: 3, essenceReward: 40, bonus: { damageMultiplier: 0.015 } },
+      { id: "boss_breaker_2", tier: 2, target: 25, essenceReward: 125, bonus: { armor: 1, maxHp: 12 } },
+      { id: "boss_conqueror", tier: 3, target: 100, essenceReward: 500, bonus: { damageMultiplier: 0.01, maxHp: 40 } }
+    ]
+  },
+  {
+    id: "deep_march",
+    name: "Deep March",
+    description: "Reach deeper stages and claim greater victories.",
+    category: "Exploration",
+    icon: "map",
+    progress: save => Number(save.highestClear) || 0,
+    progressLabel: "Highest clear",
+    tiers: [
+      { id: "deep_delver", tier: 1, target: 20, essenceReward: 50, bonus: { maxHp: 25 } },
+      { id: "third_map", tier: 2, target: 30, essenceReward: 100, bonus: { essenceMultiplier: 0.1 } }
+    ]
+  },
+  {
+    id: "wealth",
+    name: "Crown Vault",
+    description: "Earn gold and Essence for the crown vault.",
+    category: "Economy",
+    icon: "coin",
+    tiers: [
+      { id: "gold_hand", tier: 1, target: 500, statKey: "totalGoldEarned", progressLabel: "Gold earned", essenceReward: 30, bonus: { startingGold: 15 } },
+      { id: "essence_hoard", tier: 2, target: 500, statKey: "totalEssenceEarned", progressLabel: "Essence earned", essenceReward: 200, bonus: { luck: 2 } },
+      { id: "wealth_3", tier: 3, target: 2500, statKey: "totalGoldEarned", progressLabel: "Gold earned", essenceReward: 100, bonus: { startingGold: 20 } },
+      { id: "wealth_4", tier: 4, target: 2500, statKey: "totalEssenceEarned", progressLabel: "Essence earned", essenceReward: 300, bonus: { essenceMultiplier: 0.05 } }
+    ]
+  },
+  {
+    id: "skill_mastery",
+    name: "Skill Storm",
+    description: "Trigger active skills in combat.",
+    category: "Combat",
+    icon: "rune",
+    statKey: "skillsTriggered",
+    tiers: [
+      { id: "skill_spark", tier: 1, target: 25, essenceReward: 20, bonus: { attackSpeedMultiplier: 0.005 } },
+      { id: "skill_storm", tier: 2, target: 150, essenceReward: 50, bonus: { damageMultiplier: 0.01 } },
+      { id: "skill_mastery_3", tier: 3, target: 750, essenceReward: 150, bonus: { attackSpeedMultiplier: 0.01 } }
+    ]
+  },
+  {
+    id: "run_choices",
+    name: "Run Spoils",
+    description: "Visit shops, claim relics, and choose upgrades.",
+    category: "Economy",
+    icon: "chest",
+    tiers: [
+      { id: "merchant_friend", tier: 1, target: 10, statKey: "shopsVisited", progressLabel: "Shops visited", essenceReward: 20, bonus: { startingGold: 8 } },
+      { id: "relic_keeper", tier: 2, target: 15, statKey: "relicsClaimed", progressLabel: "Relics claimed", essenceReward: 40, bonus: { luck: 1 } },
+      { id: "reward_seeker", tier: 3, target: 30, statKey: "rewardsClaimed", progressLabel: "Upgrades chosen", essenceReward: 40, bonus: { maxHp: 10 } }
+    ]
+  },
+  {
+    id: "hero_oaths",
+    name: "Hero Oaths",
+    description: "Commit to heroes and earn their gilded skins.",
+    category: "Classes",
+    icon: "helm",
+    tiers: [
+      { id: "knight_oath", tier: 1, target: 5, statKey: "knightRuns", progressLabel: "Knight runs", essenceReward: 50, bonus: { knightArmor: 1 } },
+      { id: "rogue_contract", tier: 2, target: 5, statKey: "rogueRuns", progressLabel: "Rogue runs", essenceReward: 50, bonus: { rogueCritChance: 0.01 } },
+      { id: "knight_layer3_clear", tier: 3, target: 1, statKey: "knightLayer3Clears", progressLabel: "Knight clears", essenceReward: 300, bonus: { skin: "Knight Golden Oath", knightArmor: 1 } },
+      { id: "rogue_layer3_clear", tier: 4, target: 1, statKey: "rogueLayer3Clears", progressLabel: "Rogue clears", essenceReward: 300, bonus: { skin: "Rogue Gilded Contract", rogueCritChance: 0.01 } },
+      { id: "wizard_layer3_clear", tier: 5, target: 1, statKey: "wizardLayer3Clears", progressLabel: "Wizard clears", essenceReward: 300, bonus: { skin: "Wizard Auric Arcana", damageMultiplier: 0.01 } }
+    ]
+  },
+  {
+    id: "crownfall_trials",
+    name: "Crownfall Trials",
+    description: "Clear hard paths and defeat the Eternal Crown.",
+    category: "Challenges",
+    icon: "crown",
+    tiers: [
+      { id: "hard_path", tier: 1, target: 25, statKey: "hardStagesCleared", progressLabel: "Hard stages", essenceReward: 150, bonus: { armor: 1 } },
+      { id: "eternal_crown", tier: 2, target: 1, statKey: "finalBossKills", progressLabel: "Eternal Crown kills", essenceReward: 1000, bonus: { unlock: "Endless Mode", damageMultiplier: 0.15, maxHp: 100, armor: 5, luck: 5, essenceMultiplier: 0.2 } }
+    ]
+  },
+  {
+    id: "gauntlet",
+    name: "Gauntlet Honors",
+    description: "Win tournament fights, climb the board, and train in the arena.",
+    category: "Challenges",
+    icon: "banner",
+    tiers: GAUNTLET_ACHIEVEMENTS.map((achievement, index) => ({ ...achievement, tier: index + 1, target: index + 1, condition: achievement.condition }))
+  },
+  ...CHARACTER_ENEMIES.map((enemy, index) => ({
+    id: `slayer_group_${enemy.id}`,
+    name: `${enemy.name} Slayer`,
+    description: `Defeat ${enemy.name}s across your runs.`,
+    category: "Combat",
+    icon: "enemy",
+    progress: save => Number(save.stats?.enemyKills?.[enemy.id]) || 0,
+    progressLabel: `${enemy.name} defeated`,
+    tiers: [
+      { id: `slayer_${enemy.id}_1`, tier: 1, target: 25, essenceReward: 3, bonus: {} },
+      { id: `slayer_${enemy.id}`, tier: 2, target: 75, essenceReward: 5, bonus: getEnemySlayerBonus(index) },
+      { id: `slayer_${enemy.id}_3`, tier: 3, target: 200, essenceReward: 10, bonus: getEnemySlayerBonus(index) }
+    ]
+  }))
 ];
+
+const ACHIEVEMENTS = ACHIEVEMENT_GROUPS.flatMap(group => group.tiers.map(tier => createTierAchievement(group, tier)));
+
+function createTierAchievement(group, tier) {
+  const statKey = tier.statKey || group.statKey;
+  const progress = tier.progress || group.progress || (statKey ? saveData => Number(saveData.stats?.[statKey]) || 0 : null);
+  const condition = tier.condition || (progress ? saveData => progress(saveData) >= (Number(tier.target) || 0) : () => false);
+  const tierLabel = getAchievementTierLabel(tier.tier);
+  const goal = tier.goal || `${group.progressLabel || tier.progressLabel || "Progress"}: ${formatCompactNumber(tier.target)}`;
+  return {
+    ...tier,
+    id: tier.id || `${group.id}_${tier.tier}`,
+    groupId: group.id,
+    name: tier.name || group.name,
+    description: tier.description || group.description,
+    goal,
+    tierLabel,
+    condition,
+    bonus: tier.bonus || {},
+    essenceReward: tier.essenceReward || 0
+  };
+}
+
+function getAchievementTierLabel(tier) {
+  const roman = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+  const value = Math.max(1, Math.floor(Number(tier) || 1));
+  return roman[value] || String(value);
+}
+
+function formatCompactNumber(value) {
+  const number = Math.max(0, Math.floor(Number(value) || 0));
+  if (number >= 1000000) return `${Math.round(number / 100000) / 10}M`;
+  if (number >= 1000) return `${Math.round(number / 100) / 10}K`;
+  return number.toLocaleString();
+}
 
 function getPlayerGauntletAchievementRank(saveData) {
   const rank = (saveData.gauntlet?.heroLeaders || []).find(entry => entry.id === "local-player")?.rank;

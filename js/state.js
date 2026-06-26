@@ -58,6 +58,8 @@ function defaultSave() {
     stats: defaultAccountStats(),
     achievements: {},
     achievementEssenceClaims: {},
+    achievementCompletedAt: {},
+    records: defaultRecordsData(),
     tree: getDefaultTreeLevels(),
     skins: defaultSkins(),
     skinPurchases: defaultSkinPurchases(),
@@ -66,6 +68,15 @@ function defaultSave() {
     settings: defaultSettings(),
     leaderboards: defaultLeaderboards(),
     gauntlet: defaultGauntletData()
+  };
+}
+
+function defaultRecordsData() {
+  return {
+    unreadAchievements: {},
+    viewedAchievements: {},
+    lastOpenedAt: 0,
+    version: 1
   };
 }
 
@@ -148,8 +159,14 @@ function defaultAccountStats() {
     totalDamageDealt: 0,
     totalDamageTaken: 0,
     highestBattleDamage: 0,
+    highestSingleHit: 0,
+    criticalHits: 0,
     totalGoldEarned: 0,
+    totalGoldSpent: 0,
     totalEssenceEarned: 0,
+    totalEssenceSpent: 0,
+    itemsPurchased: 0,
+    itemsSold: 0,
     skillsTriggered: 0,
     finalBossKills: 0,
     hardStagesCleared: 0,
@@ -159,6 +176,26 @@ function defaultAccountStats() {
     knightRuns: 0,
     rogueRuns: 0,
     wizardRuns: 0,
+    knightVictories: 0,
+    rogueVictories: 0,
+    wizardVictories: 0,
+    knightFastestVictorySeconds: 0,
+    rogueFastestVictorySeconds: 0,
+    wizardFastestVictorySeconds: 0,
+    knightHighestEndlessStage: 0,
+    rogueHighestEndlessStage: 0,
+    wizardHighestEndlessStage: 0,
+    currentWinStreak: 0,
+    bestWinStreak: 0,
+    totalPlaytimeSeconds: 0,
+    longestRunSeconds: 0,
+    fastestVictorySeconds: 0,
+    mostGoldEarnedRun: 0,
+    mostRelicsRun: 0,
+    mostDamageDealtRun: 0,
+    mostBossesRun: 0,
+    mostEnemiesRun: 0,
+    highestEndlessStage: 0,
     knightLayer3Clears: 0,
     rogueLayer3Clears: 0,
     wizardLayer3Clears: 0,
@@ -236,6 +273,7 @@ function normalizeSaveData(parsed) {
     const gauntlet = normalizeGauntletData(parsed && parsed.gauntlet, fallback.gauntlet);
     const inventory = normalizeInventory(parsed && parsed.inventory, fallback.inventory);
     const upgradePool = normalizeUpgradePool(parsed && parsed.upgradePool, fallback.upgradePool);
+    const records = normalizeRecordsData(parsed && parsed.records, fallback.records);
     const difficultyClears = normalizeDifficultyClears(parsed && parsed.difficultyClears, parsed);
     return {
       ...fallback,
@@ -244,6 +282,8 @@ function normalizeSaveData(parsed) {
       stats: { ...fallback.stats, ...((parsed && parsed.stats) || {}) },
       achievements: { ...fallback.achievements, ...((parsed && parsed.achievements) || {}) },
       achievementEssenceClaims: { ...fallback.achievementEssenceClaims, ...((parsed && parsed.achievementEssenceClaims) || {}) },
+      achievementCompletedAt: { ...fallback.achievementCompletedAt, ...((parsed && parsed.achievementCompletedAt) || {}) },
+      records,
       skins,
       skinPurchases,
       inventory,
@@ -257,6 +297,16 @@ function normalizeSaveData(parsed) {
     console.warn("Crownfall save: failed to normalize save data.", error);
     return defaultSave();
   }
+}
+
+function normalizeRecordsData(records, fallback = defaultRecordsData()) {
+  return {
+    ...fallback,
+    ...(records || {}),
+    unreadAchievements: { ...fallback.unreadAchievements, ...((records && records.unreadAchievements) || {}) },
+    viewedAchievements: { ...fallback.viewedAchievements, ...((records && records.viewedAchievements) || {}) },
+    version: 1
+  };
 }
 
 function safeStorageGet(key) {
@@ -970,6 +1020,30 @@ function addAccountStat(id, amount) {
   checkAchievements();
 }
 
+function trackStatistic(key, amount = 1) {
+  addAccountStat(key, amount);
+}
+
+function setStatisticMaximum(key, value) {
+  if (isProgressionWriteBlocked()) return;
+  if (!key) return;
+  if (!save.stats) save.stats = defaultAccountStats();
+  const next = Number(value) || 0;
+  save.stats[key] = Math.max(Number(save.stats[key]) || 0, next);
+  checkAchievements();
+}
+
+function setStatisticMinimum(key, value) {
+  if (isProgressionWriteBlocked()) return;
+  if (!key) return;
+  if (!save.stats) save.stats = defaultAccountStats();
+  const next = Number(value) || 0;
+  if (next <= 0) return;
+  const current = Number(save.stats[key]) || 0;
+  save.stats[key] = current > 0 ? Math.min(current, next) : next;
+  checkAchievements();
+}
+
 function addEnemyKillStat(enemyId, amount = 1) {
   if (!enemyId) return;
   if (isProgressionWriteBlocked()) return;
@@ -1010,6 +1084,9 @@ function checkAchievements() {
   if (isProgressionWriteBlocked()) return [];
   if (!save.achievements) save.achievements = {};
   if (!save.achievementEssenceClaims) save.achievementEssenceClaims = {};
+  if (!save.achievementCompletedAt) save.achievementCompletedAt = {};
+  if (!save.records) save.records = defaultRecordsData();
+  if (!save.records.unreadAchievements) save.records.unreadAchievements = {};
   if (typeof ACHIEVEMENTS === "undefined") return [];
   const unlocked = [];
   let essenceClaimed = 0;
@@ -1020,6 +1097,8 @@ function checkAchievements() {
     }
     if (achievement.condition(save)) {
       save.achievements[achievement.id] = true;
+      save.achievementCompletedAt[achievement.id] = save.achievementCompletedAt[achievement.id] || Date.now();
+      save.records.unreadAchievements[achievement.id] = true;
       essenceClaimed += claimAchievementEssence(achievement);
       unlocked.push(achievement);
     }
@@ -1028,8 +1107,36 @@ function checkAchievements() {
     unlocked.forEach(achievement => showAchievementPopup(achievement));
   }
   if (typeof checkUpgradePoolUnlocks === "function") checkUpgradePoolUnlocks();
-  if (essenceClaimed && typeof saveGame === "function") saveGame();
+  if ((essenceClaimed || unlocked.length) && typeof saveGame === "function") saveGame();
+  if (unlocked.length && typeof updateRecordsBadge === "function") updateRecordsBadge();
   return unlocked;
+}
+
+function hasUnreadRecords() {
+  return !!save?.records?.unreadAchievements && Object.values(save.records.unreadAchievements).some(Boolean);
+}
+
+function markAchievementViewed(id) {
+  if (!id) return;
+  if (!save.records) save.records = defaultRecordsData();
+  if (!save.records.unreadAchievements) save.records.unreadAchievements = {};
+  if (!save.records.viewedAchievements) save.records.viewedAchievements = {};
+  delete save.records.unreadAchievements[id];
+  save.records.viewedAchievements[id] = Date.now();
+  if (typeof saveGame === "function") saveGame();
+  if (typeof updateRecordsBadge === "function") updateRecordsBadge();
+}
+
+function markAllRecordsViewed() {
+  if (!save.records) save.records = defaultRecordsData();
+  if (!save.records.viewedAchievements) save.records.viewedAchievements = {};
+  Object.keys(save.records.unreadAchievements || {}).forEach(id => {
+    save.records.viewedAchievements[id] = Date.now();
+  });
+  save.records.unreadAchievements = {};
+  save.records.lastOpenedAt = Date.now();
+  if (typeof saveGame === "function") saveGame();
+  if (typeof updateRecordsBadge === "function") updateRecordsBadge();
 }
 
 function isRequirementMet(requirement, sourceSave = save) {
@@ -1143,6 +1250,7 @@ function createRun(difficultyId, mode = "standard") {
       essenceEarned: 0,
       relicsCollected: 0,
       talentsChosen: 0,
+      bossesDefeated: 0,
       damageDealt: 0,
       damageTaken: 0
     },

@@ -454,6 +454,7 @@ function heroAttack(hero, enemy) {
   const crit = megaCrit || guaranteedCrit || Math.random() < Math.min(1, Math.max(0, hero.crit));
   if (crit) {
     playSound("crit");
+    if (!isBuildTestRun() && !isGauntletRun()) trackStatistic("criticalHits", 1);
     damage *= 2 + (hero.runCritDamage || 0) + getPermanentEffectTotal("critDamage", hero.id) + (megaCrit ? getPermanentEffectTotal("megaCritDamage", hero.id) : 0);
     const critSpeedBonus = getPermanentEffectTotal("critAttackSpeedBonus", hero.id);
     if (critSpeedBonus) {
@@ -597,6 +598,7 @@ function applyPendingHit(hit) {
   const enemy = hit.enemy;
   if (!enemy || enemy.hp <= 0) return;
   const actualDamage = damageEnemy(enemy, hit.damage, hit.color, { heavy: hit.heavy });
+  if (!isBuildTestRun() && !isGauntletRun()) setStatisticMaximum("highestSingleHit", actualDamage);
   if (!hit.variant || hit.variant === "heavy") playSound("swordHit");
   addFloat(enemy.x, enemy.y - 38, `${Math.round(actualDamage)}${hit.text.endsWith("!!") ? "!!" : hit.text.endsWith("!") ? "!" : ""}`, hit.color, { variant: hit.variant });
   if (hit.variant === "crit" || hit.variant === "mega") addFloat(enemy.x, enemy.y - 72, "+Crit", "#fde68a", { variant: "crit" });
@@ -839,7 +841,10 @@ function recordBattleAccountStats(victory, gold, essence) {
     battle.enemies.forEach(enemy => recordGameEvent("enemyKilled", { enemyId: enemy.id, classId: run.classId, count: 1 }));
     if (run.difficultyId === "hard") addAccountStat("hardStagesCleared", 1);
     if (battle.nodeType === "Elite") addAccountStat("elitesDefeated", 1);
-    if (isBossStage(run.stage) || isFinalBossStage(run.stage)) addAccountStat("bossesDefeated", 1);
+    if (isBossStage(run.stage) || isFinalBossStage(run.stage)) {
+      addAccountStat("bossesDefeated", 1);
+      if (run.summary) run.summary.bossesDefeated = (run.summary.bossesDefeated || 0) + 1;
+    }
     if (isFinalBossStage(run.stage) || battle.nodeType === "FinalBoss") addAccountStat("finalBossKills", 1);
   }
 }
@@ -947,14 +952,44 @@ function recordRunEndStats(victory, essence) {
   if (run.runEndStatsRecorded) return;
   run.runEndStatsRecorded = true;
   if (isBuildTestRun()) return;
+  const summary = run.summary || {};
+  const runSeconds = Math.max(0, Math.round((Date.now() - (Number(run.startedAt) || Date.now())) / 1000));
+  const completedStandardRun = victory && !isEndlessRun() && run.stagesCleared >= STAGE_COUNT;
   save.essence += essence;
   save.highestClear = Math.max(save.highestClear, run.stagesCleared);
   addAccountStat("runsEnded", 1);
   addAccountStat(victory ? "victories" : "defeats", 1);
-  if (victory && !isEndlessRun() && run.stagesCleared >= STAGE_COUNT) addAccountStat(`${run.classId}Layer3Clears`, 1);
+  if (runSeconds) {
+    addAccountStat("totalPlaytimeSeconds", runSeconds);
+    setStatisticMaximum("longestRunSeconds", runSeconds);
+    if (completedStandardRun) {
+      setStatisticMinimum("fastestVictorySeconds", runSeconds);
+      setStatisticMinimum(`${run.classId}FastestVictorySeconds`, runSeconds);
+    }
+  }
+  if (victory) {
+    addAccountStat("currentWinStreak", 1);
+    setStatisticMaximum("bestWinStreak", save.stats.currentWinStreak || 0);
+  } else {
+    save.stats.currentWinStreak = 0;
+  }
+  setStatisticMaximum("mostGoldEarnedRun", summary.goldEarned || 0);
+  setStatisticMaximum("mostRelicsRun", summary.relicsCollected || run.relics?.length || 0);
+  setStatisticMaximum("mostDamageDealtRun", summary.damageDealt || 0);
+  setStatisticMaximum("mostBossesRun", summary.bossesDefeated || 0);
+  setStatisticMaximum("mostEnemiesRun", summary.enemiesDefeated || 0);
+  if (isEndlessRun()) {
+    const endlessStage = Math.max(Number(run.stage) || 0, Number(run.stagesCleared) || 0);
+    setStatisticMaximum("highestEndlessStage", endlessStage);
+    setStatisticMaximum(`${run.classId}HighestEndlessStage`, endlessStage);
+  }
+  if (completedStandardRun) {
+    addAccountStat(`${run.classId}Victories`, 1);
+    addAccountStat(`${run.classId}Layer3Clears`, 1);
+  }
   addAccountStat("totalEssenceEarned", essence);
   if (victory) save.firstBossDefeated = true;
-  if (victory && !isEndlessRun() && !isBuildTestRun() && !isGauntletRun() && run.stagesCleared >= STAGE_COUNT) {
+  if (completedStandardRun && !isBuildTestRun() && !isGauntletRun()) {
     if (!save.difficultyClears) save.difficultyClears = {};
     save.difficultyClears[run.difficultyId] = true;
   }
@@ -1007,6 +1042,7 @@ function continueStoryRunIntoEndless() {
     essenceEarned: 0,
     relicsCollected: 0,
     talentsChosen: 0,
+    bossesDefeated: 0,
     damageDealt: 0,
     damageTaken: 0
   };

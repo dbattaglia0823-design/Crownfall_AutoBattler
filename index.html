@@ -38,8 +38,7 @@
           <button onclick="showScreen('charactersScreen')">Characters</button>
           <button onclick="showScreen('upgradeScreen')">Skills</button>
           <button onclick="showUpgradePoolScreen()">Unlocks</button>
-          <button onclick="showScreen('statsScreen')">Account Stats</button>
-          <button onclick="showScreen('achievementScreen')">Achievements</button>
+          <button id="recordsMenuButton" class="records-menu-button" onclick="showRecords()"><span>Records</span><small>Achievements &amp; Statistics</small><b id="recordsMenuBadge" class="records-menu-badge" hidden>!</b></button>
           <button onclick="showSettings('menuScreen')">Settings</button>
         </div>
       </div>
@@ -76,8 +75,8 @@
     <section id="achievementScreen" class="screen">
       <div class="panel center-card flow-panel achievements-panel">
         <div class="screen-ornament">&#9819; &#10022; &#9819;</div>
-        <h2 class="screen-title">Achievements</h2>
-        <p class="screen-text">Milestones that add small bonuses to future runs.</p>
+        <h2 class="screen-title">Records</h2>
+        <p class="screen-text">Achievements, statistics, and permanent bonuses earned across your save.</p>
         <div class="actions achievement-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
         <div id="achievementGrid" class="achievement-grid"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
@@ -124,17 +123,6 @@
             <div id="gauntletEnemyLeaderboard" class="gauntlet-rank-list"></div>
           </div>
         </div>
-        <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
-      </div>
-    </section>
-
-    <section id="statsScreen" class="screen">
-      <div class="panel center-card flow-panel">
-        <div class="screen-ornament">&#9670; &#9819; &#9670;</div>
-        <h2 class="screen-title">Account Stats</h2>
-        <p class="screen-text">Your permanent record across runs on this save.</p>
-        <div class="actions mobile-top-actions"><button onclick="showScreen('menuScreen')">Back</button></div>
-        <div id="accountStatsGrid" class="account-stats-grid"></div>
         <div class="actions"><button onclick="showScreen('menuScreen')">Back</button></div>
       </div>
     </section>
